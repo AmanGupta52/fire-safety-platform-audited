@@ -1,0 +1,47 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html, body {
+    @apply bg-paper text-ink;
+    font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  }
+  * { @apply border-line; }
+  ::selection { background-color: #D32B1E33; }
+  :focus-visible { outline: 2px solid #D32B1E; outline-offset: 2px; }
+}
+
+@layer components {
+  .heading {
+    font-family: 'Oswald', ui-sans-serif, system-ui, sans-serif;
+    font-weight: 600;
+    letter-spacing: 0;
+  }
+  .container-page {
+    @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
+  }
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+  }
+  /* Hazard-tape seam — used once, between the hero and the catalog, to mark the transition
+     the way striped tape marks a zone change on real equipment. Not a decorative repeat. */
+  .hazard-divider {
+    background-image: repeating-linear-gradient(
+      -45deg,
+      theme('colors.ink.DEFAULT') 0 14px,
+      theme('colors.amber.DEFAULT') 14px 28px
+    );
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
