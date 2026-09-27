@@ -1,0 +1,18 @@
+{
+  "name": "fire-safety-platform",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Fire Safety Products & Services Platform — monorepo root",
+  "scripts": {
+    "server": "npm --prefix server run dev",
+    "admin": "npm --prefix admin run dev",
+    "client": "npm --prefix client run dev",
+    "dev": "concurrently \"npm run server\" \"npm run admin\" \"npm run client\"",
+    "build": "npm --prefix server run build && npm --prefix admin run build && npm --prefix client run build",
+    "seed": "npm --prefix server run seed",
+    "lint": "npm --prefix server run lint"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

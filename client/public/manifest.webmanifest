@@ -1,0 +1,10 @@
+{
+  "name": "Fire Safety Platform",
+  "short_name": "FireSafety",
+  "description": "Fire safety products, AMC and service booking platform.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F7F5F1",
+  "theme_color": "#1B2027",
+  "icons": []
+}
