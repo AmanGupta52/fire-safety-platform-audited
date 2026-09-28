@@ -15,7 +15,7 @@ galleryRouter.post('/', requireAuth, requirePermission('gallery.create'), conten
 galleryRouter.delete('/:id', requireAuth, requirePermission('gallery.delete'), content.adminDeleteGalleryItem);
 
 export const faqRouter = Router();
-faqRouter.get('/', content.listFaqs);
+faqRouter.get('/', attachUserIfPresent, content.listFaqs);
 faqRouter.post('/', requireAuth, requirePermission('faqs.create'), content.adminCreateFaq);
 faqRouter.put('/:id', requireAuth, requirePermission('faqs.update'), content.adminUpdateFaq);
 faqRouter.delete('/:id', requireAuth, requirePermission('faqs.delete'), content.adminDeleteFaq);

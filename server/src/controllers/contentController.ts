@@ -51,7 +51,13 @@ export const adminDeleteGalleryItem = asyncHandler(async (req: Request, res: Res
 
 // ---------- FAQ ----------
 export const listFaqs = asyncHandler(async (req: Request, res: Response) => {
-  const filter: Record<string, unknown> = { isActive: true };
+  // Same pattern as listBanners: public storefront callers only ever see active FAQs. Only a
+  // logged-in staff member with permission to manage FAQs can ask for the inactive ones too —
+  // this is what the admin FAQs page needs so a deactivated FAQ doesn't just vanish with no
+  // way to find or re-activate it (previously this filter was unconditional, so unchecking
+  // "Active" on an FAQ made it disappear from the admin list forever).
+  const includeInactive = req.query.includeInactive === 'true' && Boolean(req.user?.permissions.includes('faqs.read'));
+  const filter: Record<string, unknown> = includeInactive ? {} : { isActive: true };
   if (req.query.category) filter.category = req.query.category;
   if (req.query.q) filter.question = { $regex: String(req.query.q), $options: 'i' };
   const faqs = await FAQ.find(filter).sort({ sortOrder: 1 });

@@ -105,7 +105,7 @@ function AmcDetailModal({ contract, onClose }: { contract: AMCContract; onClose:
   return (
     <Modal open onClose={onClose} title={`AMC ${contract.contractNumber}`} width="lg">
       <div className="flex flex-col gap-5">
-        <div className="grid grid-cols-2 gap-4 text-sm">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
           <div>
             <p className="text-xs font-medium text-slateink">Customer</p>
             <p className="text-ink">{typeof contract.user === 'object' ? contract.user.name : '—'}</p>
@@ -204,7 +204,7 @@ function CreateAmcModal({ onClose }: { onClose: () => void }) {
         </div>
 
         <Input label="Plan name" required placeholder="e.g. Annual Comprehensive AMC" {...register('planName')} />
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input label="Start date" type="date" required {...register('startDate')} />
           <Input label="End date" type="date" required {...register('endDate')} />
         </div>

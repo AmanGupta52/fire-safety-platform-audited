@@ -2,7 +2,9 @@ import { Router } from 'express';
 import * as customerController from '../controllers/customerController';
 import * as staffController from '../controllers/staffController';
 import { requireAuth } from '../middleware/auth';
-import { requirePermission, requireRole } from '../middleware/rbac';
+import { requirePermission, requireAnyPermission } from '../middleware/rbac';
+import { validate } from '../middleware/validate';
+import { createStaffSchema, updateStaffSchema } from '../validators/authValidators';
 
 const router = Router();
 router.use(requireAuth, requirePermission('customers.read'));
@@ -13,9 +15,54 @@ router.patch('/:id/tags', requirePermission('customers.update'), customerControl
 router.patch('/:id/toggle-active', requirePermission('customers.update'), customerController.adminToggleCustomerActive);
 
 export const staffRouter = Router();
-staffRouter.use(requireAuth, requireRole('super_admin', 'admin'));
-staffRouter.get('/', staffController.listStaff);
-staffRouter.post('/', requireRole('super_admin'), staffController.createStaff);
-staffRouter.put('/:id', requireRole('super_admin'), staffController.updateStaff);
+staffRouter.use(requireAuth);
+
+// Read permissions or role super_admin/admin
+staffRouter.get(
+  '/permissions',
+  requireAnyPermission('staff.read', 'staff.manage', 'roles.read', 'roles.manage'),
+  staffController.getAvailableRolesAndPermissions
+);
+
+staffRouter.get(
+  '/',
+  requireAnyPermission('staff.read', 'staff.manage'),
+  staffController.listStaff
+);
+
+staffRouter.get(
+  '/:id',
+  requireAnyPermission('staff.read', 'staff.manage'),
+  staffController.getStaffById
+);
+
+// Create staff (requires staff.create or staff.manage)
+staffRouter.post(
+  '/',
+  requireAnyPermission('staff.create', 'staff.manage'),
+  validate(createStaffSchema),
+  staffController.createStaff
+);
+
+// Update staff (requires staff.update or staff.manage)
+staffRouter.put(
+  '/:id',
+  requireAnyPermission('staff.update', 'staff.manage'),
+  validate(updateStaffSchema),
+  staffController.updateStaff
+);
+
+staffRouter.patch(
+  '/:id/status',
+  requireAnyPermission('staff.update', 'staff.manage'),
+  staffController.updateStaff
+);
+
+// Delete/deactivate staff (requires staff.delete or staff.manage)
+staffRouter.delete(
+  '/:id',
+  requireAnyPermission('staff.delete', 'staff.manage'),
+  staffController.deleteStaff
+);
 
 export default router;

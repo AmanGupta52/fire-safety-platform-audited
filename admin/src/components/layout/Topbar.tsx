@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Bell, ChevronDown, LogOut, User, CheckCheck } from 'lucide-react';
+import { Bell, ChevronDown, LogOut, User, CheckCheck, Menu } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../lib/apiClient';
@@ -24,7 +24,7 @@ const RELATED_ENTITY_PATH: Record<string, string> = {
   AMCContract: '/amc'
 };
 
-export function Topbar({ title }: { title?: string }) {
+export function Topbar({ title, onMenuClick }: { title?: string; onMenuClick?: () => void }) {
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const navigate = useNavigate();
@@ -55,10 +55,19 @@ export function Topbar({ title }: { title?: string }) {
   }
 
   return (
-    <header className="flex h-16 items-center justify-between border-b border-line bg-card px-6">
-      <p className="page-heading text-sm text-ink">{title}</p>
+    <header className="flex h-16 shrink-0 items-center justify-between gap-2 border-b border-line bg-card px-3 sm:px-6">
+      <div className="flex min-w-0 items-center gap-2">
+        <button
+          onClick={onMenuClick}
+          className="rounded p-2 text-slateink hover:bg-paper lg:hidden"
+          aria-label="Open navigation menu"
+        >
+          <Menu className="h-5 w-5" />
+        </button>
+        <p className="page-heading truncate text-sm text-ink">{title}</p>
+      </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-1 sm:gap-4">
         <div className="relative">
           <button
             onClick={() => { setNotifOpen((v) => !v); setMenuOpen(false); }}
@@ -72,7 +81,7 @@ export function Topbar({ title }: { title?: string }) {
           </button>
 
           {notifOpen && (
-            <div className="absolute right-0 top-full z-20 mt-1 w-80 rounded border border-line bg-white shadow-popover">
+            <div className="fixed left-3 right-3 top-16 z-20 mt-1 rounded border border-line bg-white shadow-popover sm:absolute sm:left-auto sm:right-0 sm:top-full sm:w-80">
               <div className="flex items-center justify-between border-b border-line px-3 py-2">
                 <p className="text-xs font-semibold text-ink">Notifications</p>
                 {Boolean(notifData?.unreadCount) && (
@@ -120,7 +129,7 @@ export function Topbar({ title }: { title?: string }) {
             <div className="flex h-7 w-7 items-center justify-center rounded-full bg-ink text-xs font-semibold text-white">
               {user?.name?.charAt(0).toUpperCase() || 'U'}
             </div>
-            <div className="text-left">
+            <div className="hidden text-left sm:block">
               <p className="text-xs font-medium text-ink">{user?.name}</p>
               <p className="text-[10px] capitalize text-slateink">{user?.role.replace('_', ' ')}</p>
             </div>

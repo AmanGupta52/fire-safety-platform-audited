@@ -120,15 +120,81 @@ export interface CustomerEquipment {
   status: EquipmentStatus;
 }
 
+export interface ServiceImage {
+  url: string;
+  publicId?: string;
+  alt?: string;
+}
+
+export interface Service {
+  _id: string;
+  name: string;
+  slug: string;
+  shortDescription?: string;
+  description: string;
+  startingPrice: number;
+  priceUnit: string;
+  currency: string;
+  category: string;
+  image?: ServiceImage | string;
+  gallery: (ServiceImage | string)[];
+  features: string[];
+  inclusions: string[];
+  exclusions: string[];
+  estimatedDuration?: string;
+  displayOrder: number;
+  isActive: boolean;
+  isPublished: boolean;
+  isFeatured: boolean;
+  seoTitle?: string;
+  seoDescription?: string;
+  createdAt: string;
+}
+
+export interface CompanySettings {
+  name?: string;
+  companyName?: string;
+  logo?: string;
+  favicon?: string;
+  description?: string;
+  phone?: string;
+  alternatePhone?: string;
+  whatsapp?: string;
+  whatsApp?: string;
+  email?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+  googleMapsUrl?: string;
+  businessHours?: string;
+  emergencyContact?: string;
+  gstin?: string;
+  gstNumber?: string;
+  licenseInformation?: string;
+  socialLinks?: {
+    facebook?: string;
+    twitter?: string;
+    instagram?: string;
+    linkedin?: string;
+    youtube?: string;
+  };
+  footerText?: string;
+  copyrightText?: string;
+}
+
 export type ServiceType = 'installation' | 'inspection' | 'refilling' | 'repair' | 'fire_safety_audit' | 'amc_visit';
-export type ServiceStatus = 'requested' | 'confirmed' | 'assigned' | 'technician_on_the_way' | 'in_progress' | 'completed' | 'cancelled';
+export type ServiceStatus = 'requested' | 'confirmed' | 'assigned' | 'technician_on_the_way' | 'in_progress' | 'completed' | 'cancelled' | 'rejected';
 export interface ServiceBooking {
   _id: string;
   bookingNumber: string;
+  service?: Service | string | null;
   serviceType: ServiceType;
   address: string;
+  phone?: string;
   preferredDate: string;
   preferredTime?: string;
+  problemDescription?: string;
   status: ServiceStatus;
   createdAt: string;
 }
@@ -143,6 +209,7 @@ export interface AMCContract {
   status: AMCStatus;
   amount: number;
 }
+
 
 export interface Invoice {
   _id: string;

@@ -33,6 +33,37 @@ const auditLogSchema = new Schema<IAuditLog>(
 
 export const AuditLog = model<IAuditLog>('AuditLog', auditLogSchema);
 
+export interface ICompanySettings {
+  name: string;
+  companyName: string;
+  logo?: string;
+  favicon?: string;
+  description?: string;
+  phone: string;
+  alternatePhone?: string;
+  whatsapp?: string;
+  email: string;
+  address: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+  googleMapsUrl?: string;
+  businessHours?: string;
+  emergencyContact?: string;
+  gstin?: string;
+  gstNumber?: string;
+  licenseInformation?: string;
+  socialLinks?: {
+    facebook?: string;
+    twitter?: string;
+    instagram?: string;
+    linkedin?: string;
+    youtube?: string;
+  };
+  footerText?: string;
+  copyrightText?: string;
+}
+
 export interface ISetting extends Document {
   key: string;
   value: unknown;

@@ -6,6 +6,9 @@ import {
 } from 'lucide-react';
 import { api } from '../lib/apiClient';
 import { Product, Category, BlogPost } from '../types';
+import { useServices } from '../hooks/useServices';
+import { usePublicSettings } from '../hooks/usePublicSettings';
+import { getServiceIcon, formatServicePrice } from '../utils/serviceUtils';
 import { ProductCard } from '../components/product/ProductCard';
 import { Button } from '../components/ui/Button';
 import { Card, Skeleton, ErrorState, SkeletonGroup } from '../components/ui/Primitives';
@@ -15,6 +18,8 @@ import { CategoryShowcase } from '../components/home/CategoryShowcase';
 import { CategoryCircles } from '../components/home/CategoryCircles';
 
 export default function Home() {
+  const { data: services, isLoading: servicesLoading } = useServices();
+  const { company } = usePublicSettings();
   const { data: categories, isLoading: categoriesLoading, isError: categoriesError, refetch: refetchCategories } = useQuery({
     queryKey: ['home-categories'],
     queryFn: async () => (await api.get('/categories')).data.data as Category[]
@@ -101,12 +106,34 @@ export default function Home() {
               against your equipment record.
             </p>
           </Reveal>
-          <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <Reveal delay={0}><ServiceCard icon={Wrench} title="Installation" description="Professional fitting for extinguishers, hydrants and alarm systems." to="/services/installation" price="₹299/unit" /></Reveal>
-            <Reveal delay={0.06}><ServiceCard icon={RefreshCw} title="Refilling" description="Scheduled refills with reminders before your extinguisher runs out." to="/services/refilling" price="₹349/unit" /></Reveal>
-            <Reveal delay={0.12}><ServiceCard icon={ClipboardCheck} title="Inspection" description="Routine inspections logged against every registered asset." to="/services/inspection" price="₹249/visit" /></Reveal>
-            <Reveal delay={0.18}><ServiceCard icon={ClipboardList} title="Fire safety audit" description="A full-site audit covering equipment, exits, signage and compliance gaps." to="/services/fire-safety-audit" price="₹4,999" /></Reveal>
-          </div>
+          {servicesLoading ? (
+            <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="h-48 rounded-card border border-line bg-slate-50 p-6 animate-pulse" />
+              ))}
+            </div>
+          ) : services && services.length > 0 ? (
+            <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {services.slice(0, 4).map((srv, idx) => {
+                const Icon = getServiceIcon(srv.slug, srv.category);
+                return (
+                  <Reveal key={srv._id} delay={Math.min(idx * 0.06, 0.3)}>
+                    <ServiceCard
+                      icon={Icon}
+                      title={srv.name}
+                      description={srv.shortDescription || srv.description}
+                      to={`/services/${srv.slug}`}
+                      price={srv.startingPrice ? formatServicePrice(srv.startingPrice, srv.priceUnit) : 'Contact'}
+                    />
+                  </Reveal>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="mt-10 text-center text-sm text-slateink">
+              No services currently available.
+            </div>
+          )}
         </div>
       </section>
 
@@ -226,9 +253,9 @@ export default function Home() {
               priced quotation within one business day.
             </p>
             <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-ink">
-              <span className="flex items-center gap-1.5"><Phone className="h-4 w-4 text-safety" /> +91-00000-00000</span>
-              <span className="flex items-center gap-1.5"><Mail className="h-4 w-4 text-safety" /> support@firesafety.example</span>
-              <span className="flex items-center gap-1.5"><MapPin className="h-4 w-4 text-safety" /> Pan-India service</span>
+              <span className="flex items-center gap-1.5"><Phone className="h-4 w-4 text-safety" /> {company.phone}</span>
+              <span className="flex items-center gap-1.5"><Mail className="h-4 w-4 text-safety" /> {company.email}</span>
+              <span className="flex items-center gap-1.5"><MapPin className="h-4 w-4 text-safety" /> {company.address || 'Pan-India service'}</span>
             </div>
             <div className="flex flex-wrap justify-center gap-3">
               <Link to="/request-quote"><Button size="lg">Request a quote</Button></Link>

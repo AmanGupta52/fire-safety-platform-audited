@@ -124,7 +124,7 @@ export default function CheckoutPage() {
             </div>
 
             {selectedAddressId === 'new' && (
-              <div className="mt-4 grid grid-cols-2 gap-3 border-t border-line pt-4">
+              <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 border-t border-line pt-4">
                 <Input label="Full name" required error={errors.contactName?.message} {...register('contactName', { required: 'Required' })} />
                 <Input label="Phone" required error={errors.phone?.message} {...register('phone', { required: 'Required' })} />
                 <Input label="Address line 1" required className="col-span-2" error={errors.line1?.message} {...register('line1', { required: 'Required' })} />
@@ -138,7 +138,7 @@ export default function CheckoutPage() {
 
           <Card className="p-5">
             <p className="heading text-sm text-ink">Business details (optional)</p>
-            <div className="mt-4 grid grid-cols-2 gap-3">
+            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Input label="Company name" value={companyName} onChange={(e) => setCompanyName(e.target.value)} />
               <Input label="GSTIN" value={gstNumber} onChange={(e) => setGstNumber(e.target.value)} />
             </div>

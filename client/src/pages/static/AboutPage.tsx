@@ -1,12 +1,14 @@
 import { ShieldCheck, Users, Award, Clock } from 'lucide-react';
 import { Card } from '../../components/ui/Primitives';
+import { usePublicSettings } from '../../hooks/usePublicSettings';
 
 export default function AboutPage() {
+  const { company } = usePublicSettings();
   return (
     <div>
       <section className="bg-ink py-16 text-white">
         <div className="container-page max-w-2xl">
-          <h1 className="heading text-3xl">About Fire Safety Platform</h1>
+          <h1 className="heading text-3xl">About {company.companyName}</h1>
           <p className="mt-3 text-sm leading-relaxed text-white/70">
             We supply, install and maintain fire safety equipment for homes, offices, factories and public
             buildings across India — combining a straightforward online store with a service team that

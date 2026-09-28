@@ -1,13 +1,15 @@
 import { useForm } from 'react-hook-form';
-import { Phone, Mail, MapPin } from 'lucide-react';
+import { Phone, Mail, MapPin, Clock } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Card } from '../../components/ui/Primitives';
 import { Input, Textarea } from '../../components/ui/FormControls';
 import { Button } from '../../components/ui/Button';
+import { usePublicSettings } from '../../hooks/usePublicSettings';
 
 interface FormValues { name: string; email: string; phone?: string; message: string }
 
 export default function ContactPage() {
+  const { company } = usePublicSettings();
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<FormValues>();
 
   async function onSubmit() {
@@ -26,7 +28,7 @@ export default function ContactPage() {
       <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-[1fr_360px]">
         <Card className="p-6">
           <form className="flex flex-col gap-4" onSubmit={handleSubmit(onSubmit)}>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Input label="Name" required error={errors.name?.message} {...register('name', { required: 'Required' })} />
               <Input label="Email" type="email" required error={errors.email?.message} {...register('email', { required: 'Required' })} />
             </div>
@@ -37,9 +39,12 @@ export default function ContactPage() {
         </Card>
 
         <div className="flex flex-col gap-4">
-          <ContactRow icon={Phone} label="Phone" value="+91-00000-00000" />
-          <ContactRow icon={Mail} label="Email" value="info@firesafety.example" />
-          <ContactRow icon={MapPin} label="Address" value="Mumbai, Maharashtra, India" />
+          <ContactRow icon={Phone} label="Phone" value={company.phone || '+91-00000-00000'} />
+          <ContactRow icon={Mail} label="Email" value={company.email || 'info@firesafety.example'} />
+          <ContactRow icon={MapPin} label="Address" value={company.address || 'Pan-India service'} />
+          {company.businessHours && (
+            <ContactRow icon={Clock} label="Business Hours" value={company.businessHours} />
+          )}
         </div>
       </div>
     </div>

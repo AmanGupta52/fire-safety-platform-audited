@@ -32,7 +32,7 @@ export default function Profile() {
           <Input label="Email" value={user?.email} disabled hint="Contact support to change your email" />
           <Input label="Phone" {...register('phone')} />
           {user?.customerType !== 'b2c' && (
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Input label="Company name" {...register('companyName')} />
               <Input label="GSTIN" {...register('gstNumber')} />
             </div>

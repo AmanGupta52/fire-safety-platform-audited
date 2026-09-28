@@ -144,7 +144,7 @@ function QuoteDetailModal({ quote, onClose }: { quote: Quote; onClose: () => voi
   return (
     <Modal open onClose={onClose} title={`Quote ${quote.quoteNumber}`} width="lg">
       <div className="flex flex-col gap-5">
-        <div className="grid grid-cols-2 gap-4 text-sm">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
           <div>
             <p className="text-xs font-medium text-slateink">Customer</p>
             <p className="text-ink">{quote.customerName}</p>

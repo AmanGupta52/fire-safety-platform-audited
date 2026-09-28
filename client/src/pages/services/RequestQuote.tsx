@@ -52,15 +52,15 @@ export default function RequestQuote() {
 
       <Card className="mt-6 p-6">
         <form className="flex flex-col gap-4" onSubmit={handleSubmit((v) => mutation.mutate({ ...v, items: v.items.filter((i) => i.productId) }))}>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input label="Your name" required error={errors.customerName?.message} {...register('customerName', { required: 'Required' })} />
             <Input label="Company name" {...register('companyName')} />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input label="Phone" required error={errors.phone?.message} {...register('phone', { required: 'Required' })} />
             <Input label="Email" type="email" required error={errors.email?.message} {...register('email', { required: 'Required' })} />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input label="GSTIN" {...register('gstNumber')} />
             <Input label="Preferred date" type="date" {...register('preferredDate')} />
           </div>

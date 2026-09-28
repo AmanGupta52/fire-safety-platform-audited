@@ -57,12 +57,12 @@ export default function Register() {
 
         <form className="mt-5 flex flex-col gap-4" onSubmit={handleSubmit((v) => mutation.mutate(v))}>
           <Input label="Full name" required error={errors.name?.message} {...register('name')} />
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input label="Email" type="email" required error={errors.email?.message} {...register('email')} />
             <Input label="Phone" required error={errors.phone?.message} {...register('phone')} />
           </div>
           {customerType === 'b2b' && (
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Input label="Company name" {...register('companyName')} />
               <Input label="GSTIN" {...register('gstNumber')} />
             </div>

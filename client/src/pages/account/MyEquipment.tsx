@@ -99,16 +99,16 @@ export default function MyEquipment() {
 
       <Modal open={showForm} onClose={() => setShowForm(false)} title="Register equipment" width="lg">
         <form className="flex flex-col gap-4" onSubmit={handleSubmit((v) => mutation.mutate(v))}>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input label="Product name" required placeholder="e.g. ABC Dry Powder Extinguisher 4kg" {...register('productNameSnapshot', { required: true })} />
             <Input label="Serial number" required {...register('serialNumber', { required: true })} />
           </div>
           <Input label="Installation location" placeholder="e.g. 2nd floor kitchen" {...register('installationLocation')} />
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input label="Purchase date" type="date" {...register('purchaseDate')} />
             <Input label="Installation date" type="date" {...register('installationDate')} />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input label="Next inspection date" type="date" {...register('nextInspectionDate')} />
             <Input label="Next refill date" type="date" {...register('nextRefillDate')} />
           </div>

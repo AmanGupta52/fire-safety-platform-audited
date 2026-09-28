@@ -10,6 +10,7 @@ import OrdersList from './pages/orders/OrdersList';
 import InvoicesList from './pages/invoices/InvoicesList';
 import QuotesList from './pages/quotes/QuotesList';
 import ServicesList from './pages/services/ServicesList';
+import BookingsList from './pages/bookings/BookingsList';
 import TechniciansList from './pages/technicians/TechniciansList';
 import EquipmentList from './pages/equipment/EquipmentList';
 import MyJobs from './pages/my-jobs/MyJobs';
@@ -44,6 +45,7 @@ export default function App() {
           <Route path="/coupons" element={<ProtectedRoute permission="coupons.read"><CouponsList /></ProtectedRoute>} />
 
           <Route path="/services" element={<ProtectedRoute permission="services.read"><ServicesList /></ProtectedRoute>} />
+          <Route path="/bookings" element={<ProtectedRoute permission="services.read"><BookingsList /></ProtectedRoute>} />
           <Route path="/amc" element={<ProtectedRoute permission="amc.read"><AmcList /></ProtectedRoute>} />
           <Route path="/technicians" element={<ProtectedRoute permission="technicians.read"><TechniciansList /></ProtectedRoute>} />
           <Route path="/equipment" element={<ProtectedRoute permission="equipment.read"><EquipmentList /></ProtectedRoute>} />
@@ -58,7 +60,7 @@ export default function App() {
           <Route path="/faqs" element={<ProtectedRoute permission="faqs.read"><FaqList /></ProtectedRoute>} />
 
           <Route path="/reports" element={<ProtectedRoute permission="reports.read"><ReportsPage /></ProtectedRoute>} />
-          <Route path="/staff" element={<ProtectedRoute roles={['super_admin', 'admin']}><StaffList /></ProtectedRoute>} />
+          <Route path="/staff" element={<ProtectedRoute permission="staff.read"><StaffList /></ProtectedRoute>} />
           <Route path="/audit-logs" element={<ProtectedRoute permission="audit.read"><AuditLogPage /></ProtectedRoute>} />
           <Route path="/settings" element={<ProtectedRoute permission="settings.manage"><SettingsPage /></ProtectedRoute>} />
         </Route>

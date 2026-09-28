@@ -12,10 +12,10 @@ import { Modal } from '../../components/ui/Modal';
 import { Button } from '../../components/ui/Button';
 import { MultiImageUploader } from '../../components/ui/ImageUploader';
 
-const STATUS_OPTIONS: ServiceStatus[] = ['confirmed', 'assigned', 'technician_on_the_way', 'in_progress', 'completed', 'cancelled'];
+const STATUS_OPTIONS: ServiceStatus[] = ['confirmed', 'assigned', 'technician_on_the_way', 'in_progress', 'completed', 'cancelled', 'rejected'];
 const statusTone: Record<ServiceStatus, 'neutral' | 'success' | 'warning' | 'danger' | 'info'> = {
   requested: 'warning', confirmed: 'info', assigned: 'info', technician_on_the_way: 'warning',
-  in_progress: 'warning', completed: 'success', cancelled: 'danger'
+  in_progress: 'warning', completed: 'success', cancelled: 'danger', rejected: 'danger'
 };
 
 // This is the page linked-in technicians (see the "linked staff login" field on the
@@ -140,7 +140,7 @@ function JobDetailModal({ booking, onClose }: { booking: ServiceBooking; onClose
           )}
           <div className="flex flex-col gap-3">
             <Input label="Report link (optional)" placeholder="https://..." value={reportUrl} onChange={(e) => setReportUrl(e.target.value)} />
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <p className="mb-1 text-xs font-medium text-slateink">Before photos</p>
                 <MultiImageUploader value={beforePhotos} onChange={setBeforePhotos} folder="service-reports" />

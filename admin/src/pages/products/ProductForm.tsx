@@ -68,12 +68,12 @@ export default function ProductForm({
   return (
     <Modal open onClose={onClose} title={isEdit ? 'Edit product' : 'Add product'} width="lg">
       <form className="flex flex-col gap-4" onSubmit={handleSubmit((v) => mutation.mutate(v))}>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input label="Product name" required error={errors.name?.message} {...register('name')} />
           <Input label="SKU" required error={errors.sku?.message} {...register('sku')} />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Select
             label="Category" required placeholder="Select a category" error={errors.category?.message}
             options={categories.map((c) => ({ label: c.name, value: c._id }))}
@@ -91,14 +91,14 @@ export default function ProductForm({
 
         <Input label="Datasheet URL (PDF)" placeholder="https://..." value={datasheetUrl} onChange={(e) => setDatasheetUrl(e.target.value)} />
 
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 sm:grid-cols-4 gap-4">
           <Input label="Price (₹)" type="number" step="0.01" required error={errors.price?.message} {...register('price')} />
           <Input label="Discount price (₹)" type="number" step="0.01" {...register('discountPrice')} />
           <Input label="GST %" type="number" required error={errors.gstPercentage?.message} {...register('gstPercentage')} />
           <Input label="Stock" type="number" required error={errors.stock?.message} {...register('stock')} />
         </div>
 
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <Input label="Min order qty" type="number" required error={errors.minimumOrderQuantity?.message} {...register('minimumOrderQuantity')} />
           <Input label="Unit" required error={errors.unit?.message} {...register('unit')} />
           <Input label="Capacity" placeholder="e.g. 4kg" {...register('capacity')} />

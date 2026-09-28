@@ -2,7 +2,7 @@ import { NavLink } from 'react-router-dom';
 import clsx from 'clsx';
 import {
   LayoutDashboard, Package, Layers, ShoppingCart, FileText, Wrench, ShieldCheck,
-  Users, Newspaper, Image, ImagePlus, HelpCircle, Ticket, Star, UserCog, HardHat, Receipt, Settings, History, FlameKindling
+  Users, Newspaper, Image, ImagePlus, HelpCircle, Ticket, Star, UserCog, HardHat, Receipt, Settings, History, FlameKindling, CalendarCheck
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { Permission, Role } from '../../types';
@@ -42,7 +42,8 @@ const groups: NavGroup[] = [
     label: 'Services',
     items: [
       { to: '/my-jobs', label: 'My jobs', icon: Wrench, roles: ['technician'] },
-      { to: '/services', label: 'Bookings', icon: Wrench, permission: 'services.read' },
+      { to: '/services', label: 'Services', icon: Layers, permission: 'services.read' },
+      { to: '/bookings', label: 'Bookings', icon: CalendarCheck, permission: 'services.read' },
       { to: '/amc', label: 'AMC Contracts', icon: ShieldCheck, permission: 'amc.read' },
       { to: '/technicians', label: 'Technicians', icon: UserCog, permission: 'technicians.read' },
       { to: '/equipment', label: 'Equipment', icon: HardHat, permission: 'equipment.read' }
@@ -68,19 +69,28 @@ const groups: NavGroup[] = [
     label: 'Administration',
     items: [
       { to: '/reports', label: 'Reports', icon: LayoutDashboard, permission: 'reports.read' },
-      { to: '/staff', label: 'Staff & Roles', icon: UserCog, roles: ['super_admin', 'admin'] },
+      { to: '/staff', label: 'Staff & Roles', icon: UserCog, permission: 'staff.read' },
       { to: '/audit-logs', label: 'Audit Log', icon: History, permission: 'audit.read' },
       { to: '/settings', label: 'Settings', icon: Settings, permission: 'settings.manage' }
     ]
   }
 ];
 
-export function Sidebar() {
+export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
   const hasPermission = useAuthStore((s) => s.hasPermission);
   const role = useAuthStore((s) => s.user?.role);
 
   return (
-    <aside className="flex h-screen w-60 flex-col bg-ink text-white/90">
+    <>
+      {/* Backdrop — only exists while the mobile drawer is open */}
+      {open && <div className="fixed inset-0 z-30 bg-black/50 lg:hidden" onClick={onClose} aria-hidden="true" />}
+    <aside
+      className={clsx(
+        'fixed inset-y-0 left-0 z-40 flex h-dvh w-60 flex-col bg-ink text-white/90 transition-transform duration-200',
+        'lg:static lg:z-auto lg:translate-x-0',
+        open ? 'translate-x-0' : '-translate-x-full'
+      )}
+    >
       <div className="flex items-center gap-2 px-5 py-5">
         <div className="flex h-8 w-8 items-center justify-center rounded bg-brand">
           <FlameKindling className="h-4 w-4 text-white" />
@@ -106,6 +116,7 @@ export function Sidebar() {
                     key={item.to}
                     to={item.to}
                     end={item.to === '/'}
+                    onClick={onClose}
                     className={({ isActive }) =>
                       clsx(
                         'flex items-center gap-2.5 rounded px-2.5 py-2 text-[13px] font-medium transition-colors',
@@ -123,5 +134,6 @@ export function Sidebar() {
         })}
       </nav>
     </aside>
+    </>
   );
 }

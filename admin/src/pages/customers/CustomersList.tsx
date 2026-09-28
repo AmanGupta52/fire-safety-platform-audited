@@ -86,7 +86,7 @@ function CustomerDetailModal({ customerId, onClose }: { customerId: string; onCl
   return (
     <Modal open onClose={onClose} title={user.name} width="lg">
       <div className="flex flex-col gap-5">
-        <div className="grid grid-cols-3 gap-4 text-sm">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
           <div><p className="text-xs font-medium text-slateink">Contact</p><p className="text-ink">{user.email}</p><p className="text-ink">{user.phone}</p></div>
           <div><p className="text-xs font-medium text-slateink">Type</p><p className="text-ink">{user.customerType.toUpperCase()} {user.companyName && `· ${user.companyName}`}</p></div>
           <div><p className="text-xs font-medium text-slateink">Lifetime revenue</p><p className="stat-number text-ink">₹{revenue.toLocaleString('en-IN')}</p></div>
@@ -115,7 +115,7 @@ function CustomerDetailModal({ customerId, onClose }: { customerId: string; onCl
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-4 text-sm">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
           <SummaryBlock title="Orders" count={orders.length} />
           <SummaryBlock title="Quotes" count={quotes.length} />
           <SummaryBlock title="Service bookings" count={services.length} />

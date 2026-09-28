@@ -99,7 +99,7 @@ function BlogForm({ post, onClose }: { post: BlogPost | null; onClose: () => voi
         </div>
         <Textarea label="Excerpt" {...register('excerpt')} />
         <Textarea label="Content" required className="min-h-[200px]" {...register('content')} />
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input label="Category" placeholder="e.g. Fire Safety Tips" {...register('category')} />
           <Input label="Tags" hint="Comma-separated" {...register('tags')} />
         </div>

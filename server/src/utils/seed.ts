@@ -6,8 +6,10 @@ import { Category } from '../models/Category';
 import { Product } from '../models/Product';
 import { FAQ } from '../models/Content';
 import { Setting } from '../models/AuditLog';
+import { seedServicesIfEmpty, backfillServiceBookings } from './serviceSeed';
 
 async function seed() {
+
   await connectDB();
   console.log('[seed] Connected. Seeding demo data (clearly marked, not real certifications/claims)...');
 
@@ -116,20 +118,30 @@ async function seed() {
     await Setting.create({
       key: 'company',
       value: {
-        name: 'Your Fire Safety Company Pvt. Ltd. (DEMO — update in Admin > Settings)',
+        name: 'Shubam Fire Protection',
+        companyName: 'Shubam Fire Protection',
         address: 'Demo Address, Mumbai, Maharashtra, India',
         phone: '+91-00000-00000',
         email: 'info@firesafety.example',
+        whatsapp: '+91-00000-00000',
         gstin: undefined,
-        state: 'Maharashtra'
+        gstNumber: undefined,
+        state: 'Maharashtra',
+        businessHours: 'Mon - Sat: 9:00 AM - 6:00 PM'
       }
     });
-    console.log('[seed] Default company settings created (marked as demo — update before going live).');
+    console.log('[seed] Default company settings created (Shubam Fire Protection).');
   }
+
+  // ---------- Services Catalog ----------
+  console.log('[seed] Seeding services catalog...');
+  await seedServicesIfEmpty();
+  await backfillServiceBookings();
 
   console.log('[seed] Done.');
   await mongoose.disconnect();
 }
+
 
 seed().catch((err) => {
   console.error('[seed] Failed:', err);

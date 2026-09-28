@@ -20,7 +20,7 @@ export default function FaqList() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['faqs-admin'],
-    queryFn: async () => (await api.get('/faqs')).data.data as FAQ[]
+    queryFn: async () => (await api.get('/faqs', { params: { includeInactive: 'true' } })).data.data as FAQ[]
   });
 
   const deleteMutation = useMutation({
@@ -73,7 +73,7 @@ function FaqForm({ faq, onClose }: { faq: FAQ | null; onClose: () => void }) {
       <form className="flex flex-col gap-4" onSubmit={handleSubmit((v) => mutation.mutate(v))}>
         <Input label="Question" required {...register('question')} />
         <Textarea label="Answer" required {...register('answer')} />
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input label="Category" {...register('category')} />
           <Input label="Sort order" type="number" {...register('sortOrder')} />
         </div>

@@ -3,12 +3,13 @@ import { Schema, model, Document, Types } from 'mongoose';
 export type ServiceType = 'installation' | 'inspection' | 'refilling' | 'repair' | 'fire_safety_audit' | 'amc_visit';
 export type ServiceStatus =
   | 'requested' | 'confirmed' | 'assigned' | 'technician_on_the_way'
-  | 'in_progress' | 'completed' | 'cancelled';
+  | 'in_progress' | 'completed' | 'cancelled' | 'rejected';
 
 export interface IServiceBooking extends Document {
   _id: Types.ObjectId;
   bookingNumber: string;
   user: Types.ObjectId;
+  service?: Types.ObjectId | null;
   serviceType: ServiceType;
   phone: string;
   address: string;
@@ -31,6 +32,7 @@ const serviceBookingSchema = new Schema<IServiceBooking>(
   {
     bookingNumber: { type: String, required: true, unique: true, index: true },
     user: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+    service: { type: Schema.Types.ObjectId, ref: 'Service', default: null, index: true },
     serviceType: {
       type: String,
       enum: ['installation', 'inspection', 'refilling', 'repair', 'fire_safety_audit', 'amc_visit'],
@@ -46,7 +48,7 @@ const serviceBookingSchema = new Schema<IServiceBooking>(
     assignedTechnician: { type: Schema.Types.ObjectId, ref: 'Technician', default: null },
     status: {
       type: String,
-      enum: ['requested', 'confirmed', 'assigned', 'technician_on_the_way', 'in_progress', 'completed', 'cancelled'],
+      enum: ['requested', 'confirmed', 'assigned', 'technician_on_the_way', 'in_progress', 'completed', 'cancelled', 'rejected'],
       default: 'requested',
       index: true
     },
@@ -58,4 +60,7 @@ const serviceBookingSchema = new Schema<IServiceBooking>(
   { timestamps: true }
 );
 
+serviceBookingSchema.index({ service: 1, user: 1, status: 1, preferredDate: 1 });
+
 export const ServiceBooking = model<IServiceBooking>('ServiceBooking', serviceBookingSchema);
+

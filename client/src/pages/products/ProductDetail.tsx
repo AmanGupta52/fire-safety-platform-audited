@@ -229,13 +229,13 @@ export default function ProductDetail() {
 
       {/* Tabs */}
       <div className="mt-14">
-        <div className="flex gap-6 border-b border-line">
+        <div className="flex gap-5 overflow-x-auto whitespace-nowrap border-b border-line sm:gap-6">
           {tabs.map((tab) => (
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
               className={clsx(
-                'border-b-2 pb-3 text-sm font-medium transition-colors',
+                'shrink-0 border-b-2 pb-3 text-sm font-medium transition-colors',
                 activeTab === tab.key ? 'border-safety text-ink' : 'border-transparent text-slateink hover:text-ink'
               )}
             >

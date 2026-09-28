@@ -1,223 +1,357 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Wrench, FileUp, Paperclip } from 'lucide-react';
+import { Wrench, Plus, Search, Pencil, Trash2, RotateCcw, ArrowUp, ArrowDown, Star } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { format } from 'date-fns';
+import clsx from 'clsx';
 import { api, apiErrorMessage } from '../../lib/apiClient';
-import { ServiceBooking, ServiceStatus, Technician } from '../../types';
+import { Service, ServiceImage } from '../../types';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { Card, Badge } from '../../components/ui/Primitives';
 import { DataTable, Column } from '../../components/ui/DataTable';
 import { Select, Input } from '../../components/ui/FormControls';
-import { Modal } from '../../components/ui/Modal';
 import { Button } from '../../components/ui/Button';
-import { MultiImageUploader } from '../../components/ui/ImageUploader';
+import { useAuthStore } from '../../store/authStore';
+import ServiceFormModal from './ServiceFormModal';
 
-const STATUS_OPTIONS: ServiceStatus[] = ['requested', 'confirmed', 'assigned', 'technician_on_the_way', 'in_progress', 'completed', 'cancelled'];
-const statusTone: Record<ServiceStatus, 'neutral' | 'success' | 'warning' | 'danger' | 'info'> = {
-  requested: 'warning', confirmed: 'info', assigned: 'info', technician_on_the_way: 'info',
-  in_progress: 'info', completed: 'success', cancelled: 'danger'
-};
-const serviceTypeLabel: Record<string, string> = {
-  installation: 'Installation', inspection: 'Inspection', refilling: 'Refilling',
-  repair: 'Repair', fire_safety_audit: 'Fire Safety Audit', amc_visit: 'AMC Visit'
-};
+const CATEGORY_OPTIONS = [
+  { label: 'All Categories', value: '' },
+  { label: 'Installation', value: 'installation' },
+  { label: 'Refilling', value: 'refilling' },
+  { label: 'Inspection', value: 'inspection' },
+  { label: 'Fire Safety Audit', value: 'audit' },
+  { label: 'AMC Plans', value: 'amc' },
+  { label: 'Repair', value: 'repair' },
+  { label: 'Other', value: 'other' }
+];
 
+// Service catalog only (what customers can book). Customer bookings are managed on the
+// separate Bookings page, and product purchases on Orders.
 export default function ServicesList() {
-  const [status, setStatus] = useState('');
-  const [selected, setSelected] = useState<ServiceBooking | null>(null);
+  const user = useAuthStore((s) => s.user);
+  const hasPermission = useAuthStore((s) => s.hasPermission);
+  const canManage = user?.role === 'super_admin' || hasPermission('services.manage');
+  const queryClient = useQueryClient();
+  const [search, setSearch] = useState('');
+  const [category, setCategory] = useState('');
+  const [includeDeleted, setIncludeDeleted] = useState(false);
+  const [editingService, setEditingService] = useState<Service | 'new' | null>(null);
 
   const { data, isLoading } = useQuery({
-    queryKey: ['services', status],
-    queryFn: async () => (await api.get('/services', { params: { status: status || undefined, limit: 50 } })).data.data as ServiceBooking[]
+    queryKey: ['admin-services', search, category, includeDeleted],
+    queryFn: async () => {
+      const res = await api.get('/services/admin/catalog', {
+        params: {
+          search: search || undefined,
+          category: category || undefined,
+          includeDeleted: includeDeleted ? 'true' : 'false',
+          limit: 100
+        }
+      });
+      return res.data.data as Service[];
+    }
   });
 
-  const columns: Column<ServiceBooking>[] = [
-    { header: 'Booking #', render: (b) => <span className="font-medium text-ink">{b.bookingNumber}</span> },
-    { header: 'Customer', render: (b) => typeof b.user === 'object' ? b.user.name : '—' },
-    { header: 'Type', render: (b) => serviceTypeLabel[b.serviceType] },
-    { header: 'Preferred date', render: (b) => format(new Date(b.preferredDate), 'd MMM yyyy') },
-    { header: 'Technician', render: (b) => (b.assignedTechnician && typeof b.assignedTechnician === 'object' ? b.assignedTechnician.name : 'Unassigned') },
-    { header: 'Status', render: (b) => <Badge tone={statusTone[b.status]}>{b.status.replace(/_/g, ' ')}</Badge> }
-  ];
-
-  return (
-    <div>
-      <PageHeader title="Service bookings" description="Installation, inspection, refilling, repair and audit requests." />
-
-      <Card>
-        <div className="flex items-center gap-2 border-b border-line p-4">
-          <Select className="w-56" placeholder="All statuses" value={status} onChange={(e) => setStatus(e.target.value)}
-            options={STATUS_OPTIONS.map((s) => ({ label: s.replace(/_/g, ' '), value: s }))} />
-        </div>
-        <DataTable columns={columns} rows={data || []} rowKey={(b) => b._id} isLoading={isLoading}
-          emptyIcon={Wrench} emptyTitle="No service bookings yet" onRowClick={setSelected} />
-      </Card>
-
-      {selected && <BookingDetailModal booking={selected} onClose={() => setSelected(null)} />}
-    </div>
-  );
-}
-
-function BookingDetailModal({ booking, onClose }: { booking: ServiceBooking; onClose: () => void }) {
-  const queryClient = useQueryClient();
-  const [status, setStatus] = useState<ServiceStatus>(booking.status);
-  const [technicianId, setTechnicianId] = useState(
-    booking.assignedTechnician && typeof booking.assignedTechnician === 'object' ? booking.assignedTechnician._id : ''
-  );
-
-  const { data: technicians } = useQuery({
-    queryKey: ['technicians-active'],
-    queryFn: async () => (await api.get('/technicians', { params: { status: 'active' } })).data.data as Technician[]
-  });
-
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: ['services'] });
-
-  const assignMutation = useMutation({
-    mutationFn: async () => api.patch(`/services/${booking._id}/assign`, { technicianId }),
-    onSuccess: () => { toast.success('Technician assigned'); invalidate(); },
-    onError: (err) => toast.error(apiErrorMessage(err))
-  });
-
-  const statusMutation = useMutation({
-    mutationFn: async () => api.patch(`/services/${booking._id}/status`, { status }),
-    onSuccess: () => { toast.success('Status updated'); invalidate(); onClose(); },
-    onError: (err) => toast.error(apiErrorMessage(err))
-  });
-
-  const customer = typeof booking.user === 'object' ? booking.user : null;
-
-  return (
-    <Modal open onClose={onClose} title={`Booking ${booking.bookingNumber}`} width="lg">
-      <div className="flex flex-col gap-5">
-        <div className="grid grid-cols-2 gap-4 text-sm">
-          <div>
-            <p className="text-xs font-medium text-slateink">Customer</p>
-            <p className="text-ink">{customer?.name}</p>
-            <p className="text-xs text-slateink">{customer?.phone}</p>
-          </div>
-          <div>
-            <p className="text-xs font-medium text-slateink">Service type</p>
-            <p className="text-ink">{serviceTypeLabel[booking.serviceType]}</p>
-          </div>
-          <div>
-            <p className="text-xs font-medium text-slateink">Address</p>
-            <p className="text-ink">{booking.address}</p>
-          </div>
-          <div>
-            <p className="text-xs font-medium text-slateink">Preferred date</p>
-            <p className="text-ink">{format(new Date(booking.preferredDate), 'd MMM yyyy')} {booking.preferredTime}</p>
-          </div>
-        </div>
-
-        {booking.problemDescription && (
-          <div>
-            <p className="text-xs font-medium text-slateink">Problem description</p>
-            <p className="text-sm text-ink">{booking.problemDescription}</p>
-          </div>
-        )}
-
-        <div className="flex items-end gap-3 border-t border-line pt-4">
-          <Select
-            label="Assign technician" className="flex-1" value={technicianId} placeholder="Select technician"
-            onChange={(e) => setTechnicianId(e.target.value)}
-            options={(technicians || []).map((t) => ({ label: t.name, value: t._id }))}
-          />
-          <Button variant="secondary" onClick={() => assignMutation.mutate()} loading={assignMutation.isPending} disabled={!technicianId}>
-            Assign
-          </Button>
-        </div>
-
-        <div className="flex items-end gap-3">
-          <Select
-            label="Update status" className="flex-1" value={status}
-            onChange={(e) => setStatus(e.target.value as ServiceStatus)}
-            options={STATUS_OPTIONS.map((s) => ({ label: s.replace(/_/g, ' '), value: s }))}
-          />
-          <Button onClick={() => statusMutation.mutate()} loading={statusMutation.isPending} disabled={status === booking.status}>
-            Update
-          </Button>
-        </div>
-
-        <ServiceReportSection booking={booking} onSaved={invalidate} />
-      </div>
-    </Modal>
-  );
-}
-
-function ServiceReportSection({ booking, onSaved }: { booking: ServiceBooking; onSaved: () => void }) {
-  const [reportUrl, setReportUrl] = useState('');
-  const [newBeforePhotos, setNewBeforePhotos] = useState<{ url: string; publicId?: string }[]>([]);
-  const [newAfterPhotos, setNewAfterPhotos] = useState<{ url: string; publicId?: string }[]>([]);
-
-  const mutation = useMutation({
-    mutationFn: async () =>
-      api.post(`/services/${booking._id}/report`, {
-        serviceReportUrl: reportUrl || undefined,
-        beforePhotos: newBeforePhotos.map((p) => p.url),
-        afterPhotos: newAfterPhotos.map((p) => p.url)
-      }),
+  const activateMutation = useMutation({
+    mutationFn: async ({ id, isActive }: { id: string; isActive: boolean }) =>
+      api.patch(`/services/catalog/${id}/status`, { isActive }),
     onSuccess: () => {
-      toast.success('Report saved');
-      onSaved();
-      setReportUrl('');
-      setNewBeforePhotos([]);
-      setNewAfterPhotos([]);
+      toast.success('Service status updated');
+      queryClient.invalidateQueries({ queryKey: ['admin-services'] });
     },
     onError: (err) => toast.error(apiErrorMessage(err))
   });
 
-  const hasExistingAttachments = booking.serviceReportUrl || booking.beforePhotos.length > 0 || booking.afterPhotos.length > 0;
+  const publishMutation = useMutation({
+    mutationFn: async ({ id, isPublished }: { id: string; isPublished: boolean }) =>
+      api.patch(`/services/catalog/${id}/status`, { isPublished }),
+    onSuccess: () => {
+      toast.success('Publish status updated');
+      queryClient.invalidateQueries({ queryKey: ['admin-services'] });
+    },
+    onError: (err) => toast.error(apiErrorMessage(err))
+  });
+
+  const featureMutation = useMutation({
+    mutationFn: async ({ id, isFeatured }: { id: string; isFeatured: boolean }) =>
+      api.patch(`/services/catalog/${id}/status`, { isFeatured }),
+    onSuccess: () => {
+      toast.success('Featured status updated');
+      queryClient.invalidateQueries({ queryKey: ['admin-services'] });
+    },
+    onError: (err) => toast.error(apiErrorMessage(err))
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => api.delete(`/services/catalog/${id}`),
+    onSuccess: () => {
+      toast.success('Service soft-deleted');
+      queryClient.invalidateQueries({ queryKey: ['admin-services'] });
+    },
+    onError: (err) => toast.error(apiErrorMessage(err))
+  });
+
+  const restoreMutation = useMutation({
+    mutationFn: async (id: string) => api.post(`/services/catalog/${id}/restore`),
+    onSuccess: () => {
+      toast.success('Service restored');
+      queryClient.invalidateQueries({ queryKey: ['admin-services'] });
+    },
+    onError: (err) => toast.error(apiErrorMessage(err))
+  });
+
+  const reorderMutation = useMutation({
+    mutationFn: async (orders: { id: string; displayOrder: number }[]) =>
+      api.put('/services/catalog/reorder', { items: orders }),
+    onSuccess: () => {
+      toast.success('Order saved');
+      queryClient.invalidateQueries({ queryKey: ['admin-services'] });
+    },
+    onError: (err) => toast.error(apiErrorMessage(err))
+  });
+
+  function handleMove(index: number, direction: 'up' | 'down') {
+    if (!data) return;
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= data.length) return;
+
+    const currentItem = data[index];
+    const targetItem = data[targetIndex];
+
+    const newOrders = [
+      { id: currentItem._id, displayOrder: targetItem.displayOrder ?? targetIndex },
+      { id: targetItem._id, displayOrder: currentItem.displayOrder ?? index }
+    ];
+
+    reorderMutation.mutate(newOrders);
+  }
+
+  const columns: Column<Service>[] = [
+    {
+      header: 'Service',
+      render: (s) => {
+        const imgUrl = typeof s.image === 'string' ? s.image : (s.image as ServiceImage)?.url;
+        return (
+          <div className="flex items-center gap-3">
+            {imgUrl ? (
+              <img src={imgUrl} alt={s.name} className="h-10 w-10 rounded border border-line object-cover" />
+            ) : (
+              <div className="flex h-10 w-10 items-center justify-center rounded bg-paper text-slateink">
+                <Wrench className="h-5 w-5" />
+              </div>
+            )}
+            <div>
+              <p className="font-medium text-ink">{s.name}</p>
+              <p className="text-xs text-slateink font-mono">{s.slug}</p>
+            </div>
+          </div>
+        );
+      }
+    },
+    {
+      header: 'Category',
+      render: (s) => <Badge tone="neutral">{s.category}</Badge>
+    },
+    {
+      header: 'Starting Price',
+      render: (s) => (
+        <span className="font-medium text-ink">
+          ₹{s.startingPrice?.toLocaleString('en-IN')} <span className="text-xs text-slateink font-normal">{s.priceUnit}</span>
+        </span>
+      )
+    },
+    {
+      header: 'Order',
+      render: (s) => {
+        const index = data ? data.findIndex((item) => item._id === s._id) : 0;
+        return (
+          <div className="flex items-center gap-1.5">
+            <span className="w-5 text-center text-xs font-mono text-slateink">{s.displayOrder ?? index}</span>
+            {canManage && (
+              <div className="flex flex-col">
+                <button
+                  type="button"
+                  onClick={() => handleMove(index, 'up')}
+                  disabled={index === 0}
+                  className="rounded p-0.5 text-slateink hover:bg-paper disabled:opacity-30"
+                  title="Move Up"
+                >
+                  <ArrowUp className="h-3 w-3" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleMove(index, 'down')}
+                  disabled={!data || index === data.length - 1}
+                  className="rounded p-0.5 text-slateink hover:bg-paper disabled:opacity-30"
+                  title="Move Down"
+                >
+                  <ArrowDown className="h-3 w-3" />
+                </button>
+              </div>
+            )}
+          </div>
+        );
+      }
+    },
+    {
+      header: 'Active',
+      render: (s) => (
+        <button
+          type="button"
+          disabled={!canManage || s.isDeleted}
+          onClick={() => activateMutation.mutate({ id: s._id, isActive: !s.isActive })}
+          className="focus:outline-none"
+          title={s.isActive ? 'Active (Click to deactivate)' : 'Inactive (Click to activate)'}
+        >
+          <Badge tone={s.isActive ? 'success' : 'neutral'}>
+            {s.isActive ? 'Active' : 'Inactive'}
+          </Badge>
+        </button>
+      )
+    },
+    {
+      header: 'Published',
+      render: (s) => (
+        <button
+          type="button"
+          disabled={!canManage || s.isDeleted}
+          onClick={() => publishMutation.mutate({ id: s._id, isPublished: !s.isPublished })}
+          className="focus:outline-none"
+          title={s.isPublished ? 'Published (Click to unpublish)' : 'Unpublished (Click to publish)'}
+        >
+          <Badge tone={s.isPublished ? 'info' : 'neutral'}>
+            {s.isPublished ? 'Published' : 'Draft'}
+          </Badge>
+        </button>
+      )
+    },
+    {
+      header: 'Featured',
+      render: (s) => (
+        <button
+          type="button"
+          disabled={!canManage || s.isDeleted}
+          onClick={() => featureMutation.mutate({ id: s._id, isFeatured: !s.isFeatured })}
+          className="rounded p-1 text-slateink hover:bg-paper focus:outline-none"
+          title={s.isFeatured ? 'Featured (Click to unfeature)' : 'Not featured (Click to feature)'}
+        >
+          <Star className={clsx('h-4 w-4', s.isFeatured ? 'fill-amber text-amber' : 'text-slate-300')} />
+        </button>
+      )
+    },
+    {
+      header: 'Status',
+      render: (s) => (
+        s.isDeleted ? (
+          <Badge tone="danger">Deleted</Badge>
+        ) : (
+          <Badge tone="success">Live</Badge>
+        )
+      )
+    },
+    {
+      header: '',
+      render: (s) => (
+        <div className="flex justify-end gap-1">
+          {canManage && (
+            <button
+              onClick={() => setEditingService(s)}
+              className="rounded p-1.5 text-slateink hover:bg-paper"
+              aria-label="Edit"
+              title="Edit service"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </button>
+          )}
+          {canManage && (
+            s.isDeleted ? (
+              <button
+                onClick={() => restoreMutation.mutate(s._id)}
+                className="rounded p-1.5 text-forest hover:bg-forest-light"
+                aria-label="Restore"
+                title="Restore service"
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+              </button>
+            ) : (
+              <button
+                onClick={() => {
+                  if (confirm(`Are you sure you want to deactivate and remove "${s.name}" from public listing?`)) {
+                    deleteMutation.mutate(s._id);
+                  }
+                }}
+                className="rounded p-1.5 text-brand hover:bg-brand-light"
+                aria-label="Delete"
+                title="Soft delete service"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            )
+          )}
+        </div>
+      ),
+      className: 'text-right'
+    }
+  ];
 
   return (
-    <div className="border-t border-line pt-4">
-      <p className="mb-2 text-xs font-medium text-slateink">Service report</p>
-
-      {hasExistingAttachments && (
-        <div className="mb-3 flex flex-col gap-2 rounded border border-line bg-paper p-3">
-          {booking.serviceReportUrl && (
-            <a href={booking.serviceReportUrl} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-xs font-medium text-brand hover:underline">
-              <Paperclip className="h-3 w-3" /> Current report document ↗
-            </a>
-          )}
-          {booking.beforePhotos.length > 0 && (
-            <div>
-              <p className="text-[11px] text-slateink">Before photos ({booking.beforePhotos.length})</p>
-              <div className="mt-1 flex gap-1.5">
-                {booking.beforePhotos.map((url, i) => <img key={i} src={url} alt="Before" className="h-12 w-12 rounded object-cover" />)}
-              </div>
-            </div>
-          )}
-          {booking.afterPhotos.length > 0 && (
-            <div>
-              <p className="text-[11px] text-slateink">After photos ({booking.afterPhotos.length})</p>
-              <div className="mt-1 flex gap-1.5">
-                {booking.afterPhotos.map((url, i) => <img key={i} src={url} alt="After" className="h-12 w-12 rounded object-cover" />)}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      <div className="flex flex-col gap-3">
-        <Input label="Report document link (PDF, or paste any hosted URL)" placeholder="https://..." value={reportUrl} onChange={(e) => setReportUrl(e.target.value)} />
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <p className="mb-1 text-xs font-medium text-slateink">Add before photos</p>
-            <MultiImageUploader value={newBeforePhotos} onChange={setNewBeforePhotos} folder="service-reports" />
+    <div>
+      <PageHeader
+        title="Services"
+        description="Manage the public service catalog customers can book. Bookings they place appear on the Bookings page."
+      />
+    <Card>
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line p-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative w-64">
+            <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slateink" />
+            <Input
+              placeholder="Search catalog..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-8"
+            />
           </div>
-          <div>
-            <p className="mb-1 text-xs font-medium text-slateink">Add after photos</p>
-            <MultiImageUploader value={newAfterPhotos} onChange={setNewAfterPhotos} folder="service-reports" />
-          </div>
+          <Select
+            className="w-44"
+            options={CATEGORY_OPTIONS}
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+          />
+          <label className="flex items-center gap-2 text-xs text-slateink cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={includeDeleted}
+              onChange={(e) => setIncludeDeleted(e.target.checked)}
+              className="rounded border-line text-brand focus:ring-brand"
+            />
+            Show Deleted
+          </label>
         </div>
-        <Button
-          size="sm" onClick={() => mutation.mutate()} loading={mutation.isPending}
-          disabled={!reportUrl && newBeforePhotos.length === 0 && newAfterPhotos.length === 0}
-        >
-          <FileUp className="h-3.5 w-3.5" /> Save report
-        </Button>
+
+        {canManage && (
+          <Button onClick={() => setEditingService('new')}>
+            <Plus className="h-3.5 w-3.5" /> Add Service
+          </Button>
+        )}
       </div>
+
+      <DataTable
+        columns={columns}
+        rows={data || []}
+        rowKey={(s) => s._id}
+        isLoading={isLoading}
+        emptyIcon={Wrench}
+        emptyTitle="No services in catalog"
+        emptyDescription="Create your first fire protection service to display on the client storefront."
+      />
+
+      {editingService && (
+        <ServiceFormModal
+          service={editingService === 'new' ? null : editingService}
+          onClose={() => setEditingService(null)}
+        />
+      )}
+    </Card>
     </div>
   );
 }

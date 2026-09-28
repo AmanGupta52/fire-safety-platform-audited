@@ -96,14 +96,14 @@ function AddressForm({ address, onClose }: { address: Address | null; onClose: (
   return (
     <Modal open onClose={onClose} title={isEdit ? 'Edit address' : 'Add address'} width="lg">
       <form className="flex flex-col gap-4" onSubmit={handleSubmit((v) => mutation.mutate(v))}>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input label="Label" placeholder="Home, Office..." required {...register('label', { required: true })} />
           <Input label="Contact name" required {...register('contactName', { required: true })} />
         </div>
         <Input label="Phone" required {...register('phone', { required: true })} />
         <Input label="Address line 1" required {...register('line1', { required: true })} />
         <Input label="Address line 2" {...register('line2')} />
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <Input label="City" required {...register('city', { required: true })} />
           <Input label="State" required {...register('state', { required: true })} />
           <Input label="Pincode" required {...register('pincode', { required: true })} />

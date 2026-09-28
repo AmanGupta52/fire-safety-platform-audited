@@ -10,28 +10,91 @@ import { notify } from '../services/notificationService';
 import { emailTemplates } from '../services/emailService';
 import { writeAuditLog } from '../services/auditService';
 
+import { Service } from '../models/Service';
+
 export const createServiceBooking = asyncHandler(async (req: Request, res: Response) => {
-  const { serviceType, phone, address, preferredDate, preferredTime, equipmentId, problemDescription, additionalNotes } = req.body;
+  const { serviceId, serviceType, phone, address, preferredDate, preferredTime, equipmentId, problemDescription, additionalNotes } = req.body;
+
+  let resolvedService = null;
+  let resolvedServiceType = serviceType;
+
+  if (serviceId) {
+    resolvedService = await Service.findById(serviceId);
+    if (!resolvedService && !resolvedServiceType) {
+      throw ApiError.notFound('Referenced service catalog item not found');
+    }
+  }
+
+  // If serviceType is provided but no serviceId, map to catalog service
+  if (!resolvedService && resolvedServiceType) {
+    const slugMap: Record<string, string> = {
+      installation: 'installation',
+      inspection: 'inspection',
+      refilling: 'refilling',
+      fire_safety_audit: 'fire-safety-audit',
+      amc_visit: 'amc'
+    };
+    const targetSlug = slugMap[resolvedServiceType] || resolvedServiceType;
+    resolvedService = await Service.findOne({ slug: targetSlug, isDeleted: false });
+  }
+
+  // If service is resolved but serviceType wasn't explicitly passed, map back to ServiceType
+  if (resolvedService && !resolvedServiceType) {
+    const reverseMap: Record<string, any> = {
+      installation: 'installation',
+      inspection: 'inspection',
+      refilling: 'refilling',
+      'fire-safety-audit': 'fire_safety_audit',
+      amc: 'amc_visit'
+    };
+    resolvedServiceType = reverseMap[resolvedService.slug] || 'repair';
+  }
+
+  if (!resolvedServiceType) {
+    resolvedServiceType = 'installation';
+  }
 
   const bookingNumber = await nextNumber('service', 'SRV');
   const booking = await ServiceBooking.create({
-    bookingNumber, user: req.user!.id, serviceType, phone, address,
-    preferredDate: new Date(preferredDate), preferredTime,
-    equipment: equipmentId || null, problemDescription, additionalNotes, status: 'requested'
+    bookingNumber,
+    user: req.user!.id,
+    service: resolvedService ? resolvedService._id : null,
+    serviceType: resolvedServiceType,
+    phone,
+    address,
+    preferredDate: new Date(preferredDate),
+    preferredTime,
+    equipment: equipmentId || null,
+    problemDescription,
+    additionalNotes,
+    status: 'requested'
   });
 
   const user = await User.findById(req.user!.id);
   await notify({
-    userId: req.user!.id, type: 'service_booking', title: 'Service Booking Received',
-    message: `Your ${serviceType.replace('_', ' ')} booking ${bookingNumber} has been received.`,
-    email: user?.email, emailHtml: emailTemplates.serviceBooking(bookingNumber, serviceType), phone
+    userId: req.user!.id,
+    type: 'service_booking',
+    title: 'Service Booking Received',
+    message: `Your ${resolvedService ? resolvedService.name : resolvedServiceType.replace('_', ' ')} booking ${bookingNumber} has been received.`,
+    email: user?.email,
+    emailHtml: emailTemplates.serviceBooking(bookingNumber, resolvedServiceType),
+    phone
+  });
+
+  await writeAuditLog(req, 'create', 'service_bookings', 'ServiceBooking', booking._id, null, {
+    bookingNumber,
+    service: resolvedService?._id,
+    serviceType: resolvedServiceType
   });
 
   return created(res, booking, 'Service booking submitted');
 });
 
 export const myServiceBookings = asyncHandler(async (req: Request, res: Response) => {
-  const bookings = await ServiceBooking.find({ user: req.user!.id }).sort({ createdAt: -1 });
+  const bookings = await ServiceBooking.find({ user: req.user!.id })
+    .populate('service', 'name slug startingPrice priceUnit image')
+    .populate('assignedTechnician', 'name phone')
+    .sort({ createdAt: -1 });
   return ok(res, bookings);
 });
 
@@ -43,6 +106,7 @@ export const adminListServiceBookings = asyncHandler(async (req: Request, res: R
   const filter: Record<string, unknown> = {};
   if (req.query.status) filter.status = req.query.status;
   if (req.query.serviceType) filter.serviceType = req.query.serviceType;
+  if (req.query.service) filter.service = req.query.service;
   if (req.query.from || req.query.to) {
     filter.preferredDate = {};
     if (req.query.from) (filter.preferredDate as any).$gte = new Date(String(req.query.from));
@@ -50,12 +114,18 @@ export const adminListServiceBookings = asyncHandler(async (req: Request, res: R
   }
 
   const [items, total] = await Promise.all([
-    ServiceBooking.find(filter).populate('user', 'name email phone').populate('assignedTechnician', 'name phone')
-      .sort({ preferredDate: 1 }).skip((page - 1) * limit).limit(limit),
+    ServiceBooking.find(filter)
+      .populate('user', 'name email phone')
+      .populate('assignedTechnician', 'name phone')
+      .populate('service', 'name slug startingPrice priceUnit')
+      .sort({ preferredDate: 1 })
+      .skip((page - 1) * limit)
+      .limit(limit),
     ServiceBooking.countDocuments(filter)
   ]);
   return ok(res, items, 'Bookings fetched', paginationMeta(page, limit, total));
 });
+
 
 export const adminAssignTechnician = asyncHandler(async (req: Request, res: Response) => {
   const { technicianId } = req.body;

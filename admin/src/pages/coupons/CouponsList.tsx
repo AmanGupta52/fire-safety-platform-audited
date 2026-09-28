@@ -108,19 +108,19 @@ function CouponForm({ coupon, onClose }: { coupon: Coupon | null; onClose: () =>
     <Modal open onClose={onClose} title={isEdit ? `Edit ${coupon?.code}` : 'Add coupon'}>
       <form className="flex flex-col gap-4" onSubmit={handleSubmit((v) => mutation.mutate(v))}>
         <Input label="Coupon code" required placeholder="e.g. WELCOME10" {...register('code')} />
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Select label="Discount type" options={[{ label: 'Percentage', value: 'percentage' }, { label: 'Fixed amount', value: 'fixed' }]} {...register('discountType')} />
           <Input label="Discount value" type="number" required {...register('discountValue')} />
         </div>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input label="Minimum order (₹)" type="number" {...register('minimumOrder')} />
           <Input label="Max discount cap (₹)" type="number" {...register('maximumDiscount')} />
         </div>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input label="Start date" type="date" required {...register('startDate')} />
           <Input label="End date" type="date" required {...register('endDate')} />
         </div>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input label="Total usage limit" type="number" {...register('usageLimit')} />
           <Input label="Per-user limit" type="number" {...register('perUserLimit')} />
         </div>

@@ -8,6 +8,7 @@ import { api } from '../../lib/apiClient';
 import { useAuthStore } from '../../store/authStore';
 import { useCart } from '../../hooks/useCart';
 import { useWishlist } from '../../hooks/useWishlist';
+import { usePublicSettings } from '../../hooks/usePublicSettings';
 import { Category } from '../../types';
 
 // AMC intentionally has no top-level nav link — it's one of the options on the
@@ -20,6 +21,7 @@ const NAV_LINKS = [
 ];
 
 export function Header() {
+  const { company } = usePublicSettings();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [productsOpen, setProductsOpen] = useState(false);
@@ -59,9 +61,9 @@ export function Header() {
       {/* Utility strip */}
       <div className="hidden bg-ink text-white/80 lg:block">
         <div className="container-page flex items-center justify-between py-1.5 text-xs">
-          <span className="flex items-center gap-1.5"><Phone className="h-3 w-3" /> Emergency support: +91-00000-00000</span>
+          <span className="flex items-center gap-1.5"><Phone className="h-3 w-3" /> Emergency support: {company.phone}</span>
           <div className="flex items-center gap-5">
-            <span className="flex items-center gap-1.5"><Mail className="h-3 w-3" /> support@firesafety.example</span>
+            <span className="flex items-center gap-1.5"><Mail className="h-3 w-3" /> {company.email}</span>
             <Link to="/account/orders" className="flex items-center gap-1.5 hover:text-white"><PackageCheck className="h-3 w-3" /> Track order</Link>
           </div>
         </div>
@@ -73,12 +75,12 @@ export function Header() {
           scrolled ? 'bg-white/95 shadow-card backdrop-blur' : 'bg-white'
         )}
       >
-        <div className={clsx('container-page flex items-center gap-6 transition-all duration-200', scrolled ? 'py-2.5' : 'py-4')}>
-          <Link to="/" className="flex shrink-0 items-center gap-2">
-            <div className={clsx('flex items-center justify-center rounded bg-safety transition-all duration-200', scrolled ? 'h-8 w-8' : 'h-9 w-9')}>
+        <div className={clsx('container-page flex items-center gap-2 transition-all duration-200 sm:gap-6', scrolled ? 'py-2.5' : 'py-4')}>
+          <Link to="/" className="flex min-w-0 shrink items-center gap-2 lg:shrink-0">
+            <div className={clsx('flex shrink-0 items-center justify-center rounded bg-safety transition-all duration-200', scrolled ? 'h-8 w-8' : 'h-9 w-9')}>
               <FlameKindling className="h-4 w-4 text-white" />
             </div>
-            <span className="heading text-base text-ink">Fire Safety</span>
+            <span className="heading truncate text-sm text-ink sm:text-base">{company.companyName || 'Fire Safety'}</span>
           </Link>
 
           {/* Persistent search bar, visible on desktop, mirrors the mobile/overlay search */}
@@ -140,15 +142,15 @@ export function Header() {
             <Link to="/request-quote" className="text-sm font-medium text-safety hover:text-safety-dark">Book a service →</Link>
           </nav>
 
-          <div className="ml-auto flex items-center gap-1">
-            <button onClick={() => setSearchOpen((v) => !v)} className="rounded-full p-2.5 text-ink hover:bg-paper lg:hidden" aria-label="Search">
+          <div className="ml-auto flex shrink-0 items-center sm:gap-1">
+            <button onClick={() => setSearchOpen((v) => !v)} className="rounded-full p-2 text-ink hover:bg-paper sm:p-2.5 lg:hidden" aria-label="Search">
               <Search className="h-5 w-5" />
             </button>
-            <Link to="/wishlist" className="relative rounded-full p-2.5 text-ink hover:bg-paper" aria-label="Wishlist">
+            <Link to="/wishlist" className="relative rounded-full p-2 text-ink hover:bg-paper sm:p-2.5" aria-label="Wishlist">
               <Heart className="h-5 w-5" />
               {wishlistCount > 0 && <span className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-pill bg-safety text-[9px] font-semibold text-white">{wishlistCount}</span>}
             </Link>
-            <Link to="/cart" className="relative rounded-full p-2.5 text-ink hover:bg-paper" aria-label="Cart">
+            <Link to="/cart" className="relative rounded-full p-2 text-ink hover:bg-paper sm:p-2.5" aria-label="Cart">
               <ShoppingCart className="h-5 w-5" />
               <AnimatePresence>
                 {itemCount > 0 && (
@@ -164,7 +166,7 @@ export function Header() {
             </Link>
 
             <div className="relative hidden lg:block">
-              <button onClick={() => setAccountOpen((v) => !v)} className="flex items-center gap-1.5 rounded-full p-2.5 text-ink hover:bg-paper">
+              <button onClick={() => setAccountOpen((v) => !v)} className="flex items-center gap-1.5 rounded-full p-2 text-ink hover:bg-paper sm:p-2.5">
                 <User className="h-5 w-5" />
                 {user && <ChevronDown className="h-3 w-3" />}
               </button>
@@ -189,7 +191,7 @@ export function Header() {
               )}
             </div>
 
-            <button onClick={() => setMobileOpen(true)} className="rounded-full p-2.5 text-ink hover:bg-paper lg:hidden" aria-label="Menu">
+            <button onClick={() => setMobileOpen(true)} className="rounded-full p-2 text-ink hover:bg-paper sm:p-2.5 lg:hidden" aria-label="Menu">
               <Menu className="h-5 w-5" />
             </button>
           </div>

@@ -3,12 +3,16 @@ import { connectDB } from './config/db';
 import { env } from './config/env';
 import { registerCronJobs } from './jobs';
 import { ensurePdfDirs } from './services/pdfService';
+import { seedServicesIfEmpty, backfillServiceBookings } from './utils/serviceSeed';
 
 async function bootstrap() {
   await connectDB();
   ensurePdfDirs();
+  await seedServicesIfEmpty();
+  await backfillServiceBookings();
 
   const app = createApp();
+
 
   registerCronJobs();
 

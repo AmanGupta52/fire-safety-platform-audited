@@ -1,6 +1,7 @@
 import { CustomerEquipment } from '../models/CustomerEquipment';
 import { AMCContract } from '../models/AMCContract';
 import { NotificationLog } from '../models/Notification';
+import { User } from '../models/User';
 import { notify } from '../services/notificationService';
 import { emailTemplates } from '../services/emailService';
 
@@ -126,14 +127,29 @@ export async function runLowStockScan(): Promise<{ lowStockCount: number }> {
   const { Product } = await import('../models/Product');
   const lowStock = await Product.find({ isActive: true, stock: { $lte: 5 } });
 
+  // A low-stock alert isn't tied to any one customer, but `notify()` writes to the
+  // Notification collection with whatever userId it's given, and the only notification
+  // listing endpoint (`GET /notifications`) is scoped to `{ user: req.user.id }`. Previously
+  // this called `notify()` with no userId at all, so every alert was created with `user: null`
+  // and was permanently invisible to every admin/staff member — the job "ran" but nobody
+  // ever saw the result. Fan each alert out to every active admin/super_admin user instead,
+  // so it actually lands in someone's notification bell.
+  const admins = await User.find({ role: { $in: ['super_admin', 'admin'] }, isActive: true }).select('_id');
+
   for (const product of lowStock) {
-    const already = await alreadySent('equipment', `low_stock:${product._id}`, new Date().toISOString().slice(0, 10), 'in_app');
+    const todayKey = new Date().toISOString().slice(0, 10);
+    const already = await alreadySent('equipment', `low_stock:${product._id}`, todayKey, 'in_app');
     if (already) continue;
-    await notify({
-      type: 'low_stock', title: 'Low Stock Alert',
-      message: `${product.name} (SKU: ${product.sku}) has only ${product.stock} unit(s) left.`
-    });
-    await logSent('equipment', `low_stock:${product._id}`, new Date().toISOString().slice(0, 10), 'in_app', true);
+
+    for (const admin of admins) {
+      await notify({
+        userId: admin._id,
+        type: 'low_stock', title: 'Low Stock Alert',
+        message: `${product.name} (SKU: ${product.sku}) has only ${product.stock} unit(s) left.`,
+        relatedEntity: 'Product', relatedEntityId: product._id
+      });
+    }
+    await logSent('equipment', `low_stock:${product._id}`, todayKey, 'in_app', true);
   }
 
   return { lowStockCount: lowStock.length };

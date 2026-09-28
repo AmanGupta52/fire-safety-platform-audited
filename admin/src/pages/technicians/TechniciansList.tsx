@@ -97,7 +97,7 @@ function WorkloadModal({ technician, onClose }: { technician: Technician; onClos
       {isLoading ? (
         <p className="text-sm text-slateink">Loading…</p>
       ) : (
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="rounded border border-line p-4 text-center">
             <p className="text-2xl font-semibold text-ink">{data?.pendingJobs ?? 0}</p>
             <p className="text-xs text-slateink">Pending jobs</p>
@@ -151,7 +151,7 @@ function TechnicianForm({ technician, onClose }: { technician: Technician | null
     <Modal open onClose={onClose} title={isEdit ? `Edit ${technician?.name}` : 'Add technician'}>
       <form className="flex flex-col gap-4" onSubmit={handleSubmit((v) => mutation.mutate(v))}>
         <Input label="Name" required {...register('name')} />
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input label="Phone" required {...register('phone')} />
           <Input label="Email" type="email" {...register('email')} />
         </div>

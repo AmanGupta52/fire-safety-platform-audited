@@ -58,3 +58,34 @@ export const resendOtpSchema = z.object({
   query: z.any().optional(),
   params: z.any().optional()
 });
+
+const staffRoleEnum = z.enum(['super_admin', 'admin', 'sales', 'technician', 'accountant']);
+
+export const createStaffSchema = z.object({
+  body: z.object({
+    name: z.string().min(2, 'Name must be at least 2 characters'),
+    email: z.string().email('Valid email is required'),
+    password: z.string().min(8, 'Password must be at least 8 characters').optional(),
+    role: staffRoleEnum,
+    phone: z.string().optional(),
+    permissionOverrides: z.array(z.string()).optional(),
+    isActive: z.boolean().optional()
+  }),
+  query: z.any().optional(),
+  params: z.any().optional()
+});
+
+export const updateStaffSchema = z.object({
+  body: z.object({
+    name: z.string().min(2).optional(),
+    email: z.string().email().optional(),
+    password: z.string().min(8).optional(),
+    role: staffRoleEnum.optional(),
+    phone: z.string().optional(),
+    permissionOverrides: z.array(z.string()).optional(),
+    isActive: z.boolean().optional()
+  }),
+  query: z.any().optional(),
+  params: z.any().optional()
+});
+

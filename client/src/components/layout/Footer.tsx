@@ -1,14 +1,18 @@
 import { Link } from 'react-router-dom';
 import { FlameKindling, Phone, Mail, MapPin, MessageCircle } from 'lucide-react';
+import { usePublicSettings } from '../../hooks/usePublicSettings';
 
 export function Footer() {
+  const { company } = usePublicSettings();
+  const whatsappClean = company.whatsapp ? company.whatsapp.replace(/[^0-9]/g, '') : '910000000000';
+
   return (
     <footer className="mt-20 bg-ink text-slate-400">
       <div className="container-page grid grid-cols-2 gap-8 py-12 md:grid-cols-4">
         <div className="col-span-2 md:col-span-1">
           <div className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded bg-safety"><FlameKindling className="h-4 w-4 text-white" /></div>
-            <span className="heading text-sm text-paper">Fire Safety Platform</span>
+            <span className="heading text-sm text-paper">{company.companyName}</span>
           </div>
           <p className="mt-3 text-sm leading-relaxed">Fire extinguishers, alarm systems and safety equipment, with installation, refilling, inspection and AMC services across India.</p>
         </div>
@@ -40,20 +44,20 @@ export function Footer() {
       <div className="border-t border-white/10">
         <div className="container-page flex flex-col gap-4 py-6 text-xs text-white/50 md:flex-row md:items-center md:justify-between">
           <div className="flex flex-wrap gap-4">
-            <span className="flex items-center gap-1.5"><Phone className="h-3.5 w-3.5" /> +91-00000-00000</span>
-            <span className="flex items-center gap-1.5"><Mail className="h-3.5 w-3.5" /> info@firesafety.example</span>
-            <span className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" /> Navi Mumbai, Maharashtra, India</span>
+            <span className="flex items-center gap-1.5"><Phone className="h-3.5 w-3.5" /> {company.phone}</span>
+            <span className="flex items-center gap-1.5"><Mail className="h-3.5 w-3.5" /> {company.email}</span>
+            <span className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" /> {company.address || 'Navi Mumbai, Maharashtra, India'}</span>
           </div>
           <div className="flex flex-wrap gap-4">
             <Link to="/privacy-policy" className="transition-colors hover:text-paper">Privacy policy</Link>
             <Link to="/terms" className="transition-colors hover:text-paper">Terms of service</Link>
-            <span>© {new Date().getFullYear()} Fire Safety Platform</span>
+            <span>© {new Date().getFullYear()} {company.companyName}</span>
           </div>
         </div>
       </div>
 
       <a
-        href="https://wa.me/910000000000"
+        href={`https://wa.me/${whatsappClean}`}
         target="_blank" rel="noreferrer"
         className="fixed bottom-6 right-6 z-30 flex h-12 w-12 items-center justify-center rounded-full bg-forest text-white shadow-raised transition-colors hover:bg-forest/90"
         aria-label="Chat on WhatsApp"
