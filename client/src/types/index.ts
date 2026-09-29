@@ -229,6 +229,15 @@ export interface Review {
   createdAt: string;
 }
 
+export interface Banner {
+  _id: string;
+  title: string;
+  image: string;
+  linkUrl?: string;
+  sortOrder: number;
+  isActive: boolean;
+}
+
 export interface BlogPost {
   _id: string;
   title: string;

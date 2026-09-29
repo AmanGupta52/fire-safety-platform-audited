@@ -5,7 +5,7 @@ import {
   BadgeCheck, Clock, Users, Award, Phone, Mail, MapPin, CheckCircle2
 } from 'lucide-react';
 import { api } from '../lib/apiClient';
-import { Product, Category, BlogPost } from '../types';
+import { Product, Category, BlogPost, Banner } from '../types';
 import { useServices } from '../hooks/useServices';
 import { usePublicSettings } from '../hooks/usePublicSettings';
 import { getServiceIcon, formatServicePrice } from '../utils/serviceUtils';
@@ -14,7 +14,7 @@ import { Button } from '../components/ui/Button';
 import { Card, Skeleton, ErrorState, SkeletonGroup } from '../components/ui/Primitives';
 import { SkeletonCard } from '../components/ui/Skeleton';
 import { Reveal } from '../components/ui/Reveal';
-import { CategoryShowcase } from '../components/home/CategoryShowcase';
+import { HomeBannerCarousel } from '../components/home/HomeBannerCarousel';
 import { CategoryCircles } from '../components/home/CategoryCircles';
 
 export default function Home() {
@@ -23,6 +23,12 @@ export default function Home() {
   const { data: categories, isLoading: categoriesLoading, isError: categoriesError, refetch: refetchCategories } = useQuery({
     queryKey: ['home-categories'],
     queryFn: async () => (await api.get('/categories')).data.data as Category[]
+  });
+  // Homepage hero banners, managed from the admin Content > Banners page. Public endpoint
+  // only ever returns active banners, already sorted for display.
+  const { data: banners, isLoading: bannersLoading } = useQuery({
+    queryKey: ['home-banners'],
+    queryFn: async () => (await api.get('/banners')).data.data as Banner[]
   });
   const { data: bestSellers, isLoading: bestSellersLoading } = useQuery({
     queryKey: ['home-bestsellers'],
@@ -35,31 +41,34 @@ export default function Home() {
 
   return (
     <div>
-      {/* SHOP BY CATEGORY — a single rotating photo banner. Cross-fades to the next
-          category every 3s; clicking it opens that category's product listing. This is
-          the homepage's only "browse by category" entry point (search itself lives in the
-          header on desktop, and in its mobile drawer, so it doesn't need repeating here). */}
+      {/* HERO BANNER — admin-managed promotional banners (Content > Banners), cross-fading
+          every 3s. Clicking a banner follows the URL set on it in the admin panel, if any. */}
       <section className="container-page py-10 lg:py-14">
         <div className="mb-4 flex items-end justify-between">
           <h1 className="heading text-2xl text-ink">Shop by category</h1>
           <Link to="/products" className="text-sm font-medium text-safety hover:underline">View all products →</Link>
         </div>
-        {categoriesLoading ? (
-          <SkeletonGroup label="Loading categories">
+        {bannersLoading ? (
+          <SkeletonGroup label="Loading banners">
             <Skeleton className="h-64 w-full sm:h-80 lg:h-96" />
           </SkeletonGroup>
-        ) : categoriesError ? (
-          <ErrorState title="Couldn't load categories" description="Something went wrong loading the category showcase." onRetry={() => refetchCategories()} />
         ) : (
           <Reveal>
-            <CategoryShowcase categories={categories} intervalMs={3000} />
+            <HomeBannerCarousel banners={banners} intervalMs={3000} />
           </Reveal>
         )}
 
         {/* All categories, at a glance — a horizontally-scrollable row of circular category
-            avatars beneath the rotating banner above, so every category is one tap away
-            without waiting for the banner to cycle round to it. */}
-        {!categoriesLoading && !categoriesError && categories && categories.length > 0 && (
+            avatars, so every category is one tap away. */}
+        {categoriesLoading ? (
+          <div className="mt-6 flex gap-5">
+            {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-20 w-20 shrink-0 rounded-full sm:h-24 sm:w-24" />)}
+          </div>
+        ) : categoriesError ? (
+          <div className="mt-6">
+            <ErrorState title="Couldn't load categories" description="Something went wrong loading categories." onRetry={() => refetchCategories()} />
+          </div>
+        ) : categories && categories.length > 0 && (
           <div className="mt-6">
             <CategoryCircles categories={categories} />
           </div>

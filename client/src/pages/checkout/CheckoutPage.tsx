@@ -25,7 +25,10 @@ export default function CheckoutPage() {
   const navigate = useNavigate();
   const { cart, isLoading } = useCart();
   const [selectedAddressId, setSelectedAddressId] = useState<string | 'new' | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<'mock' | 'cod'>('mock');
+  // Online payment isn't wired up to a real payment gateway yet, so Cash on Delivery is the
+  // only method offered at checkout for now — nothing here should look like a working "pay
+  // online" option before one actually exists.
+  const paymentMethod = 'cod' as const;
   const [companyName, setCompanyName] = useState('');
   const [gstNumber, setGstNumber] = useState('');
 
@@ -146,16 +149,11 @@ export default function CheckoutPage() {
 
           <Card className="p-5">
             <p className="heading text-sm text-ink">Payment method</p>
-            <div className="mt-4 flex flex-col gap-2">
-              <label className={clsx('flex cursor-pointer items-center gap-3 rounded-card border p-3', paymentMethod === 'mock' ? 'border-ink bg-paper' : 'border-line')}>
-                <input type="radio" checked={paymentMethod === 'mock'} onChange={() => setPaymentMethod('mock')} className="accent-ink" />
-                <span className="text-sm text-ink">Pay now (test payment)</span>
-              </label>
-              <label className={clsx('flex cursor-pointer items-center gap-3 rounded-card border p-3', paymentMethod === 'cod' ? 'border-ink bg-paper' : 'border-line')}>
-                <input type="radio" checked={paymentMethod === 'cod'} onChange={() => setPaymentMethod('cod')} className="accent-ink" />
-                <span className="text-sm text-ink">Cash on delivery</span>
-              </label>
+            <div className="mt-4 flex items-center gap-3 rounded-card border border-ink bg-paper p-3">
+              <Check className="h-4 w-4 shrink-0 text-ink" />
+              <span className="text-sm text-ink">Cash on delivery</span>
             </div>
+            <p className="mt-2 text-xs text-slateink">Online payment isn't available yet — pay the delivery agent when your order arrives.</p>
           </Card>
         </div>
 
