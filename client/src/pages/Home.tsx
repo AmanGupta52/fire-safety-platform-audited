@@ -44,10 +44,6 @@ export default function Home() {
       {/* HERO BANNER — admin-managed promotional banners (Content > Banners), cross-fading
           every 3s. Clicking a banner follows the URL set on it in the admin panel, if any. */}
       <section className="container-page py-10 lg:py-14">
-        <div className="mb-4 flex items-end justify-between">
-          <h1 className="heading text-2xl text-ink">Shop by category</h1>
-          <Link to="/products" className="text-sm font-medium text-safety hover:underline">View all products →</Link>
-        </div>
         {bannersLoading ? (
           <SkeletonGroup label="Loading banners">
             <Skeleton className="h-64 w-full sm:h-80 lg:h-96" />
@@ -60,18 +56,18 @@ export default function Home() {
 
         {/* All categories, at a glance — a horizontally-scrollable row of circular category
             avatars, so every category is one tap away. */}
+        <div className="mb-4 mt-8 flex items-end justify-between">
+          <h1 className="heading text-2xl text-ink">Shop by category</h1>
+          <Link to="/products" className="text-sm font-medium text-safety hover:underline">View all products →</Link>
+        </div>
         {categoriesLoading ? (
-          <div className="mt-6 flex gap-5">
+          <div className="flex gap-5">
             {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-20 w-20 shrink-0 rounded-full sm:h-24 sm:w-24" />)}
           </div>
         ) : categoriesError ? (
-          <div className="mt-6">
-            <ErrorState title="Couldn't load categories" description="Something went wrong loading categories." onRetry={() => refetchCategories()} />
-          </div>
+          <ErrorState title="Couldn't load categories" description="Something went wrong loading categories." onRetry={() => refetchCategories()} />
         ) : categories && categories.length > 0 && (
-          <div className="mt-6">
-            <CategoryCircles categories={categories} />
-          </div>
+          <CategoryCircles categories={categories} />
         )}
       </section>
 

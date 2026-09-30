@@ -12,9 +12,10 @@ export function ProtectedRoute({
 
   if (!accessToken) return <Navigate to="/login" replace />;
 
-  // Staff & Roles has no dedicated permission of its own — the backend gates it by role
-  // directly (super_admin/admin only), so the frontend route needs the same role check
-  // rather than a permission check, or any staff member could reach the page directly by URL.
+  // `permission` checks the signed-in user's effective permissions (role defaults plus any
+  // per-user overrides granted in Staff & Roles) — this is what every route should use, since
+  // it's the same check the backend API enforces. `roles` is a plain role allow-list for the
+  // rare case a page has no permission of its own to gate on.
   const roleAllowed = !roles || (user && roles.includes(user.role));
   const permissionAllowed = !permission || hasPermission(permission);
 

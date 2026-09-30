@@ -125,6 +125,7 @@ export function Topbar({ title, onMenuClick }: { title?: string; onMenuClick?: (
           <button
             onClick={() => { setMenuOpen((v) => !v); setNotifOpen(false); }}
             className="flex items-center gap-2 rounded px-2 py-1.5 hover:bg-paper"
+            aria-label="Account menu"
           >
             <div className="flex h-7 w-7 items-center justify-center rounded-full bg-ink text-xs font-semibold text-white">
               {user?.name?.charAt(0).toUpperCase() || 'U'}

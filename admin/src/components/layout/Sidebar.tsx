@@ -2,7 +2,7 @@ import { NavLink } from 'react-router-dom';
 import clsx from 'clsx';
 import {
   LayoutDashboard, Package, Layers, ShoppingCart, FileText, Wrench, ShieldCheck,
-  Users, Newspaper, Image, ImagePlus, HelpCircle, Ticket, Star, UserCog, HardHat, Receipt, Settings, History, FlameKindling, CalendarCheck
+  Users, Newspaper, Image, ImagePlus, HelpCircle, Ticket, Star, UserCog, HardHat, Receipt, Settings, History, FlameKindling, CalendarCheck, ClipboardList
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { Permission, Role } from '../../types';
@@ -41,8 +41,8 @@ const groups: NavGroup[] = [
   {
     label: 'Services',
     items: [
-      { to: '/my-jobs', label: 'My jobs', icon: Wrench, roles: ['technician'] },
-      { to: '/services', label: 'Services', icon: Layers, permission: 'services.read' },
+      { to: '/my-jobs', label: 'My jobs', icon: ClipboardList, roles: ['technician'] },
+      { to: '/services', label: 'Services', icon: Wrench, permission: 'services.read' },
       { to: '/bookings', label: 'Bookings', icon: CalendarCheck, permission: 'services.read' },
       { to: '/amc', label: 'AMC Contracts', icon: ShieldCheck, permission: 'amc.read' },
       { to: '/technicians', label: 'Technicians', icon: UserCog, permission: 'technicians.read' },
