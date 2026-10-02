@@ -1,13 +1,15 @@
 import { useParams, Link } from 'react-router-dom';
+import axios from 'axios';
 import { CheckCircle2, XCircle, Clock, ShieldCheck, ArrowLeft } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Card, EmptyState, ErrorState } from '../../components/ui/Primitives';
 import { useService } from '../../hooks/useServices';
 import { getServiceIcon, formatServicePrice } from '../../utils/serviceUtils';
+import { NotFound404 } from '../errors/StatusPages';
 
 export default function ServiceDetail() {
   const { slug } = useParams<{ slug: string }>();
-  const { data: service, isLoading, isError, refetch } = useService(slug);
+  const { data: service, isLoading, isError, error, refetch } = useService(slug);
 
   if (isLoading) {
     return (
@@ -22,6 +24,13 @@ export default function ServiceDetail() {
     );
   }
 
+  // A service that doesn't exist (bad slug, deactivated, unpublished) is a 404, not a
+  // transient failure — "Retry" would just 404 again. Any other failure (network, 500, etc.)
+  // keeps the retry affordance, since trying again might actually work.
+  if (isError && axios.isAxiosError(error) && error.response?.status === 404) {
+    return <NotFound404 />;
+  }
+
   if (isError || !service) {
     return (
       <div className="container-page py-16">
@@ -30,8 +39,8 @@ export default function ServiceDetail() {
         </Link>
         <div className="mt-6">
           <ErrorState
-            title="Service not found"
-            description="The requested service could not be located or may no longer be available on our platform."
+            title="Couldn't load this service"
+            description="Something went wrong while fetching this service's details."
             onRetry={() => refetch()}
           />
         </div>

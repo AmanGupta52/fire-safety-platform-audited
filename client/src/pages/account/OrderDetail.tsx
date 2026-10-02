@@ -3,9 +3,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import { ArrowLeft } from 'lucide-react';
+import axios from 'axios';
 import { api, apiErrorMessage } from '../../lib/apiClient';
+import { NotFound404 } from '../errors/StatusPages';
 import { Order } from '../../types';
-import { Card, Badge, EmptyState, ErrorState } from '../../components/ui/Primitives';
+import { Card, Badge, ErrorState } from '../../components/ui/Primitives';
 import { Button } from '../../components/ui/Button';
 
 const STATUS_STEPS = ['pending', 'confirmed', 'processing', 'packed', 'dispatched', 'delivered'];
@@ -57,7 +59,7 @@ export default function OrderDetail() {
   const { id } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
 
-  const { data: order, isLoading, isError, refetch } = useQuery({
+  const { data: order, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['my-order-detail', id],
     queryFn: async () => (await api.get(`/orders/my/${id}`)).data.data as Order,
     enabled: Boolean(id)
@@ -70,8 +72,14 @@ export default function OrderDetail() {
   });
 
   if (isLoading) return <OrderDetailSkeleton />;
-  if (isError) return <ErrorState title="Couldn't load this order" onRetry={() => refetch()} />;
-  if (!order) return <EmptyState icon={ArrowLeft} title="Order not found" description="This order may no longer exist." />;
+  // A missing order, or one that belongs to someone else (the API returns 404 either way, on
+  // purpose, so it doesn't reveal that another customer's order exists) — "Retry" would just
+  // 404 again. Any other failure (network, 500, etc.) keeps the retry affordance.
+  if (isError) {
+    if (axios.isAxiosError(error) && error.response?.status === 404) return <NotFound404 />;
+    return <ErrorState title="Couldn't load this order" onRetry={() => refetch()} />;
+  }
+  if (!order) return <NotFound404 />;
 
   const currentStepIndex = STATUS_STEPS.indexOf(order.status);
   const isTerminal = order.status === 'cancelled' || order.status === 'refunded';

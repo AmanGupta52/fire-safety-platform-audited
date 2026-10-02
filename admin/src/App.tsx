@@ -1,6 +1,9 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
 import { AppLayout } from './components/layout/AppLayout';
 import { ProtectedRoute } from './routes/ProtectedRoute';
+import { setNavigate } from './lib/navigation';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 import Login from './pages/auth/Login';
 import Dashboard from './pages/dashboard/Dashboard';
@@ -26,12 +29,27 @@ import StaffList from './pages/staff/StaffList';
 import SettingsPage from './pages/settings/Settings';
 import AuditLogPage from './pages/audit/AuditLogPage';
 import ReportsPage from './pages/reports/ReportsPage';
+import { Unauthorized401, Forbidden403, NotFound404, ServerError500, ServiceUnavailable503 } from './pages/errors/StatusPages';
+
+// Registers the router's navigate() function for apiClient.ts to use when a 401/403/500/503
+// needs to send the person to the matching status page — see lib/navigation.ts.
+function NavigateRegistrar() {
+  const navigate = useNavigate();
+  useEffect(() => { setNavigate(navigate); }, [navigate]);
+  return null;
+}
 
 export default function App() {
   return (
     <BrowserRouter>
-      <Routes>
+      <NavigateRegistrar />
+      <ErrorBoundary>
+        <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/401" element={<Unauthorized401 />} />
+        <Route path="/403" element={<Forbidden403 />} />
+        <Route path="/500" element={<ServerError500 />} />
+        <Route path="/503" element={<ServiceUnavailable503 />} />
 
         <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
           <Route path="/" element={<Dashboard />} />
@@ -63,8 +81,14 @@ export default function App() {
           <Route path="/staff" element={<ProtectedRoute permission="staff.read"><StaffList /></ProtectedRoute>} />
           <Route path="/audit-logs" element={<ProtectedRoute permission="audit.read"><AuditLogPage /></ProtectedRoute>} />
           <Route path="/settings" element={<ProtectedRoute permission="settings.manage"><SettingsPage /></ProtectedRoute>} />
+
+          {/* Any unmatched path — including while logged out, since the outer ProtectedRoute
+              above redirects to /login before this ever renders in that case — keeps the
+              sidebar/topbar for a logged-in visitor so they can navigate away. */}
+          <Route path="*" element={<NotFound404 />} />
         </Route>
-      </Routes>
+        </Routes>
+      </ErrorBoundary>
     </BrowserRouter>
   );
 }

@@ -1,7 +1,7 @@
 import { Navigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { Permission, Role } from '../types';
-import { ShieldAlert } from 'lucide-react';
+import { Forbidden403 } from '../pages/errors/StatusPages';
 
 export function ProtectedRoute({
   children, permission, roles
@@ -19,15 +19,7 @@ export function ProtectedRoute({
   const roleAllowed = !roles || (user && roles.includes(user.role));
   const permissionAllowed = !permission || hasPermission(permission);
 
-  if (!roleAllowed || !permissionAllowed) {
-    return (
-      <div className="flex h-[60vh] flex-col items-center justify-center gap-2 text-center">
-        <ShieldAlert className="h-6 w-6 text-brand" />
-        <p className="page-heading text-base text-ink">You don't have access to this page</p>
-        <p className="text-sm text-slateink">Ask an administrator to grant the relevant permission if you need it.</p>
-      </div>
-    );
-  }
+  if (!roleAllowed || !permissionAllowed) return <Forbidden403 />;
 
   return <>{children}</>;
 }

@@ -2,9 +2,11 @@ import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { ArrowLeft } from 'lucide-react';
+import axios from 'axios';
 import { api } from '../../lib/apiClient';
+import { NotFound404 } from '../errors/StatusPages';
 import { BlogPost } from '../../types';
-import { Badge, EmptyState, ErrorState } from '../../components/ui/Primitives';
+import { Badge, ErrorState } from '../../components/ui/Primitives';
 import { SkeletonText } from '../../components/ui/Skeleton';
 import { ImageWithFallback } from '../../components/ui/ImageWithFallback';
 
@@ -26,15 +28,20 @@ function BlogDetailSkeleton() {
 
 export default function BlogDetail() {
   const { slug } = useParams<{ slug: string }>();
-  const { data, isLoading, isError, refetch } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['blog-detail', slug],
     queryFn: async () => (await api.get(`/blog/${slug}`)).data.data as { post: BlogPost; related: BlogPost[] },
     enabled: Boolean(slug)
   });
 
   if (isLoading) return <BlogDetailSkeleton />;
-  if (isError) return <div className="container-page py-10"><ErrorState title="Couldn't load this article" onRetry={() => refetch()} /></div>;
-  if (!data) return <div className="container-page py-10"><EmptyState icon={ArrowLeft} title="Article not found" /></div>;
+  // A missing/removed article is a 404, not a transient failure — "Retry" would just 404
+  // again. Any other failure (network, 500, etc.) keeps the retry affordance.
+  if (isError) {
+    if (axios.isAxiosError(error) && error.response?.status === 404) return <NotFound404 />;
+    return <div className="container-page py-10"><ErrorState title="Couldn't load this article" onRetry={() => refetch()} /></div>;
+  }
+  if (!data) return <NotFound404 />;
 
   const { post, related } = data;
 

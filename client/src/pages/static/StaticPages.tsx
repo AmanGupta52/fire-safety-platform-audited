@@ -1,7 +1,3 @@
-import { Link } from 'react-router-dom';
-import { FlameKindling } from 'lucide-react';
-import { Button } from '../../components/ui/Button';
-
 export function PrivacyPage() {
   return (
     <div className="container-page max-w-2xl py-10">
@@ -26,17 +22,6 @@ export function TermsPage() {
         <p>Orders are subject to product availability. Prices include GST as configured for each product; delivery timelines are indicative and may vary by location.</p>
         <p>Service bookings are confirmed subject to technician availability. Cancellations are accepted for orders that have not yet been dispatched.</p>
       </div>
-    </div>
-  );
-}
-
-export function NotFoundPage() {
-  return (
-    <div className="container-page flex min-h-[70vh] flex-col items-center justify-center gap-4 py-16 text-center">
-      <div className="flex h-14 w-14 items-center justify-center rounded-full bg-safety-light"><FlameKindling className="h-6 w-6 text-safety" /></div>
-      <h1 className="heading text-2xl text-ink">Page not found</h1>
-      <p className="max-w-sm text-sm text-slateink">The page you're looking for doesn't exist or may have moved.</p>
-      <Link to="/"><Button>Back to home</Button></Link>
     </div>
   );
 }

@@ -5,7 +5,9 @@ import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
 import { Heart, ShoppingCart, FileDown, FlameKindling, Minus, Plus, MessageSquarePlus, ZoomIn, X } from 'lucide-react';
+import axios from 'axios';
 import { api, apiErrorMessage } from '../../lib/apiClient';
+import { NotFound404 } from '../errors/StatusPages';
 import { Product, Review } from '../../types';
 import { useCart } from '../../hooks/useCart';
 import { useWishlist } from '../../hooks/useWishlist';
@@ -61,7 +63,7 @@ export default function ProductDetail() {
   const { isWishlisted, toggleWishlist } = useWishlist();
   const navigate = useNavigate();
 
-  const { data, isLoading, isError, refetch } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['product-detail', slug],
     queryFn: async () => (await api.get(`/products/${slug}`)).data.data as { product: Product; related: Product[] },
     enabled: Boolean(slug)
@@ -81,8 +83,14 @@ export default function ProductDetail() {
   }, [fullscreen]);
 
   if (isLoading) return <ProductDetailSkeleton />;
-  if (isError) return <div className="container-page py-8"><ErrorState title="Couldn't load this product" description="Something went wrong while fetching this product's details." onRetry={() => refetch()} /></div>;
-  if (!data) return <div className="container-page py-8"><EmptyState icon={FlameKindling} title="Product not found" description="This product may no longer be available." /></div>;
+  // A missing/removed/deactivated product is a 404, not a transient failure — a "Retry"
+  // button would just 404 again, so this shows the shared not-found page instead. Any other
+  // failure (network, 500, etc.) keeps the retry affordance, since trying again might work.
+  if (isError) {
+    if (axios.isAxiosError(error) && error.response?.status === 404) return <NotFound404 />;
+    return <div className="container-page py-8"><ErrorState title="Couldn't load this product" description="Something went wrong while fetching this product's details." onRetry={() => refetch()} /></div>;
+  }
+  if (!data) return <NotFound404 />;
 
   const { product, related } = data;
   const price = product.discountPrice ?? product.price;

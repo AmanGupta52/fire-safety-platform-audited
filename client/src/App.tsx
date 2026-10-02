@@ -1,4 +1,5 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
 import { StorefrontLayout } from './components/layout/StorefrontLayout';
 import { AccountLayout } from './components/layout/AccountLayout';
 import { ProtectedRoute } from './routes/ProtectedRoute';
@@ -40,12 +41,25 @@ import GalleryPage from './pages/static/GalleryPage';
 import FaqPage from './pages/static/FaqPage';
 import ContactPage from './pages/static/ContactPage';
 import AboutPage from './pages/static/AboutPage';
-import { PrivacyPage, TermsPage, NotFoundPage } from './pages/static/StaticPages';
+import { PrivacyPage, TermsPage } from './pages/static/StaticPages';
+import { Unauthorized401, Forbidden403, NotFound404, ServerError500, ServiceUnavailable503 } from './pages/errors/StatusPages';
+import { setNavigate } from './lib/navigation';
+import { ErrorBoundary } from './components/ErrorBoundary';
+
+// Registers the router's navigate() function for apiClient.ts to use when a 401/403/500/503
+// needs to send the person to the matching status page — see lib/navigation.ts.
+function NavigateRegistrar() {
+  const navigate = useNavigate();
+  useEffect(() => { setNavigate(navigate); }, [navigate]);
+  return null;
+}
 
 export default function App() {
   return (
     <BrowserRouter>
-      <Routes>
+      <NavigateRegistrar />
+      <ErrorBoundary>
+        <Routes>
         <Route element={<StorefrontLayout />}>
           <Route index element={<Home />} />
           <Route path="/products" element={<ProductsList />} />
@@ -78,6 +92,11 @@ export default function App() {
           <Route path="/privacy-policy" element={<PrivacyPage />} />
           <Route path="/terms" element={<TermsPage />} />
 
+          <Route path="/401" element={<Unauthorized401 />} />
+          <Route path="/403" element={<Forbidden403 />} />
+          <Route path="/500" element={<ServerError500 />} />
+          <Route path="/503" element={<ServiceUnavailable503 />} />
+
           <Route path="/account" element={<ProtectedRoute><AccountLayout /></ProtectedRoute>}>
             <Route index element={<AccountOverview />} />
             <Route path="orders" element={<MyOrders />} />
@@ -91,9 +110,10 @@ export default function App() {
             <Route path="profile" element={<Profile />} />
           </Route>
 
-          <Route path="*" element={<NotFoundPage />} />
+          <Route path="*" element={<NotFound404 />} />
         </Route>
-      </Routes>
+        </Routes>
+      </ErrorBoundary>
     </BrowserRouter>
   );
 }
