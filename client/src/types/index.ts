@@ -183,7 +183,7 @@ export interface CompanySettings {
   copyrightText?: string;
 }
 
-export type ServiceType = 'installation' | 'inspection' | 'refilling' | 'repair' | 'fire_safety_audit' | 'amc_visit';
+export type ServiceType = 'installation' | 'inspection' | 'refilling' | 'repair' | 'fire_safety_audit' | 'amc_visit' | string;
 export type ServiceStatus = 'requested' | 'confirmed' | 'assigned' | 'technician_on_the_way' | 'in_progress' | 'completed' | 'cancelled' | 'rejected';
 export interface ServiceBooking {
   _id: string;
@@ -194,8 +194,16 @@ export interface ServiceBooking {
   phone?: string;
   preferredDate: string;
   preferredTime?: string;
+  timeSlot?: string;
+  equipment?: string | CustomerEquipment | null;
+  assignedTechnician?: { _id: string; name: string; phone?: string } | null;
+  serviceReportUrl?: string;
   problemDescription?: string;
+  checkInLocation?: { latitude: number; longitude: number; timestamp: string; address?: string };
   status: ServiceStatus;
+  /** Customer-visible history: status changes, reschedules, cancellation. */
+  timeline?: { at: string; by: 'customer' | 'staff' | 'technician' | 'system'; action: string; note?: string }[];
+  completedAt?: string;
   createdAt: string;
 }
 
@@ -222,7 +230,10 @@ export interface Invoice {
 
 export interface Review {
   _id: string;
-  user: { name: string } | string;
+  user: { name: string; email?: string } | string;
+  product?: string | null;
+  service?: string | null;
+  booking?: string | null;
   rating: number;
   title?: string;
   comment: string;

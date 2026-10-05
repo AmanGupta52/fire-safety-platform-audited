@@ -7,8 +7,9 @@ import axios from 'axios';
 import { api, apiErrorMessage } from '../../lib/apiClient';
 import { NotFound404 } from '../errors/StatusPages';
 import { Order } from '../../types';
-import { Card, Badge, ErrorState } from '../../components/ui/Primitives';
+import { Card, ErrorState } from '../../components/ui/Primitives';
 import { Button } from '../../components/ui/Button';
+import { TrackingTimeline } from '../../components/tracking/TrackingTimeline';
 
 const STATUS_STEPS = ['pending', 'confirmed', 'processing', 'packed', 'dispatched', 'delivered'];
 
@@ -81,7 +82,6 @@ export default function OrderDetail() {
   }
   if (!order) return <NotFound404 />;
 
-  const currentStepIndex = STATUS_STEPS.indexOf(order.status);
   const isTerminal = order.status === 'cancelled' || order.status === 'refunded';
   const canCancel = ['pending', 'confirmed'].includes(order.status);
 
@@ -99,17 +99,29 @@ export default function OrderDetail() {
 
       {!isTerminal && (
         <Card className="mt-5 p-5">
-          <div className="flex items-center justify-between">
-            {STATUS_STEPS.map((step, i) => (
-              <div key={step} className="flex flex-1 flex-col items-center">
-                <div className={`h-2.5 w-2.5 rounded-full ${i <= currentStepIndex ? 'bg-safety' : 'bg-line'}`} />
-                <p className={`mt-2 text-center text-[10px] capitalize ${i <= currentStepIndex ? 'text-ink' : 'text-slateink'}`}>{step}</p>
-              </div>
-            ))}
-          </div>
+          <TrackingTimeline
+            steps={[
+              { key: 'pending', label: 'Order Placed', description: 'Received in system' },
+              { key: 'confirmed', label: 'Confirmed', description: 'Payment verified' },
+              { key: 'processing', label: 'Processing', description: 'Equipment checked' },
+              { key: 'packed', label: 'Packed', description: 'Safety packed' },
+              { key: 'dispatched', label: 'Dispatched', description: 'Out for delivery' },
+              { key: 'delivered', label: 'Delivered', description: 'Successfully handed over' }
+            ]}
+            currentStepKey={order.status}
+          />
         </Card>
       )}
-      {isTerminal && <div className="mt-5"><Badge tone="danger">{order.status}</Badge></div>}
+      {isTerminal && (
+        <Card className="mt-5 p-5">
+          <TrackingTimeline
+            steps={[]}
+            currentStepKey={order.status}
+            isCancelled
+            cancelReason={`Order ${order.status}.`}
+          />
+        </Card>
+      )}
 
       <Card className="mt-5 p-5">
         <p className="heading text-sm text-ink">Items</p>

@@ -6,8 +6,12 @@ import { asyncHandler } from '../utils/asyncHandler';
 import { ApiError } from '../utils/ApiError';
 import { ok, created } from '../utils/apiResponse';
 import { Permission, PERMISSIONS, ROLE_PERMISSIONS, Role } from '../config/permissions';
-import { sendEmail } from '../services/emailService';
+import { sendEmail, emailTemplates } from '../services/emailService';
 import { writeAuditLog } from '../services/auditService';
+import { env } from '../config/env';
+import { logger } from '../config/logger';
+import { hashResetToken } from './authController';
+import { revokeAllUserSessions } from '../utils/jwt';
 
 async function isLastSuperAdmin(staffId: Types.ObjectId | string): Promise<boolean> {
   const activeCount = await User.countDocuments({
@@ -45,7 +49,7 @@ export const getStaffById = asyncHandler(async (req: Request, res: Response) => 
 });
 
 export const createStaff = asyncHandler(async (req: Request, res: Response) => {
-  const { name, email, role, phone, permissionOverrides, isActive, password } = req.body as {
+  const { name, email, role, phone, permissionOverrides, isActive } = req.body as {
     name: string;
     email: string;
     role: Role;
@@ -74,30 +78,28 @@ export const createStaff = asyncHandler(async (req: Request, res: Response) => {
     throw ApiError.conflict('An account with this email already exists');
   }
 
-  const generatedPassword = password && password.trim().length >= 8
-    ? password.trim()
-    : crypto.randomBytes(6).toString('hex');
+  // Generate an unguessable high-entropy random password for the internal record
+  const initialSecret = crypto.randomBytes(32).toString('hex');
+
+  // Generate a secure one-time set-password token that expires in 24 hours
+  const setupToken = crypto.randomBytes(32).toString('hex');
+  const setupTokenHash = hashResetToken(setupToken);
+  const setupTokenExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 
   const staff = await User.create({
     name: name.trim(),
     email: normalizedEmail,
-    password: generatedPassword,
+    password: initialSecret,
     phone: phone?.trim(),
     role,
     permissionOverrides: permissionOverrides || [],
     isActive: isActive !== undefined ? isActive : true,
-    isEmailVerified: true
+    isEmailVerified: true,
+    passwordResetTokenHash: setupTokenHash,
+    passwordResetExpiresAt: setupTokenExpiresAt
   });
 
-  try {
-    await sendEmail(
-      normalizedEmail,
-      'Your staff account has been created',
-      `<p>Hi ${name}, your account role is <b>${role}</b>. Your login password is: <b>${generatedPassword}</b>. Please log in and change it if needed.</p>`
-    );
-  } catch (err) {
-    console.error('[staffController] Failed to send credentials email:', err);
-  }
+  const inviteEmailSent = await sendInvite(staff.name, staff.role, normalizedEmail, setupToken);
 
   await writeAuditLog(req, 'create', 'staff', 'User', staff._id, null, {
     name: staff.name,
@@ -111,7 +113,64 @@ export const createStaff = asyncHandler(async (req: Request, res: Response) => {
     '-password -emailOtpHash -emailOtpExpiresAt -emailOtpAttempts -emailOtpLastSentAt -passwordResetTokenHash -passwordResetExpiresAt'
   );
 
-  return created(res, staffResponse, 'Staff account created successfully');
+  // inviteEmailSent tells the admin whether the person actually received their link, so a delivery problem is
+  // visible instead of leaving an account nobody can open.
+  return created(
+    res,
+    { ...staffResponse!.toObject(), inviteEmailSent },
+    inviteEmailSent
+      ? 'Staff account created. A set-password link was emailed.'
+      : 'Staff account created, but the invite email could not be sent. Use "Resend invite" once email is working.'
+  );
+});
+
+/** Emails the one-time set-password link. Returns false (and logs) if the email could not be sent. */
+async function sendInvite(name: string, role: string, email: string, setupToken: string): Promise<boolean> {
+  try {
+    await sendEmail(
+      email,
+      'Set your password — Fire Safety Platform Staff Account',
+      emailTemplates.staffInviteSetPassword({
+        name,
+        role: role.replace('_', ' '),
+        setPasswordLink: `${env.adminUrl}/reset-password?token=${setupToken}`,
+        expiresInHours: 24
+      })
+    );
+    return true;
+  } catch (err) {
+    logger.error({ err, email }, '[staff] Failed to send staff invite email');
+    return false;
+  }
+}
+
+/**
+ * Sends a fresh set-password link to a staff member who has not set a password yet (for example because the first
+ * email never arrived or the 24-hour link expired). Issuing a new link invalidates the previous one.
+ */
+export const resendStaffInvite = asyncHandler(async (req: Request, res: Response) => {
+  if (!Types.ObjectId.isValid(req.params.id)) throw ApiError.badRequest('Invalid staff id');
+  const staff = await User.findOne({ _id: req.params.id, role: { $ne: 'customer' } });
+  if (!staff) throw ApiError.notFound('Staff member not found');
+
+  // Only a super admin may touch a super admin account.
+  if (staff.role === 'super_admin' && req.user?.role !== 'super_admin') {
+    throw ApiError.forbidden('Only Super Admin can manage a super_admin account');
+  }
+  if (staff.lastLoginAt) {
+    throw ApiError.badRequest('This person has already signed in. If they forgot their password, reset it instead.');
+  }
+
+  const setupToken = crypto.randomBytes(32).toString('hex');
+  staff.passwordResetTokenHash = hashResetToken(setupToken);
+  staff.passwordResetExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  await staff.save();
+
+  const inviteEmailSent = await sendInvite(staff.name, staff.role, staff.email, setupToken);
+  await writeAuditLog(req, 'resend_invite', 'staff', 'User', staff._id, null, { email: staff.email, inviteEmailSent });
+
+  if (!inviteEmailSent) throw new ApiError(502, 'The invite email could not be sent. Check the email settings and try again.');
+  return ok(res, { inviteEmailSent: true }, 'A new set-password link was emailed');
 });
 
 export const updateStaff = asyncHandler(async (req: Request, res: Response) => {
@@ -188,11 +247,27 @@ export const updateStaff = asyncHandler(async (req: Request, res: Response) => {
   }
 
   // Password update (hashed once automatically by User pre-save hook)
+  let passwordChanged = false;
   if (req.body.password && String(req.body.password).trim().length >= 8) {
     staff.password = String(req.body.password).trim();
+    passwordChanged = true;
   }
 
   await staff.save();
+
+  if (passwordChanged) {
+    // Invalidate active sessions upon password reset/update
+    await revokeAllUserSessions(staff._id);
+    try {
+      await sendEmail(
+        staff.email,
+        'Security Alert: Staff account password was reset',
+        emailTemplates.staffPasswordReset(staff.name)
+      );
+    } catch (err) {
+      console.error('[staffController] Failed to send password reset alert email:', err);
+    }
+  }
 
   await writeAuditLog(req, 'update', 'staff', 'User', staff._id, previous, {
     name: staff.name,
@@ -231,6 +306,7 @@ export const deleteStaff = asyncHandler(async (req: Request, res: Response) => {
   const previous = staff.toObject();
 
   if (req.query.permanent === 'true' && req.user?.role === 'super_admin') {
+    await revokeAllUserSessions(staff._id);
     await User.findByIdAndDelete(staff._id);
     await writeAuditLog(req, 'delete', 'staff', 'User', staff._id, previous, null);
     return ok(res, { id: staff._id }, 'Staff account permanently deleted');
@@ -239,6 +315,7 @@ export const deleteStaff = asyncHandler(async (req: Request, res: Response) => {
   // Safe soft deactivation
   staff.isActive = false;
   await staff.save();
+  await revokeAllUserSessions(staff._id);
 
   await writeAuditLog(req, 'deactivate', 'staff', 'User', staff._id, previous, { isActive: false });
 

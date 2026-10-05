@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { UserCog, Plus, Pencil, Shield, Check, Lock, ChevronDown, ChevronRight } from 'lucide-react';
+import { UserCog, Plus, Pencil, Shield, Lock, ChevronDown, ChevronRight } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import clsx from 'clsx';
@@ -44,6 +44,12 @@ export default function StaffList() {
       toast.success('Staff status updated');
       queryClient.invalidateQueries({ queryKey: ['staff'] });
     },
+    onError: (err) => toast.error(apiErrorMessage(err))
+  });
+
+  const resendInviteMutation = useMutation({
+    mutationFn: async (member: StaffMember) => api.post(`/staff/${member._id}/resend-invite`),
+    onSuccess: () => toast.success('A new set-password link was emailed'),
     onError: (err) => toast.error(apiErrorMessage(err))
   });
 
@@ -106,6 +112,17 @@ export default function StaffList() {
               >
                 <Pencil className="h-3.5 w-3.5" />
               </button>
+            )}
+            {canEdit && !s.lastLoginAt && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => resendInviteMutation.mutate(s)}
+                loading={resendInviteMutation.isPending && resendInviteMutation.variables?._id === s._id}
+                title="This person has not signed in yet. Email them a new set-password link."
+              >
+                Resend invite
+              </Button>
             )}
             {canToggle && (
               <Button
@@ -255,8 +272,14 @@ function StaffFormModal({
       }
       return api.post('/staff', payload);
     },
-    onSuccess: () => {
-      toast.success(isEdit ? 'Staff member updated' : 'Staff account created successfully');
+    onSuccess: (res) => {
+      const body = res.data as { message?: string; data?: { inviteEmailSent?: boolean } };
+      if (!isEdit && body?.data?.inviteEmailSent === false) {
+        // The account exists but nobody has been told: say so clearly instead of a plain success message.
+        toast.error(body.message || 'Account created, but the invite email could not be sent.', { duration: 9000 });
+      } else {
+        toast.success(isEdit ? 'Staff member updated' : 'Staff account created. A set-password link was emailed.');
+      }
       queryClient.invalidateQueries({ queryKey: ['staff'] });
       onClose();
     },
@@ -280,7 +303,7 @@ function StaffFormModal({
           <Input
             label={isEdit ? 'New Password (Optional)' : 'Password (Optional)'}
             type="password"
-            hint={isEdit ? 'Leave blank to retain existing password' : 'Leave blank to automatically generate and email a secure temporary password'}
+            hint={isEdit ? 'Leave blank to retain existing password' : 'A secure one-time "set your password" link will be automatically emailed to the new staff member.'}
             {...register('password')}
           />
         </div>

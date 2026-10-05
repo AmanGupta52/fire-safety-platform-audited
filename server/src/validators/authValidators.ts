@@ -44,6 +44,12 @@ export const refreshTokenSchema = z.object({
   params: z.any().optional()
 });
 
+export const logoutSchema = z.object({
+  body: z.object({ refreshToken: z.string().min(10).optional() }).optional().default({}),
+  query: z.any().optional(),
+  params: z.any().optional()
+});
+
 export const verifyOtpSchema = z.object({
   body: z.object({
     email: z.string().email(),

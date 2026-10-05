@@ -21,6 +21,11 @@ export interface IUser extends Document {
   emailOtpLastSentAt?: Date;
   passwordResetTokenHash?: string;
   passwordResetExpiresAt?: Date;
+  passwordChangedAt?: Date;
+  knownIps?: string[];
+  lastLoginIp?: string;
+  lastLoginUserAgent?: string;
+  knownDevices?: string[];
   tags: string[];
   notes?: string;
   lastLoginAt?: Date;
@@ -59,6 +64,13 @@ const userSchema = new Schema<IUser>(
     // stored, and select:false keeps it out of every default query result.
     passwordResetTokenHash: { type: String, select: false },
     passwordResetExpiresAt: { type: Date, select: false },
+    // Access tokens issued before this moment are rejected (see requireAuth), so a password change/reset
+    // also kills access tokens that are still within their 15-minute life.
+    passwordChangedAt: { type: Date },
+    knownIps: { type: [String], default: [], select: false },
+    lastLoginIp: { type: String, select: false },
+    lastLoginUserAgent: { type: String, select: false },
+    knownDevices: { type: [String], default: [], select: false },
     tags: { type: [String], default: [] },
     notes: { type: String },
     lastLoginAt: { type: Date }
@@ -69,6 +81,7 @@ const userSchema = new Schema<IUser>(
 userSchema.pre('save', async function (next) {
   if (!this.isModified('password')) return next();
   this.password = await bcrypt.hash(this.password, 12);
+  if (!this.isNew) this.passwordChangedAt = new Date();
   next();
 });
 

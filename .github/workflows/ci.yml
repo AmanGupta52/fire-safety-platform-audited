@@ -1,0 +1,91 @@
+name: CI
+
+# Runs on every push and every pull request. The workflow FAILS if any step fails:
+# lint, typecheck, tests, or the production build of the server, admin and client.
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Lint, typecheck, test, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    services:
+      mongodb:
+        image: mongo:6.0
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.runCommand({ ping: 1 }).ok'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            server/package-lock.json
+            admin/package-lock.json
+            client/package-lock.json
+
+      # `npm ci` installs EXACTLY what the lockfile says and fails if package.json and the lockfile disagree.
+      # (No "|| npm install" fallback: that would hide a broken lockfile.)
+      - name: Install dependencies
+        run: |
+          npm ci
+          npm --prefix server ci
+          npm --prefix admin ci
+          npm --prefix client ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      # NODE_ENV=test and the test secrets are set on THIS step only, so the production build below runs with
+      # NODE_ENV unset (Vite and tsc then build in production mode).
+      - name: Test
+        run: npm test
+        env:
+          NODE_ENV: test
+          MONGODB_URI_TEST: mongodb://127.0.0.1:27017/fire-safety-ci-test
+
+      - name: Production build
+        run: npm run build
+        env:
+          NODE_ENV: production
+
+  audit:
+    name: Dependency audit (informational)
+    runs-on: ubuntu-latest
+    # Reports known vulnerabilities in runtime dependencies without blocking merges on advisories that appear
+    # overnight. Remove `continue-on-error` to make it a hard gate.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Audit server, admin and client (production dependencies)
+        run: |
+          npm --prefix server audit --omit=dev --audit-level=high
+          npm --prefix admin audit --omit=dev --audit-level=high
+          npm --prefix client audit --omit=dev --audit-level=high

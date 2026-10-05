@@ -2,7 +2,7 @@ import { useParams, Link } from 'react-router-dom';
 import axios from 'axios';
 import { CheckCircle2, XCircle, Clock, ShieldCheck, ArrowLeft } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
-import { Card, EmptyState, ErrorState } from '../../components/ui/Primitives';
+import { Card, ErrorState } from '../../components/ui/Primitives';
 import { useService } from '../../hooks/useServices';
 import { getServiceIcon, formatServicePrice } from '../../utils/serviceUtils';
 import { NotFound404 } from '../errors/StatusPages';

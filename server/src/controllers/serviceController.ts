@@ -7,6 +7,7 @@ import { asyncHandler } from '../utils/asyncHandler';
 import { ApiError } from '../utils/ApiError';
 import { ok, created, paginationMeta } from '../utils/apiResponse';
 import { writeAuditLog } from '../services/auditService';
+import { escapeRegex } from '../utils/escapeRegex';
 
 function generateSlug(text: string): string {
   return slugify(text, { lower: true, strict: true, trim: true });
@@ -24,12 +25,32 @@ function normalizeImage(img: unknown) {
 
 // ------------------- Public Endpoints -------------------
 
-export const listPublicServices = asyncHandler(async (_req: Request, res: Response) => {
-  const services = await Service.find({
+export const listPublicServices = asyncHandler(async (req: Request, res: Response) => {
+  const filter: Record<string, unknown> = {
     isDeleted: false,
     isActive: true,
     isPublished: true
-  })
+  };
+
+  const searchTerm = String(req.query.q || req.query.search || '').trim();
+  if (searchTerm) {
+    filter.$or = [
+      { name: { $regex: escapeRegex(searchTerm), $options: 'i' } },
+      { shortDescription: { $regex: escapeRegex(searchTerm), $options: 'i' } },
+      { description: { $regex: escapeRegex(searchTerm), $options: 'i' } },
+      { category: { $regex: escapeRegex(searchTerm), $options: 'i' } }
+    ];
+  }
+
+  if (req.query.category) {
+    filter.category = String(req.query.category).trim();
+  }
+
+  if (req.query.featured === 'true') {
+    filter.isFeatured = true;
+  }
+
+  const services = await Service.find(filter)
     .select('name slug shortDescription description startingPrice priceUnit currency category image gallery features inclusions exclusions estimatedDuration displayOrder isFeatured seoTitle seoDescription createdAt')
     .sort({ displayOrder: 1, createdAt: 1 });
 
@@ -82,10 +103,10 @@ export const adminListServices = asyncHandler(async (req: Request, res: Response
   if (req.query.search) {
     const term = String(req.query.search).trim();
     filter.$or = [
-      { name: { $regex: term, $options: 'i' } },
-      { slug: { $regex: term, $options: 'i' } },
-      { description: { $regex: term, $options: 'i' } },
-      { category: { $regex: term, $options: 'i' } }
+      { name: { $regex: escapeRegex(term), $options: 'i' } },
+      { slug: { $regex: escapeRegex(term), $options: 'i' } },
+      { description: { $regex: escapeRegex(term), $options: 'i' } },
+      { category: { $regex: escapeRegex(term), $options: 'i' } }
     ];
   }
 

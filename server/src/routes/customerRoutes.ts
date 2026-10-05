@@ -58,6 +58,13 @@ staffRouter.patch(
   staffController.updateStaff
 );
 
+// Re-send the set-password link to someone who has not signed in yet
+staffRouter.post(
+  '/:id/resend-invite',
+  requireAnyPermission('staff.create', 'staff.update', 'staff.manage'),
+  staffController.resendStaffInvite
+);
+
 // Delete/deactivate staff (requires staff.delete or staff.manage)
 staffRouter.delete(
   '/:id',

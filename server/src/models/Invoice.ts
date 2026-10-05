@@ -10,8 +10,12 @@ export interface IInvoice extends Document {
   items: {
     name: string; hsnCode?: string; quantity: number; unitPrice: number;
     gstPercentage: number; cgst: number; sgst: number; igst: number; lineTotal: number;
+    taxableValue?: number;
   }[];
   subtotal: number;
+  discount: number;
+  shippingFee: number;
+  taxableTotal: number;
   totalGst: number;
   grandTotal: number;
   pdfUrl?: string;
@@ -31,12 +35,15 @@ const invoiceSchema = new Schema<IInvoice>(
       type: [
         {
           name: String, hsnCode: String, quantity: Number, unitPrice: Number,
-          gstPercentage: Number, cgst: Number, sgst: Number, igst: Number, lineTotal: Number
+          gstPercentage: Number, cgst: Number, sgst: Number, igst: Number, lineTotal: Number, taxableValue: Number
         }
       ],
       required: true
     },
     subtotal: { type: Number, required: true },
+    discount: { type: Number, default: 0 },
+    shippingFee: { type: Number, default: 0 },
+    taxableTotal: { type: Number },
     totalGst: { type: Number, required: true },
     grandTotal: { type: Number, required: true },
     pdfUrl: { type: String },

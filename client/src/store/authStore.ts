@@ -36,3 +36,12 @@ export const useAuthStore = create<AuthState>()(
     { name: 'fire-safety-customer-auth' }
   )
 );
+
+// Keep every open tab on the same tokens. Refresh tokens rotate (each one works once), so a second tab that kept
+// using the old token after the first tab refreshed would be rejected and signed out. When another tab writes
+// the stored session, this tab reloads it.
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (event) => {
+    if (event.key === 'fire-safety-customer-auth') void useAuthStore.persist.rehydrate();
+  });
+}

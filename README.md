@@ -12,14 +12,22 @@ This repo now contains two pieces:
    customer CRM with tags and account history, review moderation, coupons, blog/gallery/FAQ CMS, staff & role
    management, an audit log viewer, company settings, and a reports page with CSV export.
 
-**Not yet built:** the customer-facing storefront (the third piece of the original spec), automated tests,
-i18n, PWA assets, and live Razorpay/SMS/WhatsApp provider wiring (interfaces are ready on the backend).
+3. **`client/`** — the customer storefront (React + Vite + TypeScript).
+
+**Not yet built:** i18n and live Razorpay/SMS/WhatsApp provider wiring (the interfaces are ready on the backend).
+
+> **Version notes.** This version adds refresh-token rotation with real logout, account lockout, a tamper-evident
+> audit log, GST-correct invoices, an equipment passport, a technician mobile flow, slot-based bookings, a clean
+> `/api/services` (catalog) vs `/api/bookings` split, Pino logging, Sentry, and an automated test suite with CI.
+> See [`CHANGES.md`](CHANGES.md) for what was fixed in the review pass and [section 6](#6-operations-checklist)
+> for what you must do when upgrading an existing database.
 
 ## 1. Requirements
 
 - Node.js 18+
-- MongoDB (Atlas or local). **Checkout uses a MongoDB transaction, which requires a replica set** — a free
-  Atlas cluster already qualifies, or run `mongod --replSet rs0` locally and `mongosh --eval "rs.initiate()"` once.
+- MongoDB 6+ (Atlas or local). A replica set is **not** required: checkout uses atomic conditional updates instead
+  of transactions. Product search uses MongoDB `$text`, so use real MongoDB/Atlas (MongoDB look-alikes such as
+  FerretDB do not implement it).
 
 ## 2. Setup
 
@@ -81,13 +89,48 @@ access token to every request and, on a 401, transparently calls `/auth/refresh`
 
 ## 4. Known limitations to address before production
 
-- `npm install` could not be verified in this sandboxed build environment (no network egress) — run it
-  yourself and fix any dependency-version issues before deploying.
 - The Gallery form takes an image URL directly; wire it to `POST /api/uploads/image/gallery` (already built
   on the backend) with a real file picker for a smoother staff experience.
-- Password reset for staff accounts isn't exposed in this console yet — use the "Add staff" flow (emails a
-  temporary password) or extend `Settings` with a change-password form.
-- No automated tests yet for the admin console (Vitest + React Testing Library would be the natural choice).
+- New staff receive a one-time "set your password" link by email (valid 24 hours); no password is ever emailed.
+- The server has an automated test suite (`npm test` in `server/`); the admin and client apps do not have UI tests yet.
+- The technician PWA caches only the app shell. Job data is private and always loaded live, so job screens need a
+  connection; offline queuing of check-ins and reports is not built.
+- Technician capacity on the dashboard uses one shared limit (`TECHNICIAN_MAX_CONCURRENT_JOBS`), not a per-person value.
+
+## 6. Operations checklist
+
+Do these when deploying this version, in this order.
+
+1. **Rotate any credentials that were ever shared.** A `server/.env` containing real Cloudinary / SMTP values was
+   included in an earlier zip. Treat those as leaked: create new ones and update your hosting environment.
+2. **Set the new variables** (see `server/.env.example`): `AUDIT_HMAC_SECRET` (new, random, never reuse a JWT secret),
+   `TRUST_PROXY` (number of proxies in front of the API), and optionally `SENTRY_DSN`, `LOG_LEVEL`.
+3. **Fill in company settings** (name, address, **GSTIN**, state). In production an invoice is *not* generated
+   without a GSTIN (the order itself is still created). After saving settings, move an order forward again, or
+   re-open it, to produce the missing invoice.
+4. **Existing database? Run the index migration once:** `cd server && npm run db:sync-indexes`.
+   MongoDB allows one text index per collection and cannot alter it in place, so the older products text index
+   must be dropped before the new one can be built.
+5. **Old audit-log entries** (written before the sealed chain) stay in the database and are reported as
+   "unsealed" by `GET /api/audit-logs/verify`; they are not treated as tampering. New entries are sealed.
+6. **Everyone is signed out once** after upgrading: refresh tokens are now stored per login session.
+7. **Technicians no longer have `services.update`.** They can still work their assigned jobs. If your team relied on
+   technicians editing catalog prices, grant that permission to a staff role deliberately instead.
+8. **Frontends call `/api/bookings/*`.** The old `/api/services/:id/status` style booking paths were removed because
+   under `/api/services` those paths mean *catalog items*. Read-only aliases (`/services/my`, `/services/slots`,
+   `/services/technician/my-jobs`, `/services/bookings`) still work for older clients.
+9. **Anchor the audit chain externally** if you need to detect deletion of the newest entries: periodically copy the
+   latest entry's `hash` from `GET /api/audit-logs` to storage that someone with database access cannot edit.
+
+### Tests and CI
+
+```bash
+cd server
+npm test            # needs MongoDB; uses MONGODB_URI_TEST (database name must contain "test")
+```
+
+CI (`.github/workflows/ci.yml`) runs lint, typecheck, tests (against a real MongoDB 6 container) and the production
+build on every push and pull request, and fails if any step fails.
 
 ## 5. Next phases
 

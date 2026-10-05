@@ -12,6 +12,10 @@ export interface IOrderItem {
   unitPrice: number;
   gstPercentage: number;
   lineTotal: number;
+  /** Value after the item's share of the order discount, before GST. */
+  taxableValue?: number;
+  /** GST charged on taxableValue. */
+  gstAmount?: number;
 }
 
 export interface IOrder extends Document {
@@ -46,7 +50,9 @@ const orderItemSchema = new Schema<IOrderItem>(
     quantity: { type: Number, required: true, min: 1 },
     unitPrice: { type: Number, required: true },
     gstPercentage: { type: Number, required: true },
-    lineTotal: { type: Number, required: true }
+    lineTotal: { type: Number, required: true },
+    taxableValue: { type: Number },
+    gstAmount: { type: Number }
   },
   { _id: false }
 );
@@ -79,5 +85,10 @@ const orderSchema = new Schema<IOrder>(
   },
   { timestamps: true }
 );
+
+// Query indexes for customer order history and admin order tracking
+orderSchema.index({ user: 1, createdAt: -1 });
+orderSchema.index({ status: 1, createdAt: -1 });
+orderSchema.index({ paymentStatus: 1, createdAt: -1 });
 
 export const Order = model<IOrder>('Order', orderSchema);

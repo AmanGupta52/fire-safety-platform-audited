@@ -73,7 +73,14 @@ const serviceSchema = new Schema<IService>(
   { timestamps: true }
 );
 
-// Composite index for fast public catalog queries
+// Composite indexes for fast public catalog queries & admin filtering
 serviceSchema.index({ isDeleted: 1, isActive: 1, isPublished: 1, displayOrder: 1 });
+serviceSchema.index({ isDeleted: 1, category: 1, isActive: 1, isPublished: 1 });
+serviceSchema.index({ isDeleted: 1, isFeatured: 1, isActive: 1, isPublished: 1 });
+serviceSchema.index({ createdAt: -1 });
+
+// Service search uses escaped, case-insensitive partial matching (see serviceController): a service catalog is
+// small, and partial words ("insta" -> "Installation") matter more than stemming. A text index here would never be
+// used by those queries, so none is defined.
 
 export const Service = model<IService>('Service', serviceSchema);

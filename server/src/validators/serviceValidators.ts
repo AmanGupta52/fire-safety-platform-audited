@@ -21,14 +21,17 @@ export const createEquipmentSchema = z.object({
 export const createServiceBookingSchema = z.object({
   body: z.object({
     serviceId: z.string().optional(),
-    serviceType: z.enum(['installation', 'inspection', 'refilling', 'repair', 'fire_safety_audit', 'amc_visit']).optional(),
-    phone: z.string().min(10),
-    address: z.string().min(3),
-    preferredDate: z.string().min(4),
-    preferredTime: z.string().optional(),
+    // A catalog slug or name. The server resolves it against the live catalog and rejects unknown services;
+    // the character limit just keeps junk out before that lookup.
+    serviceType: z.string().trim().min(1).max(80).regex(/^[\p{L}\p{N} _-]+$/u, 'Invalid service').optional(),
+    phone: z.string().min(10).max(20),
+    address: z.string().min(3).max(500),
+    preferredDate: z.string().min(4).max(40),
+    preferredTime: z.string().max(40).optional(),
+    timeSlot: z.string().max(40).optional(),
     equipmentId: z.string().optional(),
-    problemDescription: z.string().optional(),
-    additionalNotes: z.string().optional()
+    problemDescription: z.string().max(2000).optional(),
+    additionalNotes: z.string().max(2000).optional()
   }).refine((data) => data.serviceId || data.serviceType, {
     message: 'Either serviceId or serviceType must be provided'
   }),
@@ -94,6 +97,15 @@ export const updateServiceSchema = z.object({
     isFeatured: z.boolean().optional(),
     seoTitle: z.string().optional(),
     seoDescription: z.string().optional()
+  }),
+  query: z.any().optional(),
+  params: z.any().optional()
+});
+
+export const updateBookingStatusSchema = z.object({
+  body: z.object({
+    status: z.enum(['requested', 'confirmed', 'assigned', 'technician_on_the_way', 'in_progress', 'completed', 'cancelled', 'rejected']),
+    adminNotes: z.string().max(2000).optional()
   }),
   query: z.any().optional(),
   params: z.any().optional()

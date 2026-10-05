@@ -71,7 +71,7 @@ const groups: NavGroup[] = [
       { to: '/reports', label: 'Reports', icon: LayoutDashboard, permission: 'reports.read' },
       { to: '/staff', label: 'Staff & Roles', icon: UserCog, permission: 'staff.read' },
       { to: '/audit-logs', label: 'Audit Log', icon: History, permission: 'audit.read' },
-      { to: '/settings', label: 'Settings', icon: Settings, permission: 'settings.manage' }
+      { to: '/settings', label: 'Settings', icon: Settings, roles: ['super_admin'] }
     ]
   }
 ];

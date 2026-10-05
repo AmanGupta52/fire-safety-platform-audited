@@ -3,17 +3,18 @@ import { Cart } from '../models/Cart';
 import { Product } from '../models/Product';
 import { Order, OrderStatus } from '../models/Order';
 import { Payment } from '../models/Payment';
-import { Coupon } from '../models/Coupon';
+import { Coupon, ICoupon } from '../models/Coupon';
 import { User } from '../models/User';
 import { asyncHandler } from '../utils/asyncHandler';
 import { ApiError } from '../utils/ApiError';
 import { ok, created, paginationMeta } from '../utils/apiResponse';
-import { priceLines, applyDiscount } from '../services/pricingService';
+import { priceOrder, applyDiscount, shippingFor } from '../services/pricingService';
 import { nextNumber } from '../services/numberingService';
 import { notify } from '../services/notificationService';
 import { emailTemplates } from '../services/emailService';
-import { generateInvoiceForOrder } from '../services/invoiceService';
+import { tryGenerateInvoiceForOrder } from '../services/invoiceService';
 import { writeAuditLog } from '../services/auditService';
+import { logger } from '../config/logger';
 
 /**
  * Checkout: validate user -> validate cart -> validate stock -> calculate prices/discount/GST
@@ -35,6 +36,7 @@ export const checkout = asyncHandler(async (req: Request, res: Response) => {
 
   const orderItems: {
     product: any; name: string; sku: string; quantity: number; unitPrice: number; gstPercentage: number; lineTotal: number;
+    taxableValue?: number; gstAmount?: number;
   }[] = [];
   const lines: { quantity: number; unitPrice: number; gstPercentage: number }[] = [];
   const decremented: { productId: string; quantity: number }[] = [];
@@ -44,6 +46,10 @@ export const checkout = asyncHandler(async (req: Request, res: Response) => {
       await Product.updateOne({ _id: d.productId }, { $inc: { stock: d.quantity } }).catch(() => undefined);
     }
   }
+
+  let orderCommitted = false;
+  let couponClaimed = false;
+  let appliedCoupon: ICoupon | null = null;
 
   try {
     for (const item of cart.items) {
@@ -74,20 +80,41 @@ export const checkout = asyncHandler(async (req: Request, res: Response) => {
       lines.push({ quantity: item.quantity, unitPrice, gstPercentage: product.gstPercentage });
     }
 
-    const { subtotal, gstAmount } = priceLines(lines);
+    // First pass (no discount) only to learn the subtotal for coupon eligibility.
+    const baseSubtotal = priceOrder(lines).subtotal;
 
     let discount = 0;
-    let appliedCoupon = null;
     if (couponCode) {
-      appliedCoupon = await Coupon.findOne({ code: String(couponCode).toUpperCase(), isActive: true });
-      if (appliedCoupon && subtotal >= appliedCoupon.minimumOrder) {
-        discount = applyDiscount(subtotal, appliedCoupon);
-        await Coupon.updateOne({ _id: appliedCoupon._id }, { $inc: { usedCount: 1 } });
+      // Same rules as the cart's "apply coupon": the checkout must not accept a code the cart would refuse.
+      // (It used to ignore dates and usage limits, so an expired or used-up code still worked here.)
+      const now = new Date();
+      const coupon = await Coupon.findOne({ code: String(couponCode).toUpperCase().trim(), isActive: true });
+      if (!coupon || coupon.startDate > now || coupon.endDate < now) {
+        throw ApiError.badRequest('This coupon is not valid or has expired');
       }
+      if (baseSubtotal < coupon.minimumOrder) {
+        throw ApiError.badRequest(`This coupon needs a minimum order of Rs ${coupon.minimumOrder}`);
+      }
+      // Claim one use atomically. The filter re-checks the limit at the moment of the write, so two checkouts
+      // racing for the last use cannot both get it.
+      const claim = await Coupon.updateOne(
+        coupon.usageLimit ? { _id: coupon._id, usedCount: { $lt: coupon.usageLimit } } : { _id: coupon._id },
+        { $inc: { usedCount: 1 } }
+      );
+      if (claim.matchedCount === 0) throw ApiError.badRequest('This coupon has reached its usage limit');
+      appliedCoupon = coupon;
+      couponClaimed = true;
+      discount = applyDiscount(baseSubtotal, coupon);
     }
 
-    const shippingFee = subtotal > 0 && subtotal < 2000 ? 99 : 0;
-    const totalAmount = Math.round((subtotal - discount + gstAmount + shippingFee) * 100) / 100;
+    // GST is charged on the discounted value (discount reduces taxable value), shipping added after tax.
+    const priced = priceOrder(lines, discount, shippingFor(baseSubtotal));
+    const { subtotal, gstAmount, shippingFee, total: totalAmount } = priced;
+    discount = priced.discount;
+    orderItems.forEach((item, i) => {
+      item.taxableValue = priced.lines[i].taxableValue;
+      item.gstAmount = priced.lines[i].gstAmount;
+    });
 
     const orderNumber = await nextNumber('order', 'ORD');
 
@@ -97,6 +124,8 @@ export const checkout = asyncHandler(async (req: Request, res: Response) => {
       status: 'pending', paymentStatus: 'unpaid',
       paymentMethod, billingAddress, shippingAddress, companyName, gstNumber
     });
+    // From here on the order exists, so stock must NOT be rolled back if a later (non-critical) step fails.
+    orderCommitted = true;
 
     // Payment record — mock mode never represents a real charge as successful money movement.
     const paymentStatus = paymentMethod === 'mock' ? 'success' : 'initiated';
@@ -115,24 +144,34 @@ export const checkout = asyncHandler(async (req: Request, res: Response) => {
     cart.couponCode = undefined;
     await cart.save();
 
-    const user = await User.findById(req.user!.id);
-    await notify({
-      userId: req.user!.id,
-      type: 'order_confirmation',
-      title: 'Order Confirmed',
-      message: `Your order ${order.orderNumber} has been placed successfully.`,
-      email: user?.email,
-      emailHtml: emailTemplates.orderConfirmation(order.orderNumber, order.totalAmount),
-      phone: user?.phone
-    });
+    try {
+      const user = await User.findById(req.user!.id);
+      await notify({
+        userId: req.user!.id,
+        type: 'order_confirmation',
+        title: 'Order Confirmed',
+        message: `Your order ${order.orderNumber} has been placed successfully.`,
+        email: user?.email,
+        emailHtml: emailTemplates.orderConfirmation(order.orderNumber, order.totalAmount),
+        phone: user?.phone
+      });
+    } catch (err) {
+      logger.error({ err, orderId: order._id.toString() }, '[orders] Order confirmation notification failed');
+    }
 
     if (order.paymentStatus === 'paid') {
-      await generateInvoiceForOrder(order._id.toString());
+      await tryGenerateInvoiceForOrder(order._id.toString());
     }
 
     return created(res, order, 'Order placed successfully');
   } catch (err) {
-    await rollbackDecrements();
+    if (!orderCommitted) {
+      await rollbackDecrements();
+      // Give the coupon use back if the order never came into existence.
+      if (couponClaimed && appliedCoupon) {
+        await Coupon.updateOne({ _id: appliedCoupon._id }, { $inc: { usedCount: -1 } }).catch(() => undefined);
+      }
+    }
     throw err;
   }
 });
@@ -243,7 +282,7 @@ export const adminUpdateOrderStatus = asyncHandler(async (req: Request, res: Res
   });
 
   if (order.paymentStatus === 'paid') {
-    await generateInvoiceForOrder(order._id.toString());
+    await tryGenerateInvoiceForOrder(order._id.toString());
   }
 
   return ok(res, order, 'Order status updated');

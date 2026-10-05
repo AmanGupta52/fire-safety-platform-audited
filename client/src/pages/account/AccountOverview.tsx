@@ -13,7 +13,7 @@ export default function AccountOverview() {
   const { data: orders, isLoading: ordersLoading, isError: ordersError, refetch: refetchOrders } = useQuery({ queryKey: ['my-orders-summary'], queryFn: async () => (await api.get('/orders/my', { params: { limit: 3 } })).data.data as Order[] });
   const { data: quotes, isLoading: quotesLoading } = useQuery({ queryKey: ['my-quotes-summary'], queryFn: async () => (await api.get('/quotes/my')).data.data as Quote[] });
   const { data: equipment, isLoading: equipmentLoading } = useQuery({ queryKey: ['my-equipment-summary'], queryFn: async () => (await api.get('/equipment/my')).data.data as CustomerEquipment[] });
-  const { data: services, isLoading: servicesLoading } = useQuery({ queryKey: ['my-services-summary'], queryFn: async () => (await api.get('/services/my')).data.data as ServiceBooking[] });
+  const { data: services, isLoading: servicesLoading } = useQuery({ queryKey: ['my-services-summary'], queryFn: async () => (await api.get('/bookings/my')).data.data as ServiceBooking[] });
 
   const statsLoading = ordersLoading || quotesLoading || equipmentLoading || servicesLoading;
   const dueEquipment = (equipment || []).filter((e) => e.status !== 'healthy');

@@ -5,7 +5,7 @@ import { Coupon } from '../models/Coupon';
 import { asyncHandler } from '../utils/asyncHandler';
 import { ApiError } from '../utils/ApiError';
 import { ok } from '../utils/apiResponse';
-import { priceLines, applyDiscount } from '../services/pricingService';
+import { priceLines, priceOrder, applyDiscount, shippingFor } from '../services/pricingService';
 
 async function buildCartSummary(userId: string) {
   const cart = await Cart.findOne({ user: userId }).populate('items.product');
@@ -19,18 +19,20 @@ async function buildCartSummary(userId: string) {
       return { quantity: i.quantity, unitPrice, gstPercentage: product.gstPercentage ?? 18 };
     });
 
-  const { subtotal, gstAmount } = priceLines(lines);
+  // Same pricing function the checkout uses, so the total shown in the cart is exactly the amount charged:
+  // the coupon reduces the taxable value, and GST is charged on the discounted value.
+  const baseSubtotal = priceOrder(lines).subtotal;
 
-  let discount = 0;
+  let requestedDiscount = 0;
   if (cart.couponCode) {
     const coupon = await Coupon.findOne({ code: cart.couponCode, isActive: true });
-    if (coupon && subtotal >= coupon.minimumOrder && coupon.startDate <= new Date() && coupon.endDate >= new Date()) {
-      discount = applyDiscount(subtotal, coupon);
+    if (coupon && baseSubtotal >= coupon.minimumOrder && coupon.startDate <= new Date() && coupon.endDate >= new Date()) {
+      requestedDiscount = applyDiscount(baseSubtotal, coupon);
     }
   }
 
-  const shippingFee = subtotal > 0 && subtotal < 2000 ? 99 : 0;
-  const total = Math.round((subtotal - discount + gstAmount + shippingFee) * 100) / 100;
+  const priced = priceOrder(lines, requestedDiscount, shippingFor(baseSubtotal));
+  const { subtotal, discount, gstAmount, shippingFee, total } = priced;
 
   return {
     items: cart.items.filter((i) => i.product),

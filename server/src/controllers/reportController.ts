@@ -5,8 +5,10 @@ import { Product } from '../models/Product';
 import { ServiceBooking } from '../models/ServiceBooking';
 import { AMCContract } from '../models/AMCContract';
 import { User } from '../models/User';
+import { Technician } from '../models/Technician';
 import { asyncHandler } from '../utils/asyncHandler';
 import { ok } from '../utils/apiResponse';
+import { escapeRegex } from '../utils/escapeRegex';
 
 function startOfDay(d = new Date()) { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; }
 function startOfMonth(d = new Date()) { return new Date(d.getFullYear(), d.getMonth(), 1); }
@@ -133,4 +135,215 @@ export const exportOrdersCsv = asyncHandler(async (req: Request, res: Response) 
   res.setHeader('Content-Type', 'text/csv');
   res.setHeader('Content-Disposition', 'attachment; filename="orders-export.csv"');
   res.send(csv);
+});
+
+// ============================================================================
+// ADMIN DASHBOARD V2
+// ============================================================================
+
+// Jobs a technician can hold at once before they are shown as fully loaded (100%).
+const TECHNICIAN_MAX_CONCURRENT_JOBS = Number(process.env.TECHNICIAN_MAX_CONCURRENT_JOBS) || 4;
+export const dashboardV2 = asyncHandler(async (req: Request, res: Response) => {
+  // Customer phone/email appear in the renewals list only for people who may read customers; everyone with
+  // reports.read still sees the name and plan.
+  const canSeeCustomerContacts =
+    req.user!.role === 'super_admin' || (req.user!.permissions as string[]).includes('customers.read');
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const nextThirtyDays = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+  const [
+    revenueTrend,
+    jobsByStatusAgg,
+    amcRenewalsDue,
+    lowStockItems,
+    technicians,
+    activeJobsCount,
+    completedJobsCount
+  ] = await Promise.all([
+    // 1. Revenue trend over last 30 days
+    Order.aggregate([
+      { $match: { paymentStatus: 'paid', createdAt: { $gte: thirtyDaysAgo } } },
+      {
+        $group: {
+          _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+          revenue: { $sum: '$totalAmount' },
+          orders: { $sum: 1 }
+        }
+      },
+      { $sort: { _id: 1 } }
+    ]),
+
+    // 2. Jobs by status
+    ServiceBooking.aggregate([
+      { $group: { _id: '$status', count: { $sum: 1 } } }
+    ]),
+
+    // 3. AMC renewals due in 30 days
+    AMCContract.find({
+      endDate: { $gte: new Date(), $lte: nextThirtyDays },
+      status: { $in: ['active', 'expiring_soon'] }
+    })
+      .populate('user', canSeeCustomerContacts ? 'name email phone' : 'name')
+      .select('planName endDate status user')
+      .sort({ endDate: 1 })
+      .limit(10),
+
+    // 4. Low stock inventory
+    Product.find({ isActive: true, stock: { $lte: 5 } })
+      .populate('category', 'name')
+      .select('name sku stock price category')
+      .sort({ stock: 1 })
+      .limit(10),
+
+    // 5. Active technicians for utilisation tracking
+    Technician.find({ status: 'active' }).select('name phone email skills'),
+
+    // Total active jobs
+    ServiceBooking.countDocuments({ status: { $in: ['assigned', 'technician_on_the_way', 'in_progress'] } }),
+
+    // Total completed jobs this month
+    ServiceBooking.countDocuments({ status: 'completed', completedAt: { $gte: thirtyDaysAgo } })
+  ]);
+
+  // Format jobs by status dictionary
+  const jobsByStatus: Record<string, number> = {
+    requested: 0,
+    confirmed: 0,
+    assigned: 0,
+    technician_on_the_way: 0,
+    in_progress: 0,
+    completed: 0,
+    cancelled: 0,
+    rejected: 0
+  };
+  jobsByStatusAgg.forEach((item) => {
+    if (item._id) jobsByStatus[item._id] = item.count;
+  });
+
+  // Calculate technician utilisation metrics
+  const technicianUtilisation = await Promise.all(
+    technicians.map(async (t) => {
+      const [currentAssigned, completedRecent] = await Promise.all([
+        ServiceBooking.countDocuments({
+          assignedTechnician: t._id,
+          status: { $in: ['assigned', 'technician_on_the_way', 'in_progress'] }
+        }),
+        ServiceBooking.countDocuments({
+          assignedTechnician: t._id,
+          status: 'completed',
+          completedAt: { $gte: thirtyDaysAgo }
+        })
+      ]);
+      // The Technician model has no per-person capacity field, so one shared setting is used for everyone.
+      const maxLoad = TECHNICIAN_MAX_CONCURRENT_JOBS;
+      const loadPercentage = Math.min(100, Math.round((currentAssigned / maxLoad) * 100));
+      return {
+        id: t._id,
+        name: t.name,
+        phone: t.phone,
+        skills: t.skills || [],
+        currentAssigned,
+        completedRecent,
+        maxLoad,
+        loadPercentage
+      };
+    })
+  );
+
+  return ok(res, {
+    revenueTrend,
+    jobsByStatus,
+    amcRenewalsDue,
+    lowStockItems,
+    technicianUtilisation,
+    summary: {
+      activeJobsCount,
+      completedJobsCount
+    }
+  });
+});
+
+// ============================================================================
+// GLOBAL SEARCH (CTRL+K) ACROSS ORDERS, CUSTOMERS, BOOKINGS, PRODUCTS
+// ============================================================================
+export const globalSearch = asyncHandler(async (req: Request, res: Response) => {
+  const q = String(req.query.q || '').trim().slice(0, 80);
+  const empty = { orders: [], customers: [], bookings: [], products: [] };
+  if (q.length < 2) return ok(res, empty);
+
+  // Each group is only searched (and only returned) if the caller may read that kind of data. Having
+  // "reports.read" is NOT enough to see customers' contact details.
+  const isSuper = req.user!.role === 'super_admin';
+  const can = (...perms: string[]) => isSuper || perms.some((p) => (req.user!.permissions as string[]).includes(p));
+
+  const regex = new RegExp(escapeRegex(q), 'i');
+
+  // Technicians only ever see their own assigned jobs (same rule as the bookings list), never every customer's.
+  let bookingScope: Record<string, unknown> | null = {};
+  if (req.user!.role === 'technician') {
+    const technician = await Technician.findOne({ user: req.user!.id, status: 'active' }).select('_id');
+    bookingScope = technician ? { assignedTechnician: technician._id } : null;
+  }
+
+  const [orders, customers, bookings, products] = await Promise.all([
+    can('orders.read')
+      ? Order.find({ $or: [{ orderNumber: regex }, { 'shippingAddress.phone': regex }, { 'shippingAddress.city': regex }] })
+          .populate('user', 'name')
+          .select('orderNumber totalAmount status createdAt user')
+          .sort({ createdAt: -1 })
+          .limit(6)
+      : [],
+    can('customers.read')
+      ? User.find({ role: 'customer', $or: [{ name: regex }, { email: regex }, { phone: regex }] })
+          .select('name email phone role createdAt')
+          .limit(6)
+      : [],
+    can('service_bookings.read') && bookingScope
+      ? ServiceBooking.find({ ...bookingScope, $or: [{ bookingNumber: regex }, { phone: regex }, { address: regex }] })
+          .populate('user', 'name')
+          .populate('service', 'name')
+          .select('bookingNumber serviceType status preferredDate phone address user service')
+          .sort({ createdAt: -1 })
+          .limit(6)
+      : [],
+    can('products.read')
+      ? Product.find({ $or: [{ name: regex }, { sku: regex }] }).select('name sku price stock image').limit(6)
+      : []
+  ]);
+
+  // Links point at list pages that exist in the admin app, with ?q= so the table opens already filtered.
+  return ok(res, {
+    orders: orders.map((o) => ({
+      id: o._id,
+      title: o.orderNumber,
+      subtitle: `${(o.user as unknown as { name?: string })?.name || 'Guest'} · ₹${o.totalAmount.toLocaleString('en-IN')}`,
+      type: 'Order',
+      status: o.status,
+      link: `/orders?q=${encodeURIComponent(o.orderNumber)}`
+    })),
+    customers: customers.map((c) => ({
+      id: c._id,
+      title: c.name,
+      subtitle: `${c.email}${c.phone ? ` · ${c.phone}` : ''}`,
+      type: 'Customer',
+      status: 'active',
+      link: `/customers?q=${encodeURIComponent(c.email)}`
+    })),
+    bookings: bookings.map((b) => ({
+      id: b._id,
+      title: b.bookingNumber,
+      subtitle: `${(b.service as unknown as { name?: string })?.name || b.serviceType.replace(/[-_]/g, ' ')} · ${b.phone}`,
+      type: 'Booking',
+      status: b.status,
+      link: `/bookings?q=${encodeURIComponent(b.bookingNumber)}`
+    })),
+    products: products.map((p) => ({
+      id: p._id,
+      title: p.name,
+      subtitle: `SKU: ${p.sku} · Stock: ${p.stock} · ₹${p.price.toLocaleString('en-IN')}`,
+      type: 'Product',
+      status: p.stock > 0 ? 'in_stock' : 'out_of_stock',
+      link: `/products?q=${encodeURIComponent(p.sku || p.name)}`
+    }))
+  });
 });

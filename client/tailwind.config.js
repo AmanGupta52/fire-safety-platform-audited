@@ -1,17 +1,18 @@
 /** @type {import('tailwindcss').Config} */
 export default {
+  darkMode: 'class',
   content: ['./index.html', './src/**/*.{ts,tsx}'],
   theme: {
     extend: {
       colors: {
-        // Industrial theme v2: charcoal steel + fire-engine red + hazard amber, on a cool
-        // brushed-grey background instead of the old warm paper — grounded in equipment
-        // colourways (extinguisher red, hazard tape amber/black, galvanised steel) rather
-        // than a generic warm palette.
-        ink: { DEFAULT: '#1A1D1F', soft: '#242830', softer: '#2E333C' },
-        paper: '#EEF1F0',
-        card: '#FFFFFF',
-        line: '#DBDFDC',
+        ink: {
+          DEFAULT: 'var(--color-ink, #1A1D1F)',
+          soft: 'var(--color-ink-soft, #242830)',
+          softer: 'var(--color-ink-softer, #2E333C)'
+        },
+        paper: 'var(--color-paper, #EEF1F0)',
+        card: 'var(--color-card, #FFFFFF)',
+        line: 'var(--color-line, #DBDFDC)',
         // `safety` is the authoritative name for the primary red going forward — CTAs, alerts,
         // price emphasis, active nav state. Never used as a large background fill.
         safety: { DEFAULT: '#D32B1E', dark: '#A32014', light: '#FCE6E2' },

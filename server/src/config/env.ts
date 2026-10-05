@@ -41,6 +41,11 @@ export const env = {
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '15m',
   jwtRefreshSecret: required('JWT_REFRESH_SECRET', 'dev_jwt_refresh_secret_change_me'),
   jwtRefreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
+  // Key for the audit-log hash chain. Keep it separate from the JWT secrets and never rotate it casually:
+  // changing it makes previously sealed entries fail verification.
+  auditHmacSecret: process.env.AUDIT_HMAC_SECRET || '',
+  // How many reverse proxies sit in front of the API (0 = none, 1 = e.g. nginx / Render / Railway).
+  trustProxy: Number(process.env.TRUST_PROXY ?? 1),
 
   clientUrl: process.env.CLIENT_URL || 'http://localhost:5173',
   adminUrl: process.env.ADMIN_URL || 'http://localhost:5174',

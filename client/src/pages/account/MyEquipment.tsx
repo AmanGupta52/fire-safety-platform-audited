@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { FlameKindling, Plus } from 'lucide-react';
+import { FlameKindling, Plus, QrCode } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import { api, apiErrorMessage } from '../../lib/apiClient';
@@ -91,6 +91,17 @@ export default function MyEquipment() {
               <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
                 {e.nextInspectionDate && <div><p className="text-slateink">Next inspection</p><p className="text-ink">{format(new Date(e.nextInspectionDate), 'd MMM yyyy')}</p></div>}
                 {e.nextRefillDate && <div><p className="text-slateink">Next refill</p><p className="text-ink">{format(new Date(e.nextRefillDate), 'd MMM yyyy')}</p></div>}
+              </div>
+              <div className="mt-4 pt-3 border-t border-line flex items-center justify-between">
+                <span className="text-[11px] text-slateink uppercase tracking-wider font-semibold">Digital Passport</span>
+                <a
+                  href={`/passport/${e.serialNumber || e._id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-flame hover:underline"
+                >
+                  <QrCode className="h-3.5 w-3.5" /> View Passport & QR
+                </a>
               </div>
             </Card>
           ))}

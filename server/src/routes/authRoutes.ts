@@ -4,17 +4,22 @@ import * as authController from '../controllers/authController';
 import { validate } from '../middleware/validate';
 import { requireAuth } from '../middleware/auth';
 import {
-  registerSchema, loginSchema, forgotPasswordSchema, resetPasswordSchema, refreshTokenSchema,
+  registerSchema, loginSchema, forgotPasswordSchema, resetPasswordSchema, refreshTokenSchema, logoutSchema,
   verifyOtpSchema, resendOtpSchema
 } from '../validators/authValidators';
 
 const router = Router();
+
+// The automated tests make dozens of calls from one IP, so these limiters are skipped under NODE_ENV=test
+// unless a test switches them on with RATE_LIMIT_TESTS=1 (see tests/authSecurity.test.ts).
+const skipInTests = () => process.env.NODE_ENV === 'test' && !process.env.RATE_LIMIT_TESTS;
 
 // Extra-strict limit on resend, on top of the global /api/auth limiter in app.ts — this is the
 // endpoint most exposed to abuse (someone spamming another person's inbox with codes).
 const resendOtpLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 5,
+  skip: skipInTests,
   message: { success: false, message: 'Too many resend requests. Please try again later.', errors: [] }
 });
 
@@ -23,6 +28,7 @@ const resendOtpLimiter = rateLimit({
 const passwordResetLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 5,
+  skip: skipInTests,
   message: { success: false, message: 'Too many requests. Please try again later.', errors: [] }
 });
 
@@ -33,7 +39,7 @@ router.post('/login', validate(loginSchema), authController.login);
 router.post('/refresh', validate(refreshTokenSchema), authController.refresh);
 router.post('/forgot-password', passwordResetLimiter, validate(forgotPasswordSchema), authController.forgotPassword);
 router.post('/reset-password', passwordResetLimiter, validate(resetPasswordSchema), authController.resetPassword);
-router.post('/logout', authController.logout);
+router.post('/logout', validate(logoutSchema), authController.logout);
 router.get('/me', requireAuth, authController.me);
 router.put('/profile', requireAuth, authController.updateProfile);
 

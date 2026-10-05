@@ -32,7 +32,7 @@ export type Role = 'super_admin' | 'admin' | 'sales' | 'technician' | 'accountan
 // Role -> permission set. 'super_admin' implicitly has everything (checked in middleware).
 export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   super_admin: [...PERMISSIONS],
-  admin: [...PERMISSIONS].filter((p) => p !== 'staff.manage' && p !== 'staff.delete' && p !== 'roles.manage'),
+  admin: [...PERMISSIONS].filter((p) => p !== 'staff.manage' && p !== 'staff.delete' && p !== 'roles.manage' && p !== 'settings.manage'),
   sales: [
     'products.read', 'categories.read',
     'orders.read', 'orders.update',
@@ -43,7 +43,9 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     'reports.read'
   ],
   technician: [
-    'services.read', 'services.update',
+    // Technicians work bookings assigned to them. They must NOT edit the service catalog (prices, publishing),
+    // so 'services.update' is deliberately not granted here.
+    'services.read',
     'service_bookings.read', 'service_bookings.update',
     'amc.read',
     'equipment.read',

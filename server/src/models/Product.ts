@@ -18,6 +18,7 @@ export interface IProduct extends Document {
   shortDescription?: string;
   price: number;
   discountPrice?: number;
+  hsnCode?: string;
   gstPercentage: number;
   stock: number;
   minimumOrderQuantity: number;
@@ -46,6 +47,7 @@ const productSchema = new Schema<IProduct>(
     name: { type: String, required: true, trim: true, index: true },
     slug: { type: String, required: true, unique: true, lowercase: true, index: true },
     sku: { type: String, required: true, unique: true, uppercase: true, index: true },
+    hsnCode: { type: String, default: '8424', trim: true },
     category: { type: Schema.Types.ObjectId, ref: 'Category', required: true, index: true },
     subcategory: { type: Schema.Types.ObjectId, ref: 'Category', default: null },
     brand: { type: String, trim: true, index: true },
@@ -79,6 +81,19 @@ const productSchema = new Schema<IProduct>(
   { timestamps: true }
 );
 
-productSchema.index({ name: 'text', shortDescription: 'text', brand: 'text', sku: 'text' });
+// Compound query indexes for storefront filtering and admin sorting
+productSchema.index({ isActive: 1, category: 1, createdAt: -1 });
+productSchema.index({ isActive: 1, brand: 1 });
+productSchema.index({ isActive: 1, fireClass: 1 });
+productSchema.index({ isActive: 1, price: 1 });
+productSchema.index({ isActive: 1, isFeatured: 1, createdAt: -1 });
+productSchema.index({ isActive: 1, isBestSeller: 1 });
+productSchema.index({ isActive: 1, stock: 1 });
+
+// Full-text search index on product name, short description, full description, brand, and SKU
+productSchema.index(
+  { name: 'text', shortDescription: 'text', description: 'text', brand: 'text', sku: 'text' },
+  { weights: { name: 10, sku: 5, brand: 3, shortDescription: 2, description: 1 }, name: 'product_text_search' }
+);
 
 export const Product = model<IProduct>('Product', productSchema);

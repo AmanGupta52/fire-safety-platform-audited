@@ -12,7 +12,7 @@ const router = Router();
 // check for permission to manage ANY of the things it's used for rather than one fixed permission.
 router.use(
   requireAuth,
-  requireAnyPermission('products.update', 'products.create', 'categories.update', 'categories.create', 'blog.update', 'blog.create', 'gallery.create', 'services.update')
+  requireAnyPermission('products.update', 'products.create', 'categories.update', 'categories.create', 'blog.update', 'blog.create', 'gallery.create', 'services.update', 'service_bookings.update')
 );
 
 // SECURITY: :folder is attacker-controlled input that flows into a filesystem path
@@ -22,9 +22,13 @@ router.use(
 // intended uploads directory. Only the folders the frontend actually uses are permitted.
 const ALLOWED_UPLOAD_FOLDERS = new Set(['products', 'categories', 'blog', 'gallery', 'banners', 'quotes', 'invoices', 'service-reports']);
 
-function assertValidFolder(folder: string): string {
+function assertValidFolder(folder: string, role?: string): string {
   if (!ALLOWED_UPLOAD_FOLDERS.has(folder)) {
     throw ApiError.badRequest('Invalid upload destination');
+  }
+  // Technicians may only upload job photos / reports, not catalog, blog or banner content.
+  if (role === 'technician' && folder !== 'service-reports') {
+    throw ApiError.forbidden('Technicians can only upload service report files');
   }
   return folder;
 }
@@ -48,14 +52,14 @@ function withMulterErrorHandling(middleware: RequestHandler): RequestHandler {
 
 router.post('/image/:folder', withMulterErrorHandling(uploadImage.single('file')), asyncHandler(async (req: Request, res: Response) => {
   if (!req.file) throw ApiError.badRequest('No file provided');
-  const folder = assertValidFolder(req.params.folder);
+  const folder = assertValidFolder(req.params.folder, req.user?.role);
   const result = await uploadBuffer(req.file.buffer, folder, req.file.originalname, 'image');
   return created(res, result, 'Image uploaded');
 }));
 
 router.post('/document/:folder', withMulterErrorHandling(uploadDocument.single('file')), asyncHandler(async (req: Request, res: Response) => {
   if (!req.file) throw ApiError.badRequest('No file provided');
-  const folder = assertValidFolder(req.params.folder);
+  const folder = assertValidFolder(req.params.folder, req.user?.role);
   // Documents (PDFs, datasheets) are stored as 'raw' — see uploadService for why.
   const result = await uploadBuffer(req.file.buffer, folder, req.file.originalname, 'raw');
   return created(res, result, 'Document uploaded');

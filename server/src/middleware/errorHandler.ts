@@ -1,6 +1,8 @@
 import { NextFunction, Request, Response } from 'express';
 import { ApiError } from '../utils/ApiError';
 import { env } from '../config/env';
+import { logger } from '../config/logger';
+import { captureException } from '../config/sentry';
 
 export function notFoundHandler(req: Request, res: Response) {
   res.status(404).json({ success: false, message: `Route not found: ${req.method} ${req.originalUrl}`, errors: [] });
@@ -9,6 +11,10 @@ export function notFoundHandler(req: Request, res: Response) {
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function errorHandler(err: unknown, req: Request, res: Response, _next: NextFunction) {
   if (err instanceof ApiError) {
+    if (err.status >= 500) {
+      logger.error({ err, requestId: req.id, method: req.method, route: req.originalUrl }, err.message);
+      captureException(err, { requestId: req.id as string, method: req.method, url: req.originalUrl });
+    }
     return res.status(err.status).json({ success: false, message: err.message, errors: err.errors });
   }
 
@@ -28,7 +34,9 @@ export function errorHandler(err: unknown, req: Request, res: Response, _next: N
     return res.status(422).json({ success: false, message: 'Validation failed', errors });
   }
 
-  console.error('[error]', err);
+  // Log unexpected errors via Pino structured logger and report to Sentry
+  logger.error({ err, requestId: req.id, method: req.method, route: req.originalUrl }, 'Unhandled server error');
+  captureException(err, { requestId: req.id as string, method: req.method, url: req.originalUrl });
 
   const message =
     env.nodeEnv === 'production'

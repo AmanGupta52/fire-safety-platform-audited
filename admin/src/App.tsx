@@ -6,6 +6,7 @@ import { setNavigate } from './lib/navigation';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
 import Login from './pages/auth/Login';
+import ResetPassword from './pages/auth/ResetPassword';
 import Dashboard from './pages/dashboard/Dashboard';
 import ProductsList from './pages/products/ProductsList';
 import CategoriesList from './pages/categories/CategoriesList';
@@ -46,6 +47,7 @@ export default function App() {
       <ErrorBoundary>
         <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/401" element={<Unauthorized401 />} />
         <Route path="/403" element={<Forbidden403 />} />
         <Route path="/500" element={<ServerError500 />} />
@@ -80,7 +82,7 @@ export default function App() {
           <Route path="/reports" element={<ProtectedRoute permission="reports.read"><ReportsPage /></ProtectedRoute>} />
           <Route path="/staff" element={<ProtectedRoute permission="staff.read"><StaffList /></ProtectedRoute>} />
           <Route path="/audit-logs" element={<ProtectedRoute permission="audit.read"><AuditLogPage /></ProtectedRoute>} />
-          <Route path="/settings" element={<ProtectedRoute permission="settings.manage"><SettingsPage /></ProtectedRoute>} />
+          <Route path="/settings" element={<ProtectedRoute roles={['super_admin']}><SettingsPage /></ProtectedRoute>} />
 
           {/* Any unmatched path — including while logged out, since the outer ProtectedRoute
               above redirects to /login before this ever renders in that case — keeps the

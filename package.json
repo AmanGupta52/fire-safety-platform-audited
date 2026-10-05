@@ -10,7 +10,12 @@
     "dev": "concurrently \"npm run server\" \"npm run admin\" \"npm run client\"",
     "build": "npm --prefix server run build && npm --prefix admin run build && npm --prefix client run build",
     "seed": "npm --prefix server run seed",
-    "lint": "npm --prefix server run lint"
+    "lint": "npm --prefix server run lint && npm --prefix admin run lint && npm --prefix client run lint",
+    "lint:server": "npm --prefix server run lint",
+    "lint:admin": "npm --prefix admin run lint",
+    "lint:client": "npm --prefix client run lint",
+    "typecheck": "npm --prefix server run typecheck && npm --prefix admin run typecheck && npm --prefix client run typecheck",
+    "test": "npm --prefix server run test"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"

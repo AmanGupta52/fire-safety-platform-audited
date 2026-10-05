@@ -30,6 +30,10 @@ export async function requireAuth(req: Request, _res: Response, next: NextFuncti
     if (!user || !user.isActive) {
       return next(ApiError.unauthorized('Account not found or disabled'));
     }
+    // A password change/reset invalidates access tokens issued before it (compare in whole seconds, as iat is).
+    if (user.passwordChangedAt && payload.iat && payload.iat < Math.floor(user.passwordChangedAt.getTime() / 1000)) {
+      return next(ApiError.unauthorized('Session expired after a password change. Please sign in again.'));
+    }
     req.user = {
       id: user._id.toString(),
       role: user.role,
@@ -48,7 +52,8 @@ export async function attachUserIfPresent(req: Request, _res: Response, next: Ne
   try {
     const payload = verifyAccessToken(header.split(' ')[1]);
     const user = await User.findById(payload.userId);
-    if (user && user.isActive) {
+    const stale = !!(user?.passwordChangedAt && payload.iat && payload.iat < Math.floor(user.passwordChangedAt.getTime() / 1000));
+    if (user && user.isActive && !stale) {
       req.user = { id: user._id.toString(), role: user.role, permissions: user.effectivePermissions() };
     }
   } catch {

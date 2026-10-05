@@ -1,21 +1,37 @@
 import { Request, Response } from 'express';
 import crypto from 'crypto';
+import bcrypt from 'bcryptjs';
 import { User } from '../models/User';
+import { LoginThrottle } from '../models/LoginThrottle';
 import { asyncHandler } from '../utils/asyncHandler';
 import { ApiError } from '../utils/ApiError';
 import { ok, created } from '../utils/apiResponse';
-import { signAccessToken, signRefreshToken, verifyRefreshToken } from '../utils/jwt';
+import {
+  signAccessToken,
+  createRefreshTokenSession,
+  rotateRefreshTokenSession,
+  revokeRefreshTokenSession,
+  revokeAllUserSessions
+} from '../utils/jwt';
 import { sendEmail, emailTemplates } from '../services/emailService';
 import { env } from '../config/env';
+import { writeSystemAuditLog } from '../services/auditService';
+import { clientIp, clientUserAgent } from '../utils/clientIp';
+import { logger } from '../config/logger';
 import {
   generateOtp, hashOtp, otpMatches, otpExpiryDate, secondsUntilResendAllowed,
   OTP_EXPIRY_MINUTES, OTP_MAX_ATTEMPTS
 } from '../services/otpService';
 
-function issueTokens(user: { _id: unknown; role: string; effectivePermissions: () => string[] }) {
+async function issueTokens(
+  user: { _id: unknown; role: string; effectivePermissions: () => string[] },
+  req?: Request
+) {
   const userId = String(user._id);
   const accessToken = signAccessToken({ userId, role: user.role, permissions: user.effectivePermissions() });
-  const refreshToken = signRefreshToken({ userId });
+  const ip = req ? clientIp(req) : undefined;
+  const userAgent = req ? clientUserAgent(req) : undefined;
+  const refreshToken = await createRefreshTokenSession(userId, ip, userAgent);
   return { accessToken, refreshToken };
 }
 
@@ -98,7 +114,7 @@ export const verifyOtp = asyncHandler(async (req: Request, res: Response) => {
 
   await sendEmail(user.email, 'Welcome to Fire Safety Platform', emailTemplates.welcome(user.name));
 
-  const tokens = issueTokens(user);
+  const tokens = await issueTokens(user, req);
   return ok(res, {
     user: {
       id: user._id, name: user.name, email: user.email, role: user.role,
@@ -124,22 +140,196 @@ export const resendOtp = asyncHandler(async (req: Request, res: Response) => {
   return ok(res, { email: user.email, otpExpiresInMinutes: OTP_EXPIRY_MINUTES }, 'A new verification code has been sent.');
 });
 
+const MAX_FAILS_PER_IP = 5; // one IP address guessing one account
+const MAX_FAILS_PER_ACCOUNT = 20; // all addresses combined (distributed guessing)
+const LOCK_MS = 15 * 60 * 1000;
+const FAILURE_WINDOW_MS = 15 * 60 * 1000;
+const MAX_REMEMBERED = 20;
+
+// One message for every failure (unknown email, wrong password, blocked) so the response never reveals whether
+// an email is registered or blocked. The real owner is told by email instead.
+const LOGIN_FAILED_MESSAGE = 'Invalid email or password.';
+
+// Compared against when the email is unknown, so a miss takes about as long as a real check.
+const DUMMY_HASH = bcrypt.hashSync('timing-equalisation-placeholder', 12);
+
+const sha256 = (value: string) => crypto.createHash('sha256').update(value).digest('hex');
+
+/** Groups an IP into a coarse key (IPv4 /32, IPv6 /64) for "seen this location before" checks. */
+function ipKey(ip: string): string {
+  return ip.includes(':') ? ip.split(':').slice(0, 4).join(':') : ip;
+}
+
+function throttleKeys(email: string, ip: string) {
+  const emailHash = sha256(email);
+  return {
+    emailHash,
+    pair: sha256(`ip:${emailHash}:${ipKey(ip)}`),
+    account: sha256(`account:${emailHash}`)
+  };
+}
+
+type ThrottleKeys = ReturnType<typeof throttleKeys>;
+
+/** True while this IP is blocked for this email, or the whole account is locked. */
+async function isThrottled(keys: ThrottleKeys): Promise<boolean> {
+  const blocked = await LoginThrottle.exists({ key: { $in: [keys.pair, keys.account] }, lockUntil: { $gt: new Date() } });
+  return !!blocked;
+}
+
+/**
+ * Adds one failure to a counter and reports whether THIS call is the one that tipped it over the limit.
+ * Increments are atomic ($inc); the lock is set with a conditional update so only one request ever "wins" it, which
+ * is what keeps the alert email and the audit entry from being produced twice.
+ */
+async function bumpFailure(key: string, scope: 'ip_account' | 'account', emailHash: string, limit: number): Promise<boolean> {
+  const now = new Date();
+
+  // Forget old failures once the window has passed or the previous lock has run out.
+  await LoginThrottle.updateOne(
+    { key, $or: [{ expiresAt: { $lte: now } }, { lockUntil: { $lte: now } }] },
+    { $set: { count: 0 }, $unset: { lockUntil: 1 } }
+  );
+
+  const bump = () =>
+    LoginThrottle.updateOne(
+      { key },
+      {
+        $inc: { count: 1 },
+        $set: { scope, emailHash, lastFailedAt: now, expiresAt: new Date(now.getTime() + FAILURE_WINDOW_MS) }
+      },
+      { upsert: true }
+    );
+  try {
+    await bump();
+  } catch (err) {
+    // Two requests creating the same record at the same instant: the loser retries as a plain increment.
+    if ((err as { code?: number }).code !== 11000) throw err;
+    await bump();
+  }
+
+  const record = await LoginThrottle.findOne({ key }).select('count').lean();
+  if (!record || record.count < limit) return false;
+
+  const lock = await LoginThrottle.updateOne(
+    { key, $or: [{ lockUntil: { $exists: false } }, { lockUntil: null }, { lockUntil: { $lte: now } }] },
+    { $set: { lockUntil: new Date(now.getTime() + LOCK_MS), expiresAt: new Date(now.getTime() + LOCK_MS + FAILURE_WINDOW_MS) } }
+  );
+  return lock.modifiedCount === 1;
+}
+
+async function registerFailedLogin(
+  user: { _id: unknown; email: string; name: string } | null,
+  keys: ThrottleKeys,
+  req: Request
+) {
+  // Unknown emails are counted too, so an attacker gains nothing by probing addresses that are not registered.
+  const ipBlockedNow = await bumpFailure(keys.pair, 'ip_account', keys.emailHash, MAX_FAILS_PER_IP);
+  const accountLockedNow = await bumpFailure(keys.account, 'account', keys.emailHash, MAX_FAILS_PER_ACCOUNT);
+  if (!user) return;
+
+  const ip = clientIp(req);
+  try {
+    if (ipBlockedNow) {
+      await writeSystemAuditLog(req, 'login_blocked', 'auth', {
+        userId: String(user._id), email: user.email,
+        data: { scope: 'ip_account', reason: `${MAX_FAILS_PER_IP} failed attempts from one address`, minutes: LOCK_MS / 60000 }
+      });
+      await sendEmail(user.email, 'Security alert: repeated failed sign-ins were blocked',
+        emailTemplates.ipBlocked({ name: user.name, ipAddress: ip, minutes: LOCK_MS / 60000 }));
+    }
+    if (accountLockedNow) {
+      await writeSystemAuditLog(req, 'account_locked', 'auth', {
+        userId: String(user._id), email: user.email,
+        data: { scope: 'account', reason: `${MAX_FAILS_PER_ACCOUNT} failed attempts from many addresses`, minutes: LOCK_MS / 60000 }
+      });
+      await sendEmail(user.email, 'Security alert: your account was temporarily locked',
+        emailTemplates.accountLocked({ name: user.name, ipAddress: ip, minutes: LOCK_MS / 60000 }));
+    }
+  } catch (err) {
+    logger.error({ err }, '[auth] Failed to record or send a lockout alert');
+  }
+}
+
+/** Removes every failure counter for an email address (successful sign-in, or password reset by email). */
+async function clearThrottles(emailHash: string) {
+  await LoginThrottle.deleteMany({ emailHash });
+}
+
 export const login = asyncHandler(async (req: Request, res: Response) => {
   const { email, password } = req.body;
-  const user = await User.findOne({ email: email.toLowerCase() }).select('+password');
-  if (!user || !(await user.comparePassword(password))) {
-    throw ApiError.unauthorized('Invalid email or password');
+  const normalizedEmail = String(email).toLowerCase().trim();
+  const keys = throttleKeys(normalizedEmail, clientIp(req));
+
+  // Blocked: refuse without even looking at the password, so guessing while blocked reveals nothing. The
+  // response is identical for registered and unregistered emails.
+  if (await isThrottled(keys)) throw ApiError.unauthorized(LOGIN_FAILED_MESSAGE);
+
+  const user = await User.findOne({ email: normalizedEmail }).select('+password +knownDevices +knownIps');
+
+  if (!user) {
+    await bcrypt.compare(String(password), DUMMY_HASH);
+    await registerFailedLogin(null, keys, req);
+    throw ApiError.unauthorized(LOGIN_FAILED_MESSAGE);
   }
+
+  if (!(await user.comparePassword(password))) {
+    await registerFailedLogin(user, keys, req);
+    throw ApiError.unauthorized(LOGIN_FAILED_MESSAGE);
+  }
+
+  // Only someone who knows the password learns the account state below.
   if (!user.isActive) throw ApiError.forbidden('This account has been disabled');
 
   if (!user.isEmailVerified) {
     throw new ApiError(403, 'Please verify your email before signing in.', [{ code: 'EMAIL_NOT_VERIFIED', email: user.email }]);
   }
 
-  user.lastLoginAt = new Date();
-  await user.save();
+  const ip = clientIp(req);
+  const userAgent = clientUserAgent(req);
+  const deviceFingerprint = crypto.createHash('sha256').update(userAgent).digest('hex');
+  const locationKey = ipKey(ip);
 
-  const tokens = issueTokens(user);
+  const isNewDevice = !(user.knownDevices || []).includes(deviceFingerprint);
+  const isNewLocation = !(user.knownIps || []).includes(locationKey);
+  const isFirstLogin = !user.lastLoginAt;
+  const isStaff = user.role !== 'customer';
+
+  // Alert on a new device for everyone, and on a new location too for staff (higher-value accounts).
+  if (!isFirstLogin && (isNewDevice || (isStaff && isNewLocation))) {
+    try {
+      await sendEmail(
+        user.email,
+        'Security alert: new sign-in to your account',
+        emailTemplates.newDeviceLogin({
+          name: user.name,
+          ipAddress: ip,
+          userAgent,
+          time: new Date().toUTCString(),
+          reason: isNewDevice ? 'a device we have not seen before' : 'a new location'
+        })
+      );
+    } catch (err) {
+      logger.error({ err }, '[auth] Failed to send new-device email');
+    }
+  }
+
+  const push: Record<string, unknown> = {};
+  if (isNewDevice) push.knownDevices = { $each: [deviceFingerprint], $slice: -MAX_REMEMBERED };
+  if (isNewLocation) push.knownIps = { $each: [locationKey], $slice: -MAX_REMEMBERED };
+
+  await User.updateOne(
+    { _id: user._id },
+    {
+      $set: { lastLoginIp: ip, lastLoginUserAgent: userAgent, lastLoginAt: new Date() },
+      ...(Object.keys(push).length ? { $push: push } : {})
+    }
+  );
+
+  // The owner proved who they are, so earlier failures no longer count against them.
+  await clearThrottles(keys.emailHash);
+
+  const tokens = await issueTokens(user, req);
   return ok(res, {
     user: {
       id: user._id, name: user.name, email: user.email, role: user.role,
@@ -151,17 +341,8 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
 
 export const refresh = asyncHandler(async (req: Request, res: Response) => {
   const { refreshToken } = req.body;
-  let payload: { userId: string };
-  try {
-    payload = verifyRefreshToken(refreshToken);
-  } catch {
-    throw ApiError.unauthorized('Invalid or expired refresh token');
-  }
-  const user = await User.findById(payload.userId);
-  if (!user || !user.isActive) throw ApiError.unauthorized('Account not found or disabled');
-
-  const tokens = issueTokens(user);
-  return ok(res, tokens, 'Token refreshed');
+  const result = await rotateRefreshTokenSession(refreshToken, clientIp(req), clientUserAgent(req));
+  return ok(res, { accessToken: result.accessToken, refreshToken: result.refreshToken }, 'Token refreshed');
 });
 
 export const me = asyncHandler(async (req: Request, res: Response) => {
@@ -187,7 +368,7 @@ export const updateProfile = asyncHandler(async (req: Request, res: Response) =>
 
 const PASSWORD_RESET_EXPIRY_MS = 60 * 60 * 1000; // 1 hour
 
-function hashResetToken(token: string): string {
+export function hashResetToken(token: string): string {
   // Same construction as OTP hashing: HMAC keyed with a server-side secret so a DB leak alone
   // never yields a usable token, plus it's naturally constant-time-comparable via the query.
   return crypto.createHmac('sha256', env.jwtSecret).update(token).digest('hex');
@@ -204,8 +385,10 @@ export const forgotPassword = asyncHandler(async (req: Request, res: Response) =
     user.passwordResetExpiresAt = new Date(Date.now() + PASSWORD_RESET_EXPIRY_MS);
     await user.save();
 
-    const resetLink = `${env.clientUrl}/reset-password?token=${resetToken}`;
+    const baseUrl = user.role !== 'customer' ? env.adminUrl : env.clientUrl;
+    const resetLink = `${baseUrl}/reset-password?token=${resetToken}`;
     await sendEmail(user.email, 'Reset your password', emailTemplates.passwordReset(resetLink));
+    await writeSystemAuditLog(req, 'password_reset_requested', 'auth', { userId: String(user._id), email: user.email });
   }
   return ok(res, {}, 'If that email exists, a reset link has been sent');
 });
@@ -216,7 +399,7 @@ export const resetPassword = asyncHandler(async (req: Request, res: Response) =>
   const user = await User.findOne({
     passwordResetTokenHash: hashResetToken(String(token)),
     passwordResetExpiresAt: { $gt: new Date() }
-  }).select('+passwordResetTokenHash +passwordResetExpiresAt');
+  }).select('+passwordResetTokenHash +passwordResetExpiresAt +role +name +email');
 
   if (!user) throw ApiError.badRequest('This reset link is invalid or has expired. Request a new one.');
 
@@ -225,12 +408,34 @@ export const resetPassword = asyncHandler(async (req: Request, res: Response) =>
   user.passwordResetExpiresAt = undefined;
   await user.save();
 
-  await sendEmail(user.email, 'Your password was changed', emailTemplates.passwordChanged());
+  // Invalidate all active sessions for this account across all devices
+  await revokeAllUserSessions(user._id, 'password_change');
+  // Proving control of the mailbox also lifts any sign-in blocks on this address.
+  await clearThrottles(sha256(user.email));
+
+  if (user.role !== 'customer') {
+    await sendEmail(user.email, 'Security Alert: Staff account password was reset', emailTemplates.staffPasswordReset(user.name));
+  } else {
+    await sendEmail(user.email, 'Your password was changed', emailTemplates.passwordChanged());
+  }
+
+  await writeSystemAuditLog(req, 'password_reset', 'auth', {
+    userId: String(user._id),
+    email: user.email,
+    data: { role: user.role }
+  });
+
   return ok(res, {}, 'Password reset — you can now sign in with your new password.');
 });
 
-export const logout = asyncHandler(async (_req: Request, res: Response) => {
-  // Stateless JWT: logout is handled client-side by discarding tokens.
-  // If refresh-token revocation storage is added later, blacklist it here.
+/**
+ * Ends the login that the supplied refresh token belongs to. The refresh token itself is the credential, so no
+ * access token is required (it may already have expired). Without a token this is a harmless no-op.
+ */
+export const logout = asyncHandler(async (req: Request, res: Response) => {
+  const { refreshToken } = req.body || {};
+  if (refreshToken) {
+    await revokeRefreshTokenSession(String(refreshToken), 'logout');
+  }
   return ok(res, {}, 'Logged out');
 });

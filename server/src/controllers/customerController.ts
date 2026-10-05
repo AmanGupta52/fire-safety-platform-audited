@@ -8,6 +8,7 @@ import { CustomerEquipment } from '../models/CustomerEquipment';
 import { asyncHandler } from '../utils/asyncHandler';
 import { ApiError } from '../utils/ApiError';
 import { ok, paginationMeta } from '../utils/apiResponse';
+import { escapeRegex } from '../utils/escapeRegex';
 
 export const adminListCustomers = asyncHandler(async (req: Request, res: Response) => {
   const page = Math.max(1, Number(req.query.page) || 1);
@@ -16,9 +17,9 @@ export const adminListCustomers = asyncHandler(async (req: Request, res: Respons
   if (req.query.customerType) filter.customerType = req.query.customerType;
   if (req.query.q) {
     filter.$or = [
-      { name: { $regex: String(req.query.q), $options: 'i' } },
-      { email: { $regex: String(req.query.q), $options: 'i' } },
-      { phone: { $regex: String(req.query.q), $options: 'i' } }
+      { name: { $regex: escapeRegex(String(req.query.q).slice(0, 80)), $options: 'i' } },
+      { email: { $regex: escapeRegex(String(req.query.q).slice(0, 80)), $options: 'i' } },
+      { phone: { $regex: escapeRegex(String(req.query.q).slice(0, 80)), $options: 'i' } }
     ];
   }
 

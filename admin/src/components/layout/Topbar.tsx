@@ -1,11 +1,13 @@
-import { useState } from 'react';
-import { Bell, ChevronDown, LogOut, User, CheckCheck, Menu } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Bell, ChevronDown, LogOut, User, CheckCheck, Menu, Search, Sun, Moon } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '../../lib/apiClient';
+import { api, signOut } from '../../lib/apiClient';
 import { useNavigate } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
 import clsx from 'clsx';
+import { GlobalSearchModal } from './GlobalSearchModal';
+import { useTheme } from '../../lib/theme';
 
 interface Notification {
   _id: string;
@@ -26,11 +28,23 @@ const RELATED_ENTITY_PATH: Record<string, string> = {
 
 export function Topbar({ title, onMenuClick }: { title?: string; onMenuClick?: () => void }) {
   const user = useAuthStore((s) => s.user);
-  const logout = useAuthStore((s) => s.logout);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [menuOpen, setMenuOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const { isDark, toggleTheme } = useTheme();
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setSearchOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const { data: notifData } = useQuery({
     queryKey: ['my-notifications'],
@@ -67,7 +81,31 @@ export function Topbar({ title, onMenuClick }: { title?: string; onMenuClick?: (
         <p className="page-heading truncate text-sm text-ink">{title}</p>
       </div>
 
-      <div className="flex items-center gap-1 sm:gap-4">
+      <div className="flex items-center gap-1 sm:gap-3">
+        {/* Quick Global Search Trigger Button */}
+        <button
+          onClick={() => setSearchOpen(true)}
+          className="flex items-center gap-2 rounded-md border border-line bg-paper px-2.5 py-1.5 text-xs text-slateink hover:text-ink transition-colors"
+          title="Global Search (Ctrl+K)"
+          aria-label="Search"
+        >
+          <Search className="h-3.5 w-3.5" />
+          <span className="hidden md:inline">Quick Search...</span>
+          <kbd className="hidden md:inline rounded bg-card px-1.5 py-0.5 text-[10px] font-mono border border-line text-slateink">
+            Ctrl+K
+          </kbd>
+        </button>
+
+        {/* Dark Mode Toggle */}
+        <button
+          onClick={toggleTheme}
+          className="rounded p-2 text-slateink hover:bg-paper transition-colors"
+          title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+          aria-label="Toggle color theme"
+        >
+          {isDark ? <Sun className="h-4 w-4 text-amber" /> : <Moon className="h-4 w-4" />}
+        </button>
+
         <div className="relative">
           <button
             onClick={() => { setNotifOpen((v) => !v); setMenuOpen(false); }}
@@ -146,7 +184,7 @@ export function Topbar({ title, onMenuClick }: { title?: string; onMenuClick?: (
                 <User className="h-3.5 w-3.5" /> Account settings
               </button>
               <button
-                onClick={() => { logout(); navigate('/login'); }}
+                onClick={() => { signOut(); navigate('/login'); }}
                 className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-brand hover:bg-brand-light"
               >
                 <LogOut className="h-3.5 w-3.5" /> Sign out
@@ -155,6 +193,8 @@ export function Topbar({ title, onMenuClick }: { title?: string; onMenuClick?: (
           )}
         </div>
       </div>
+
+      <GlobalSearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />
     </header>
   );
 }

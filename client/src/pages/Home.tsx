@@ -1,9 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import {
-  ArrowRight, ShieldCheck, Wrench, RefreshCw, ClipboardCheck, ClipboardList, FlameKindling,
-  BadgeCheck, Clock, Users, Award, Phone, Mail, MapPin, CheckCircle2
-} from 'lucide-react';
+import { ArrowRight, ShieldCheck, Wrench, ClipboardCheck, FlameKindling, BadgeCheck, Clock, Users, Award, Phone, Mail, MapPin, CheckCircle2 } from 'lucide-react';
 import { api } from '../lib/apiClient';
 import { Product, Category, BlogPost, Banner } from '../types';
 import { useServices } from '../hooks/useServices';

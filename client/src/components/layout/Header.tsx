@@ -2,13 +2,14 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { AnimatePresence, motion } from 'framer-motion';
-import { FlameKindling, Search, Heart, ShoppingCart, User, Menu, X, ChevronDown, Phone, Mail, PackageCheck } from 'lucide-react';
+import { FlameKindling, Search, Heart, ShoppingCart, User, Menu, X, ChevronDown, Phone, Mail, PackageCheck, Sun, Moon } from 'lucide-react';
 import clsx from 'clsx';
-import { api } from '../../lib/apiClient';
+import { api, signOut } from '../../lib/apiClient';
 import { useAuthStore } from '../../store/authStore';
 import { useCart } from '../../hooks/useCart';
 import { useWishlist } from '../../hooks/useWishlist';
 import { usePublicSettings } from '../../hooks/usePublicSettings';
+import { useTheme } from '../../lib/theme';
 import { Category } from '../../types';
 
 // AMC intentionally has no top-level nav link — it's one of the options on the
@@ -29,10 +30,10 @@ export function Header() {
   const [scrolled, setScrolled] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const user = useAuthStore((s) => s.user);
-  const logout = useAuthStore((s) => s.logout);
   const navigate = useNavigate();
   const { itemCount } = useCart();
   const { count: wishlistCount } = useWishlist();
+  const { isDark, toggleTheme } = useTheme();
 
   const { data: categories, isLoading: categoriesLoading } = useQuery({
     queryKey: ['header-categories'],
@@ -143,6 +144,14 @@ export function Header() {
           </nav>
 
           <div className="ml-auto flex shrink-0 items-center sm:gap-1">
+            <button
+              onClick={toggleTheme}
+              className="rounded-full p-2 text-ink hover:bg-paper sm:p-2.5 transition-colors"
+              title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+              aria-label="Toggle color theme"
+            >
+              {isDark ? <Sun className="h-5 w-5 text-amber" /> : <Moon className="h-5 w-5" />}
+            </button>
             <button onClick={() => setSearchOpen((v) => !v)} className="rounded-full p-2 text-ink hover:bg-paper sm:p-2.5 lg:hidden" aria-label="Search">
               <Search className="h-5 w-5" />
             </button>
@@ -179,7 +188,7 @@ export function Header() {
                       <MenuLink to="/account/quotes" onClick={() => setAccountOpen(false)}>My quotes</MenuLink>
                       <MenuLink to="/account/equipment" onClick={() => setAccountOpen(false)}>My equipment</MenuLink>
                       <MenuLink to="/account/profile" onClick={() => setAccountOpen(false)}>Account settings</MenuLink>
-                      <button onClick={() => { logout(); setAccountOpen(false); navigate('/'); }} className="block w-full px-3.5 py-2 text-left text-sm text-safety hover:bg-safety-light">Sign out</button>
+                      <button onClick={() => { signOut(); setAccountOpen(false); navigate('/'); }} className="block w-full px-3.5 py-2 text-left text-sm text-safety hover:bg-safety-light">Sign out</button>
                     </>
                   ) : (
                     <>
@@ -255,7 +264,7 @@ export function Header() {
                     <Link to="/wishlist" onClick={() => setMobileOpen(false)} className="rounded-btn px-2 py-2 text-sm text-ink hover:bg-paper">Wishlist</Link>
                     <Link to="/cart" onClick={() => setMobileOpen(false)} className="rounded-btn px-2 py-2 text-sm text-ink hover:bg-paper">Cart</Link>
                     <Link to="/account/equipment" onClick={() => setMobileOpen(false)} className="rounded-btn px-2 py-2 text-sm text-ink hover:bg-paper">My equipment</Link>
-                    <button onClick={() => { logout(); setMobileOpen(false); navigate('/'); }} className="rounded-btn px-2 py-2 text-left text-sm text-safety hover:bg-safety-light">Sign out</button>
+                    <button onClick={() => { signOut(); setMobileOpen(false); navigate('/'); }} className="rounded-btn px-2 py-2 text-left text-sm text-safety hover:bg-safety-light">Sign out</button>
                   </>
                 ) : (
                   <>

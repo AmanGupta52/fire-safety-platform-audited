@@ -4,6 +4,7 @@ import { asyncHandler } from '../utils/asyncHandler';
 import { ApiError } from '../utils/ApiError';
 import { ok, created } from '../utils/apiResponse';
 import { mirrorGalleryImages, removeMirroredGalleryImages } from '../services/galleryMirrorService';
+import { escapeRegex } from '../utils/escapeRegex';
 
 // ---------- Banners ----------
 export const listBanners = asyncHandler(async (req: Request, res: Response) => {
@@ -59,7 +60,7 @@ export const listFaqs = asyncHandler(async (req: Request, res: Response) => {
   const includeInactive = req.query.includeInactive === 'true' && Boolean(req.user?.permissions.includes('faqs.read'));
   const filter: Record<string, unknown> = includeInactive ? {} : { isActive: true };
   if (req.query.category) filter.category = req.query.category;
-  if (req.query.q) filter.question = { $regex: String(req.query.q), $options: 'i' };
+  if (req.query.q) filter.question = { $regex: escapeRegex(String(req.query.q).slice(0, 80)), $options: 'i' };
   const faqs = await FAQ.find(filter).sort({ sortOrder: 1 });
   return ok(res, faqs);
 });

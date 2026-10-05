@@ -34,8 +34,16 @@ function isBackgroundGet(url?: string) {
   return Boolean(url && BACKGROUND_GET_PATHS.some((p) => url.startsWith(p)));
 }
 
-async function refreshAccessToken(): Promise<string | null> {
-  const refreshToken = useAuthStore.getState().refreshToken;
+async function refreshAccessToken(failedAccessToken?: string | null): Promise<string | null> {
+  // Another tab may already have refreshed (refresh tokens rotate: each one works exactly once). Reload the
+  // stored session first; if it now holds a different access token, use that instead of refreshing again.
+  await useAuthStore.persist.rehydrate();
+  const current = useAuthStore.getState();
+  if (current.accessToken && failedAccessToken && current.accessToken !== failedAccessToken) {
+    return current.accessToken;
+  }
+
+  const refreshToken = current.refreshToken;
   if (!refreshToken) return null;
 
   try {
@@ -43,7 +51,23 @@ async function refreshAccessToken(): Promise<string | null> {
     const { accessToken, refreshToken: newRefreshToken } = res.data.data;
     useAuthStore.getState().setTokens(accessToken, newRefreshToken);
     return accessToken;
-  } catch {
+  } catch (err) {
+    // A network failure or a 5xx is not "your session ended": keep the person signed in and let the original
+    // request fail normally. Only an explicit rejection of the refresh token ends the session.
+    const status = axios.isAxiosError(err) ? err.response?.status : undefined;
+    if (!status || status >= 500) return null;
+
+    // Two tabs refreshing at the same instant: one wins and the other is told "just refreshed". Give the winner a
+    // moment to store its new tokens, then use them instead of signing this tab out.
+    if (status === 401) {
+      await new Promise((resolve) => setTimeout(resolve, 400));
+      await useAuthStore.persist.rehydrate();
+      const latest = useAuthStore.getState();
+      if (latest.accessToken && latest.refreshToken && latest.refreshToken !== refreshToken) {
+        return latest.accessToken;
+      }
+    }
+
     useAuthStore.getState().logout();
     // There was a session to lose (we had a refresh token) and it's no longer valid — send
     // the person to the dedicated "session ended" screen rather than leaving whatever page
@@ -59,7 +83,10 @@ api.interceptors.response.use(
     const original = error.config as (typeof error.config) & { _retry?: boolean };
     if (error.response?.status === 401 && original && !original._retry) {
       original._retry = true;
-      if (!refreshPromise) refreshPromise = refreshAccessToken().finally(() => (refreshPromise = null));
+      if (!refreshPromise) {
+        const failedToken = String((original.headers as Record<string, unknown> | undefined)?.Authorization || '').replace(/^Bearer\s+/i, '') || null;
+        refreshPromise = refreshAccessToken(failedToken).finally(() => (refreshPromise = null));
+      }
       const newToken = await refreshPromise;
       if (newToken) {
         original.headers = original.headers || {};
@@ -102,4 +129,21 @@ export function apiErrorMessage(err: unknown): string {
     return (err.response?.data as any)?.message || err.message || 'Something went wrong';
   }
   return 'Something went wrong';
+}
+
+/**
+ * Signs out for real: tells the server to revoke this login's refresh token (so a copied token stops working),
+ * then clears the local session. The request is fire-and-forget so the UI never waits on the network, and a
+ * failed request (offline, server down) still signs the person out locally.
+ */
+export function signOut(): void {
+  const { refreshToken } = useAuthStore.getState();
+  if (refreshToken) {
+    axios.post(`${API_BASE_URL}/auth/logout`, { refreshToken }, { timeout: 5000 }).catch(() => undefined);
+  }
+  useAuthStore.getState().logout();
+  // Shared phones/tablets: ask the service worker to drop everything it stored.
+  if (typeof navigator !== 'undefined' && navigator.serviceWorker?.controller) {
+    navigator.serviceWorker.controller.postMessage('CLEAR_CACHES');
+  }
 }

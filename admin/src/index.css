@@ -2,6 +2,27 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --color-paper: #F7F5F1;
+  --color-card: #FFFFFF;
+  --color-line: #E4E0D8;
+  --color-ink: #1B2027;
+  --color-ink-soft: #262D37;
+  --color-ink-softer: #323B47;
+  --color-slateink: #4B5563;
+}
+
+html.dark {
+  --color-paper: #0F141C;
+  --color-card: #181F2A;
+  --color-line: #283344;
+  --color-ink: #F3F4F6;
+  --color-ink-soft: #E5E7EB;
+  --color-ink-softer: #D1D5DB;
+  --color-slateink: #9CA3AF;
+  color-scheme: dark;
+}
+
 @layer base {
   html, body {
     @apply bg-paper text-ink;

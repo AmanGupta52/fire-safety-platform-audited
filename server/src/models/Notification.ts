@@ -2,7 +2,7 @@ import { Schema, model, Document, Types } from 'mongoose';
 
 export type NotificationType =
   | 'order_confirmation' | 'order_status' | 'quote_created' | 'quote_approved'
-  | 'service_booking' | 'service_reminder' | 'amc_reminder' | 'refill_reminder'
+  | 'service_booking' | 'service_reminder' | 'service_report' | 'amc_reminder' | 'refill_reminder'
   | 'inspection_reminder' | 'low_stock';
 
 export interface INotification extends Document {

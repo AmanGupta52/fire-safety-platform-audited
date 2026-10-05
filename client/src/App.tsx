@@ -41,6 +41,7 @@ import GalleryPage from './pages/static/GalleryPage';
 import FaqPage from './pages/static/FaqPage';
 import ContactPage from './pages/static/ContactPage';
 import AboutPage from './pages/static/AboutPage';
+import EquipmentPassport from './pages/EquipmentPassport';
 import { PrivacyPage, TermsPage } from './pages/static/StaticPages';
 import { Unauthorized401, Forbidden403, NotFound404, ServerError500, ServiceUnavailable503 } from './pages/errors/StatusPages';
 import { setNavigate } from './lib/navigation';
@@ -91,6 +92,7 @@ export default function App() {
           <Route path="/about" element={<AboutPage />} />
           <Route path="/privacy-policy" element={<PrivacyPage />} />
           <Route path="/terms" element={<TermsPage />} />
+          <Route path="/passport/:identifier" element={<EquipmentPassport />} />
 
           <Route path="/401" element={<Unauthorized401 />} />
           <Route path="/403" element={<Forbidden403 />} />

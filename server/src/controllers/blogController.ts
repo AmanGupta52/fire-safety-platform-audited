@@ -5,13 +5,14 @@ import { asyncHandler } from '../utils/asyncHandler';
 import { ApiError } from '../utils/ApiError';
 import { ok, created, paginationMeta } from '../utils/apiResponse';
 import { mirrorGalleryImages, removeMirroredGalleryImages } from '../services/galleryMirrorService';
+import { escapeRegex } from '../utils/escapeRegex';
 
 export const listPublishedPosts = asyncHandler(async (req: Request, res: Response) => {
   const page = Math.max(1, Number(req.query.page) || 1);
   const limit = Math.min(50, Number(req.query.limit) || 10);
   const filter: Record<string, unknown> = { isPublished: true };
   if (req.query.category) filter.category = req.query.category;
-  if (req.query.q) filter.title = { $regex: String(req.query.q), $options: 'i' };
+  if (req.query.q) filter.title = { $regex: escapeRegex(String(req.query.q).slice(0, 80)), $options: 'i' };
 
   const [items, total] = await Promise.all([
     BlogPost.find(filter).sort({ publishedAt: -1 }).skip((page - 1) * limit).limit(limit)

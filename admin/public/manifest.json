@@ -1,0 +1,31 @@
+{
+  "short_name": "TechPortal",
+  "name": "Fire Safety Technician Portal",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "start_url": "/my-jobs",
+  "background_color": "#1B2027",
+  "theme_color": "#C1272D",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "description": "Technician job dispatch, GPS check-in, inspection reports, and digital signatures.",
+  "id": "/my-jobs"
+}

@@ -26,6 +26,13 @@ router.get('/', requirePermission('orders.read'), asyncHandler(async (_req: Requ
   return ok(res, invoices);
 }));
 
+router.post('/:id/email', asyncHandler(async (req: Request, res: Response) => {
+  const { emailInvoiceToCustomer } = await import('../services/invoiceService');
+  const success = await emailInvoiceToCustomer(req.params.id);
+  if (!success) throw ApiError.badRequest('Failed to send invoice email: invoice or user email not found');
+  return ok(res, { success: true }, 'Invoice emailed successfully');
+}));
+
 export const paymentRouter = Router();
 paymentRouter.use(requireAuth);
 paymentRouter.get('/my', asyncHandler(async (req: Request, res: Response) => {

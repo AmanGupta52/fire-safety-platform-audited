@@ -190,7 +190,7 @@ export interface CompanySettings {
   copyrightText?: string;
 }
 
-export type ServiceType = 'installation' | 'inspection' | 'refilling' | 'repair' | 'fire_safety_audit' | 'amc_visit';
+export type ServiceType = 'installation' | 'inspection' | 'refilling' | 'repair' | 'fire_safety_audit' | 'amc_visit' | string;
 export type ServiceStatus = 'requested' | 'confirmed' | 'assigned' | 'technician_on_the_way' | 'in_progress' | 'completed' | 'cancelled' | 'rejected';
 
 export interface ServiceBooking {
@@ -207,6 +207,19 @@ export interface ServiceBooking {
   status: ServiceStatus;
   problemDescription?: string;
   adminNotes?: string;
+  timeSlot?: string;
+  checkInLocation?: {
+    latitude: number;
+    longitude: number;
+    timestamp: string;
+    address?: string;
+  };
+  customerSignature?: string;
+  workSummary?: string;
+  pressureReading?: string;
+  sealIntact?: boolean;
+  physicalCondition?: string;
+  partsReplaced?: string[];
   serviceReportUrl?: string;
   beforePhotos: string[];
   afterPhotos: string[];
@@ -311,11 +324,14 @@ export interface Coupon {
 
 export interface Review {
   _id: string;
-  product: { _id: string; name: string; slug: string } | string;
-  user: { _id: string; name: string; email: string } | string;
+  product?: { _id: string; name: string; slug: string } | string | null;
+  service?: { _id: string; name: string; slug: string } | string | null;
+  booking?: { _id: string; bookingNumber: string; serviceType: string; preferredDate: string; status: string } | string | null;
+  user: { _id: string; name: string; email: string; phone?: string } | string;
   rating: number;
   title?: string;
   comment: string;
+  images?: string[];
   status: 'pending' | 'approved' | 'rejected';
   createdAt: string;
 }
@@ -342,6 +358,8 @@ export interface StaffMember {
   role: Role;
   isActive: boolean;
   permissionOverrides: Permission[];
+  /** Set after the first successful sign-in. Missing means the person has not set a password yet. */
+  lastLoginAt?: string;
   createdAt: string;
 }
 
@@ -352,6 +370,13 @@ export interface AuditLogEntry {
   module: string;
   entity?: string;
   entityId?: string;
+  previousValue?: unknown;
+  newValue?: unknown;
+  diff?: Record<string, { before: unknown; after: unknown }>;
+  ipAddress?: string;
+  userAgent?: string;
+  hash?: string;
+  prevHash?: string;
   createdAt: string;
 }
 

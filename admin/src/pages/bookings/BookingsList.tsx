@@ -18,6 +18,18 @@ const STATUS_OPTIONS: ServiceStatus[] = [
   'in_progress', 'completed', 'cancelled', 'rejected'
 ];
 
+// Mirrors the server's allowed status flow so the admin is only offered moves that will succeed.
+const NEXT_STATUSES: Record<ServiceStatus, ServiceStatus[]> = {
+  requested: ['confirmed', 'assigned', 'cancelled', 'rejected'],
+  confirmed: ['assigned', 'cancelled', 'rejected'],
+  assigned: ['confirmed', 'technician_on_the_way', 'in_progress', 'cancelled'],
+  technician_on_the_way: ['in_progress', 'assigned', 'cancelled'],
+  in_progress: ['completed', 'cancelled'],
+  completed: [],
+  cancelled: [],
+  rejected: []
+};
+
 const statusTone: Record<ServiceStatus, 'neutral' | 'success' | 'warning' | 'danger' | 'info'> = {
   requested: 'warning', confirmed: 'info', assigned: 'info',
   technician_on_the_way: 'info', in_progress: 'info',
@@ -50,7 +62,7 @@ function BookingsSection() {
   const { data, isLoading } = useQuery({
     queryKey: ['services-bookings', status],
     queryFn: async () =>
-      (await api.get('/services/bookings', { params: { status: status || undefined, limit: 50 } })).data.data as ServiceBooking[]
+      (await api.get('/bookings', { params: { status: status || undefined, limit: 50 } })).data.data as ServiceBooking[]
   });
 
   const columns: Column<ServiceBooking>[] = [
@@ -118,13 +130,13 @@ function BookingDetailModal({ booking, onClose }: { booking: ServiceBooking; onC
   };
 
   const assignMutation = useMutation({
-    mutationFn: async () => api.patch(`/services/${booking._id}/assign`, { technicianId }),
+    mutationFn: async () => api.patch(`/bookings/${booking._id}/assign`, { technicianId }),
     onSuccess: () => { toast.success('Technician assigned'); invalidate(); },
     onError: (err) => toast.error(apiErrorMessage(err))
   });
 
   const statusMutation = useMutation({
-    mutationFn: async () => api.patch(`/services/${booking._id}/status`, { status }),
+    mutationFn: async () => api.patch(`/bookings/${booking._id}/status`, { status }),
     onSuccess: () => { toast.success('Status updated'); invalidate(); onClose(); },
     onError: (err) => toast.error(apiErrorMessage(err))
   });
@@ -178,7 +190,7 @@ function BookingDetailModal({ booking, onClose }: { booking: ServiceBooking; onC
           <Select
             label="Update status" className="flex-1" value={status}
             onChange={(e) => setStatus(e.target.value as ServiceStatus)}
-            options={STATUS_OPTIONS.map((s) => ({ label: s.replace(/_/g, ' '), value: s }))}
+            options={[booking.status, ...NEXT_STATUSES[booking.status]].map((s) => ({ label: s.replace(/_/g, ' '), value: s }))}
           />
           <Button onClick={() => statusMutation.mutate()} loading={statusMutation.isPending} disabled={status === booking.status}>
             Update
@@ -198,7 +210,7 @@ function ServiceReportSection({ booking, onSaved }: { booking: ServiceBooking; o
 
   const mutation = useMutation({
     mutationFn: async () =>
-      api.post(`/services/${booking._id}/report`, {
+      api.post(`/bookings/${booking._id}/report`, {
         serviceReportUrl: reportUrl || undefined,
         beforePhotos: newBeforePhotos.map((p) => p.url),
         afterPhotos: newAfterPhotos.map((p) => p.url)

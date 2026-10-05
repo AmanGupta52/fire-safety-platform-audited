@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useLocation } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Users, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -15,7 +16,12 @@ import { Button } from '../../components/ui/Button';
 
 export default function CustomersList() {
   const [page, setPage] = useState(1);
-  const [q, setQ] = useState('');
+  const [q, setQ] = useState(() => new URLSearchParams(window.location.search).get('q') || '');
+  const location = useLocation();
+  useEffect(() => {
+    const next = new URLSearchParams(location.search).get('q');
+    if (next !== null) setQ(next);
+  }, [location.search]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery({

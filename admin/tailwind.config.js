@@ -1,17 +1,18 @@
 /** @type {import('tailwindcss').Config} */
 export default {
+  darkMode: 'class',
   content: ['./index.html', './src/**/*.{ts,tsx}'],
   theme: {
     extend: {
       colors: {
         ink: {
-          DEFAULT: '#1B2027',
-          soft: '#262D37',
-          softer: '#323B47'
+          DEFAULT: 'var(--color-ink, #1B2027)',
+          soft: 'var(--color-ink-soft, #262D37)',
+          softer: 'var(--color-ink-softer, #323B47)'
         },
-        paper: '#F7F5F1',
-        card: '#FFFFFF',
-        line: '#E4E0D8',
+        paper: 'var(--color-paper, #F7F5F1)',
+        card: 'var(--color-card, #FFFFFF)',
+        line: 'var(--color-line, #E4E0D8)',
         brand: {
           DEFAULT: '#C1272D',
           dark: '#9A1E23',

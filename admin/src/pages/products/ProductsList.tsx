@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useLocation } from 'react-router-dom';
 import { Package, Plus, Search, Pencil, Trash2, PackageMinus, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api, apiErrorMessage } from '../../lib/apiClient';
@@ -17,7 +17,12 @@ import ProductForm from './ProductForm';
 
 export default function ProductsList() {
   const [page, setPage] = useState(1);
-  const [q, setQ] = useState('');
+  const [q, setQ] = useState(() => new URLSearchParams(window.location.search).get('q') || '');
+  const location = useLocation();
+  useEffect(() => {
+    const next = new URLSearchParams(location.search).get('q');
+    if (next !== null) setQ(next);
+  }, [location.search]);
   const [editing, setEditing] = useState<Product | 'new' | null>(null);
   const [adjusting, setAdjusting] = useState<Product | null>(null);
   const hasPermission = useAuthStore((s) => s.hasPermission);

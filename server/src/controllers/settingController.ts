@@ -82,12 +82,9 @@ export const getPublicSettings = asyncHandler(async (_req: Request, res: Respons
 export const updateSetting = asyncHandler(async (req: Request, res: Response) => {
   const { key } = req.params;
 
-  // Super Admin security restriction:
-  // Global site identity, website main name, and company information require Super Admin.
-  if (key === 'company' || key === 'identity' || key === 'security') {
-    if (!req.user || req.user.role !== 'super_admin') {
-      throw ApiError.forbidden('Only Super Admin is authorized to modify global company identity and settings');
-    }
+  // Super Admin security restriction: Only Super Admin is authorized to modify settings
+  if (!req.user || req.user.role !== 'super_admin') {
+    throw ApiError.forbidden('Only Super Admin is authorized to modify system settings and company details');
   }
 
   let finalValue = req.body.value;
