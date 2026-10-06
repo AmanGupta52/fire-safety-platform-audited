@@ -70,7 +70,7 @@ export default function Home() {
 
       {/* FEATURED PRODUCTS */}
       {bestSellersLoading ? (
-        <section className="border-y border-line bg-white py-16 lg:py-20">
+        <section className="border-y border-line bg-card py-16 lg:py-20">
           <div className="container-page">
             <div className="mb-6 flex items-end justify-between">
               <h2 className="heading text-2xl text-ink">Featured products</h2>
@@ -81,7 +81,7 @@ export default function Home() {
           </div>
         </section>
       ) : bestSellers && bestSellers.length > 0 && (
-        <section className="border-y border-line bg-white py-16 lg:py-20">
+        <section className="border-y border-line bg-card py-16 lg:py-20">
           <div className="container-page">
             <Reveal className="mb-6 flex items-end justify-between">
               <h2 className="heading text-2xl text-ink">Featured products</h2>
@@ -99,7 +99,7 @@ export default function Home() {
       )}
 
       {/* SERVICES */}
-      <section className="border-t border-line bg-white py-16 lg:py-24">
+      <section className="border-t border-line bg-card py-16 lg:py-24">
         <div className="container-page">
           <Reveal className="mx-auto max-w-lg text-center">
             <h2 className="heading text-2xl text-ink">Services that keep you compliant</h2>
@@ -140,7 +140,7 @@ export default function Home() {
       </section>
 
       {/* AMC */}
-      <section className="bg-ink py-16 text-paper lg:py-24">
+      <section className="bg-inverse py-16 text-white lg:py-24">
         <Reveal className="container-page mx-auto max-w-2xl text-center">
           <ShieldCheck className="mx-auto h-8 w-8 text-amber" />
           <h2 className="heading mt-3 text-2xl lg:text-3xl">Never miss a refill or a renewal again</h2>
@@ -272,7 +272,7 @@ export default function Home() {
 
 function WhyCard({ icon: Icon, value, label }: { icon: typeof Users; value: string; label: string }) {
   return (
-    <div className="rounded-card border border-line border-l-[3px] border-l-safety bg-white p-5 shadow-card">
+    <div className="rounded-card border border-line border-l-[3px] border-l-safety bg-card p-5 shadow-card">
       <Icon className="h-5 w-5 text-safety" />
       <p className="heading mt-3 text-2xl text-ink">{value}</p>
       <p className="mt-0.5 text-xs text-slateink">{label}</p>
@@ -283,7 +283,7 @@ function WhyCard({ icon: Icon, value, label }: { icon: typeof Users; value: stri
 function ServiceCard({ icon: Icon, title, description, to, price }: { icon: typeof Wrench; title: string; description: string; to: string; price: string }) {
   return (
     <Link to={to} className="group h-full">
-      <div className="h-full rounded-card border border-line border-l-[3px] border-l-ink bg-white p-6 shadow-card transition-all duration-200 group-hover:-translate-y-0.5 group-hover:border-l-safety group-hover:shadow-card-hover">
+      <div className="h-full rounded-card border border-line border-l-[3px] border-l-ink bg-card p-6 shadow-card transition-all duration-200 group-hover:-translate-y-0.5 group-hover:border-l-safety group-hover:shadow-card-hover">
         <div className="flex items-start justify-between gap-2">
           <Icon className="h-6 w-6 text-safety" />
           <span className="heading whitespace-nowrap text-xs text-safety">From {price}</span>

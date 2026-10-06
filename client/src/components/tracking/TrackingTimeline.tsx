@@ -24,8 +24,8 @@ export function TrackingTimeline({
 
   if (isCancelled) {
     return (
-      <div className="rounded-lg border border-rose-200 bg-rose-50 p-4 text-xs">
-        <div className="flex items-center gap-2 text-rose-700 font-bold">
+      <div className="rounded-lg border border-rose-200 bg-rose-50 p-4 text-xs dark:border-rose-500/30 dark:bg-rose-500/10">
+        <div className="flex items-center gap-2 text-rose-700 dark:text-rose-300 font-bold">
           <X className="h-4 w-4" /> Request Cancelled
         </div>
         <p className="mt-1 text-slateink">

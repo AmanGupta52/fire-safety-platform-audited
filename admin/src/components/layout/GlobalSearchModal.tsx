@@ -89,7 +89,7 @@ export function GlobalSearchModal({ open, onClose }: GlobalSearchModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-16 sm:pt-24 bg-ink/50 backdrop-blur-sm animate-in fade-in duration-150">
+    <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-16 sm:pt-24 bg-black/50 backdrop-blur-sm animate-in fade-in duration-150">
       <div
         className="w-full max-w-2xl rounded-xl border border-line bg-card shadow-2xl overflow-hidden flex flex-col max-h-[80vh]"
         onClick={(e) => e.stopPropagation()}
@@ -202,7 +202,7 @@ export function GlobalSearchModal({ open, onClose }: GlobalSearchModalProps) {
               {results && results.customers.length > 0 && (
                 <div>
                   <p className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slateink">
-                    <User className="h-3.5 w-3.5 text-blue-600" /> Customers ({results.customers.length})
+                    <User className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" /> Customers ({results.customers.length})
                   </p>
                   <div className="divide-y divide-line rounded-lg border border-line bg-paper/50">
                     {results.customers.map((item) => (
@@ -226,7 +226,7 @@ export function GlobalSearchModal({ open, onClose }: GlobalSearchModalProps) {
               {results && results.products.length > 0 && (
                 <div>
                   <p className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slateink">
-                    <Package className="h-3.5 w-3.5 text-amber-600" /> Products ({results.products.length})
+                    <Package className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" /> Products ({results.products.length})
                   </p>
                   <div className="divide-y divide-line rounded-lg border border-line bg-paper/50">
                     {results.products.map((item) => (

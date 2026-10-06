@@ -56,7 +56,7 @@ export function SingleImageUploader({ value, onChange, folder }: { value?: strin
       {value ? (
         <div className="relative w-40">
           <img src={value} alt="" className="h-28 w-40 rounded border border-line object-cover" />
-          <button type="button" onClick={() => onChange('')} className="absolute -right-2 -top-2 rounded-full bg-ink p-1 text-white shadow" aria-label="Remove image">
+          <button type="button" onClick={() => onChange('')} className="absolute -right-2 -top-2 rounded-full bg-ink p-1 text-on-ink shadow" aria-label="Remove image">
             <X className="h-3 w-3" />
           </button>
         </div>
@@ -65,7 +65,7 @@ export function SingleImageUploader({ value, onChange, folder }: { value?: strin
           type="button"
           onClick={() => inputRef.current?.click()}
           disabled={uploading}
-          className="flex h-28 w-40 flex-col items-center justify-center gap-1.5 rounded border border-dashed border-line bg-paper text-slateink hover:bg-white disabled:opacity-60"
+          className="flex h-28 w-40 flex-col items-center justify-center gap-1.5 rounded border border-dashed border-line bg-paper text-slateink hover:bg-card disabled:opacity-60"
         >
           {uploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <UploadCloud className="h-5 w-5" />}
           <span className="text-xs">{uploading ? 'Uploading...' : 'Click to upload'}</span>
@@ -80,7 +80,7 @@ export function SingleImageUploader({ value, onChange, folder }: { value?: strin
           value={urlInput} onChange={(e) => setUrlInput(e.target.value)}
           onBlur={() => { if (urlInput.trim()) { onChange(urlInput.trim()); setUrlInput(''); } }}
           onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); if (urlInput.trim()) { onChange(urlInput.trim()); setUrlInput(''); } } }}
-          className="w-full rounded border border-line bg-white px-2.5 py-1.5 text-xs text-ink focus:border-ink focus:outline-none"
+          className="w-full rounded border border-line bg-card px-2.5 py-1.5 text-xs text-ink focus:border-ink focus:outline-none"
         />
       </div>
     </div>
@@ -131,7 +131,7 @@ export function MultiImageUploader({ value, onChange, folder }: { value: UploadR
         {value.map((img, i) => (
           <div key={i} className="relative h-20 w-20">
             <img src={img.url} alt="" className="h-20 w-20 rounded border border-line object-cover" />
-            <button type="button" onClick={() => remove(i)} className="absolute -right-2 -top-2 rounded-full bg-ink p-1 text-white shadow" aria-label="Remove image">
+            <button type="button" onClick={() => remove(i)} className="absolute -right-2 -top-2 rounded-full bg-ink p-1 text-on-ink shadow" aria-label="Remove image">
               <X className="h-3 w-3" />
             </button>
           </div>
@@ -141,7 +141,7 @@ export function MultiImageUploader({ value, onChange, folder }: { value: UploadR
           onClick={() => inputRef.current?.click()}
           disabled={uploading}
           className={clsx(
-            'flex h-20 w-20 flex-col items-center justify-center gap-1 rounded border border-dashed border-line bg-paper text-slateink hover:bg-white disabled:opacity-60'
+            'flex h-20 w-20 flex-col items-center justify-center gap-1 rounded border border-dashed border-line bg-paper text-slateink hover:bg-card disabled:opacity-60'
           )}
         >
           {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
@@ -156,7 +156,7 @@ export function MultiImageUploader({ value, onChange, folder }: { value: UploadR
           type="text" placeholder="...or paste an image URL and press Enter"
           value={urlInput} onChange={(e) => setUrlInput(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addUrl(); } }}
-          className="w-full rounded border border-line bg-white px-2.5 py-1.5 text-xs text-ink focus:border-ink focus:outline-none"
+          className="w-full rounded border border-line bg-card px-2.5 py-1.5 text-xs text-ink focus:border-ink focus:outline-none"
         />
       </div>
     </div>

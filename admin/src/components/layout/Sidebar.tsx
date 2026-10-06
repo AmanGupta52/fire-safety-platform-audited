@@ -86,7 +86,7 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
       {open && <div className="fixed inset-0 z-30 bg-black/50 lg:hidden" onClick={onClose} aria-hidden="true" />}
     <aside
       className={clsx(
-        'fixed inset-y-0 left-0 z-40 flex h-dvh w-60 flex-col bg-ink text-white/90 transition-transform duration-200',
+        'fixed inset-y-0 left-0 z-40 flex h-dvh w-60 flex-col bg-inverse text-white/90 transition-transform duration-200 dark:border-r dark:border-line',
         'lg:static lg:z-auto lg:translate-x-0',
         open ? 'translate-x-0' : '-translate-x-full'
       )}

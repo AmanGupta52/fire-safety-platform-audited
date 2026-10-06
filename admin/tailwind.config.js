@@ -5,28 +5,35 @@ export default {
   theme: {
     extend: {
       colors: {
+        // Theme colours are stored as space-separated RGB channels in index.css so Tailwind's
+        // opacity modifiers (bg-ink/40, bg-brand-light/30, ...) work in BOTH light and dark mode.
         ink: {
-          DEFAULT: 'var(--color-ink, #1B2027)',
-          soft: 'var(--color-ink-soft, #262D37)',
-          softer: 'var(--color-ink-softer, #323B47)'
+          DEFAULT: 'rgb(var(--color-ink) / <alpha-value>)',
+          soft: 'rgb(var(--color-ink-soft) / <alpha-value>)',
+          softer: 'rgb(var(--color-ink-softer) / <alpha-value>)'
         },
-        paper: 'var(--color-paper, #F7F5F1)',
-        card: 'var(--color-card, #FFFFFF)',
-        line: 'var(--color-line, #E4E0D8)',
+        paper: 'rgb(var(--color-paper) / <alpha-value>)',
+        card: 'rgb(var(--color-card) / <alpha-value>)',
+        line: 'rgb(var(--color-line) / <alpha-value>)',
+        // Always-dark surface (sidebar, login hero). `ink` flips to a light colour in dark mode,
+        // so anything that must stay dark in both themes uses `inverse` instead.
+        inverse: 'rgb(var(--color-inverse) / <alpha-value>)',
+        // Text colour to put on top of a `bg-ink` fill (dark button in light mode, light in dark mode).
+        'on-ink': 'rgb(var(--color-on-ink) / <alpha-value>)',
         brand: {
           DEFAULT: '#C1272D',
           dark: '#9A1E23',
-          light: '#FBEAEA'
+          light: 'rgb(var(--color-brand-light) / <alpha-value>)'
         },
         amber: {
           DEFAULT: '#E1890F',
-          light: '#FDF1DE'
+          light: 'rgb(var(--color-amber-light) / <alpha-value>)'
         },
         forest: {
           DEFAULT: '#2E7D4F',
-          light: '#E6F3EB'
+          light: 'rgb(var(--color-forest-light) / <alpha-value>)'
         },
-        slateink: '#4B5563'
+        slateink: 'rgb(var(--color-slateink) / <alpha-value>)'
       },
       fontFamily: {
         sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],

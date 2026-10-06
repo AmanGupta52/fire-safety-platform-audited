@@ -8,6 +8,20 @@ import { PageHeader } from '../../components/layout/PageHeader';
 import { DashboardSummary } from '../../types';
 import { format, differenceInDays } from 'date-fns';
 
+
+// Chart colours follow the active theme (CSS variables set in index.css) so axes, grid lines,
+// bars and tooltips stay readable in dark mode.
+const CHART_GRID = 'rgb(var(--color-line))';
+const CHART_MUTED = 'rgb(var(--color-slateink))';
+const CHART_INK = 'rgb(var(--color-ink))';
+const chartTooltipStyle = {
+  fontSize: 12,
+  borderRadius: 8,
+  backgroundColor: 'rgb(var(--color-card))',
+  border: '1px solid rgb(var(--color-line))',
+  color: 'rgb(var(--color-ink))'
+};
+
 function formatInr(n: number) {
   return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n);
 }
@@ -48,13 +62,13 @@ interface DashboardV2Data {
 }
 
 const JOB_STATUS_COLORS: Record<string, { bg: string; text: string; label: string }> = {
-  requested: { bg: 'bg-amber-100 text-amber-800', text: 'text-amber-800', label: 'Requested' },
-  confirmed: { bg: 'bg-blue-100 text-blue-800', text: 'text-blue-800', label: 'Confirmed' },
-  assigned: { bg: 'bg-indigo-100 text-indigo-800', text: 'text-indigo-800', label: 'Assigned' },
-  technician_on_the_way: { bg: 'bg-purple-100 text-purple-800', text: 'text-purple-800', label: 'On The Way' },
-  in_progress: { bg: 'bg-yellow-100 text-yellow-800', text: 'text-yellow-800', label: 'In Progress' },
-  completed: { bg: 'bg-emerald-100 text-emerald-800', text: 'text-emerald-800', label: 'Completed' },
-  cancelled: { bg: 'bg-rose-100 text-rose-800', text: 'text-rose-800', label: 'Cancelled' }
+  requested: { bg: 'bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-300', text: 'text-amber-800 dark:text-amber-300', label: 'Requested' },
+  confirmed: { bg: 'bg-blue-100 text-blue-800 dark:bg-blue-500/20 dark:text-blue-300', text: 'text-blue-800 dark:text-blue-300', label: 'Confirmed' },
+  assigned: { bg: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-500/20 dark:text-indigo-300', text: 'text-indigo-800 dark:text-indigo-300', label: 'Assigned' },
+  technician_on_the_way: { bg: 'bg-purple-100 text-purple-800 dark:bg-purple-500/20 dark:text-purple-300', text: 'text-purple-800 dark:text-purple-300', label: 'On The Way' },
+  in_progress: { bg: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-500/20 dark:text-yellow-300', text: 'text-yellow-800 dark:text-yellow-300', label: 'In Progress' },
+  completed: { bg: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-300', text: 'text-emerald-800 dark:text-emerald-300', label: 'Completed' },
+  cancelled: { bg: 'bg-rose-100 text-rose-800 dark:bg-rose-500/20 dark:text-rose-300', text: 'text-rose-800 dark:text-rose-300', label: 'Cancelled' }
 };
 
 export default function Dashboard() {
@@ -108,16 +122,16 @@ export default function Dashboard() {
           <div className="mt-4 h-64">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={v2Data.revenueTrend || []}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#E4E0D8" vertical={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} vertical={false} />
                 <XAxis
                   dataKey="_id"
                   tickFormatter={(v) => format(new Date(v), 'd MMM')}
-                  tick={{ fontSize: 11, fill: '#4B5563' }}
-                  axisLine={{ stroke: '#E4E0D8' }}
+                  tick={{ fontSize: 11, fill: CHART_MUTED }}
+                  axisLine={{ stroke: CHART_GRID }}
                   tickLine={false}
                 />
                 <YAxis
-                  tick={{ fontSize: 11, fill: '#4B5563' }}
+                  tick={{ fontSize: 11, fill: CHART_MUTED }}
                   axisLine={false}
                   tickLine={false}
                   width={70}
@@ -126,7 +140,7 @@ export default function Dashboard() {
                 <Tooltip
                   formatter={(v: number) => [formatInr(v), 'Revenue']}
                   labelFormatter={(v) => format(new Date(v), 'd MMM yyyy')}
-                  contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #E4E0D8' }}
+                  contentStyle={chartTooltipStyle} labelStyle={{ color: CHART_INK }} itemStyle={{ color: CHART_INK }}
                 />
                 <Line
                   type="monotone"
@@ -152,15 +166,15 @@ export default function Dashboard() {
                   dataKey="_id"
                   type="category"
                   width={110}
-                  tick={{ fontSize: 11, fill: '#1B2027' }}
+                  tick={{ fontSize: 11, fill: CHART_INK }}
                   axisLine={false}
                   tickLine={false}
                 />
                 <Tooltip
                   formatter={(v: number) => formatInr(v)}
-                  contentStyle={{ fontSize: 12, borderRadius: 6, border: '1px solid #E4E0D8' }}
+                  contentStyle={chartTooltipStyle} labelStyle={{ color: CHART_INK }} itemStyle={{ color: CHART_INK }}
                 />
-                <Bar dataKey="revenue" fill="#1B2027" radius={[0, 4, 4, 0]} barSize={16} />
+                <Bar dataKey="revenue" fill={CHART_INK} radius={[0, 4, 4, 0]} barSize={16} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -241,7 +255,7 @@ export default function Dashboard() {
                     </div>
                     <div className="text-right">
                       <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                        daysLeft <= 7 ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700'
+                        daysLeft <= 7 ? 'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-300' : 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300'
                       }`}>
                         {daysLeft <= 0 ? 'Expires today' : `${daysLeft} days left`}
                       </span>
@@ -286,7 +300,7 @@ export default function Dashboard() {
                   </div>
                   <div className="text-right">
                     <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold ${
-                      prod.stock === 0 ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700'
+                      prod.stock === 0 ? 'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-300' : 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300'
                     }`}>
                       {prod.stock === 0 ? 'Out of stock' : `${prod.stock} left`}
                     </span>
@@ -332,8 +346,8 @@ export default function Dashboard() {
                     </p>
                   </div>
                   <span className={`rounded px-2 py-0.5 text-[10px] font-bold ${
-                    tech.loadPercentage >= 80 ? 'bg-rose-100 text-rose-700' :
-                    tech.loadPercentage >= 50 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'
+                    tech.loadPercentage >= 80 ? 'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-300' :
+                    tech.loadPercentage >= 50 ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300'
                   }`}>
                     {tech.loadPercentage}% Load
                   </span>

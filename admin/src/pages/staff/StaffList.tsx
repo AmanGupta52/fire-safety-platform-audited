@@ -337,7 +337,7 @@ function StaffFormModal({
           </button>
 
           {showPermissions && (
-            <div className="max-h-72 overflow-y-auto border-t border-line p-4 space-y-4 bg-white">
+            <div className="max-h-72 overflow-y-auto border-t border-line p-4 space-y-4 bg-card">
               {currentRole === 'super_admin' ? (
                 <div className="flex items-center gap-2 text-xs text-amber bg-amber-light/30 p-3 rounded">
                   <Lock className="h-4 w-4" />

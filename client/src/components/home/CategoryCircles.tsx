@@ -49,7 +49,7 @@ export function CategoryCircles({ categories }: { categories?: Category[] }) {
           type="button"
           onClick={() => scroll(-1)}
           aria-label="Scroll categories left"
-          className="absolute left-0 top-9 z-10 hidden -translate-x-3 items-center justify-center rounded-full border border-line bg-white p-2 text-ink shadow-card transition-transform hover:scale-105 active:scale-95 sm:flex sm:top-11"
+          className="absolute left-0 top-9 z-10 hidden -translate-x-3 items-center justify-center rounded-full border border-line bg-card p-2 text-ink shadow-card transition-transform hover:scale-105 active:scale-95 sm:flex sm:top-11"
         >
           <ChevronLeft className="h-4 w-4" />
         </button>
@@ -86,7 +86,7 @@ export function CategoryCircles({ categories }: { categories?: Category[] }) {
           type="button"
           onClick={() => scroll(1)}
           aria-label="Scroll categories right"
-          className="absolute right-0 top-9 z-10 hidden translate-x-3 items-center justify-center rounded-full border border-line bg-white p-2 text-ink shadow-card transition-transform hover:scale-105 active:scale-95 sm:flex sm:top-11"
+          className="absolute right-0 top-9 z-10 hidden translate-x-3 items-center justify-center rounded-full border border-line bg-card p-2 text-ink shadow-card transition-transform hover:scale-105 active:scale-95 sm:flex sm:top-11"
         >
           <ChevronRight className="h-4 w-4" />
         </button>

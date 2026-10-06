@@ -119,7 +119,7 @@ export function Topbar({ title, onMenuClick }: { title?: string; onMenuClick?: (
           </button>
 
           {notifOpen && (
-            <div className="fixed left-3 right-3 top-16 z-20 mt-1 rounded border border-line bg-white shadow-popover sm:absolute sm:left-auto sm:right-0 sm:top-full sm:w-80">
+            <div className="fixed left-3 right-3 top-16 z-20 mt-1 rounded border border-line bg-card shadow-popover sm:absolute sm:left-auto sm:right-0 sm:top-full sm:w-80">
               <div className="flex items-center justify-between border-b border-line px-3 py-2">
                 <p className="text-xs font-semibold text-ink">Notifications</p>
                 {Boolean(notifData?.unreadCount) && (
@@ -165,7 +165,7 @@ export function Topbar({ title, onMenuClick }: { title?: string; onMenuClick?: (
             className="flex items-center gap-2 rounded px-2 py-1.5 hover:bg-paper"
             aria-label="Account menu"
           >
-            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-ink text-xs font-semibold text-white">
+            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-ink text-xs font-semibold text-on-ink">
               {user?.name?.charAt(0).toUpperCase() || 'U'}
             </div>
             <div className="hidden text-left sm:block">
@@ -176,7 +176,7 @@ export function Topbar({ title, onMenuClick }: { title?: string; onMenuClick?: (
           </button>
 
           {menuOpen && (
-            <div className="absolute right-0 top-full z-20 mt-1 w-44 rounded border border-line bg-white py-1 shadow-popover">
+            <div className="absolute right-0 top-full z-20 mt-1 w-44 rounded border border-line bg-card py-1 shadow-popover">
               <button
                 onClick={() => { setMenuOpen(false); navigate('/settings'); }}
                 className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-ink hover:bg-paper"

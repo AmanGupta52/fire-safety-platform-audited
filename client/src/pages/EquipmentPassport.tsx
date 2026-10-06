@@ -65,7 +65,7 @@ export default function EquipmentPassport() {
   if (error || !equipment) {
     return (
       <div className="container-page flex min-h-[60vh] flex-col items-center justify-center py-16 text-center">
-        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-rose-100 text-rose-600 mb-3">
+        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-rose-100 text-rose-600 mb-3 dark:bg-rose-500/20 dark:text-rose-300">
           <AlertOctagon className="h-6 w-6" />
         </div>
         <h1 className="heading text-xl text-ink">Equipment Passport Not Found</h1>
@@ -150,7 +150,7 @@ export default function EquipmentPassport() {
       <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
         {/* Left Column: QR Sticker & Asset Identity */}
         <div className="md:col-span-1 space-y-4">
-          <Card className="p-5 text-center bg-white shadow-card border-2 border-line">
+          <Card className="p-5 text-center bg-card shadow-card border-2 border-line">
             <div className="mx-auto flex h-9 w-9 items-center justify-center rounded-full bg-safety-light text-safety mb-2">
               <Flame className="h-5 w-5" />
             </div>
@@ -225,7 +225,7 @@ export default function EquipmentPassport() {
               {daysUntilDue !== null && (
                 <div className="text-right">
                   <p className="text-[11px] text-slateink uppercase tracking-wider font-semibold">Service Due</p>
-                  <p className={`text-sm font-bold ${daysUntilDue < 0 ? 'text-rose-600' : 'text-ink'}`}>
+                  <p className={`text-sm font-bold ${daysUntilDue < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-ink'}`}>
                     {daysUntilDue < 0 ? `${Math.abs(daysUntilDue)} days overdue` : `In ${daysUntilDue} days`}
                   </p>
                 </div>
@@ -311,13 +311,13 @@ export default function EquipmentPassport() {
                         {item.pressureReading && (
                           <div>
                             <span className="text-slateink">Pressure: </span>
-                            <span className="font-semibold text-emerald-700">{item.pressureReading}</span>
+                            <span className="font-semibold text-emerald-700 dark:text-emerald-400">{item.pressureReading}</span>
                           </div>
                         )}
                         {item.sealIntact !== undefined && (
                           <div>
                             <span className="text-slateink">Safety Seal: </span>
-                            <span className={item.sealIntact ? 'text-emerald-700 font-semibold' : 'text-rose-600 font-semibold'}>
+                            <span className={item.sealIntact ? 'text-emerald-700 dark:text-emerald-400 font-semibold' : 'text-rose-600 dark:text-rose-400 font-semibold'}>
                               {item.sealIntact ? 'Intact' : 'Broken / Replaced'}
                             </span>
                           </div>
@@ -325,7 +325,7 @@ export default function EquipmentPassport() {
                       </div>
 
                       {item.notes && (
-                        <p className="mt-2 text-slateink bg-white/70 p-2 rounded border border-line">
+                        <p className="mt-2 text-slateink bg-card/70 p-2 rounded border border-line">
                           {item.notes}
                         </p>
                       )}

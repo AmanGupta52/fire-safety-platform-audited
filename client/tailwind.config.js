@@ -5,21 +5,35 @@ export default {
   theme: {
     extend: {
       colors: {
+        // Theme colours are stored as space-separated RGB channels in index.css so Tailwind's
+        // opacity modifiers (bg-ink/40, bg-safety-light/30, ...) work in BOTH light and dark mode.
         ink: {
-          DEFAULT: 'var(--color-ink, #1A1D1F)',
-          soft: 'var(--color-ink-soft, #242830)',
-          softer: 'var(--color-ink-softer, #2E333C)'
+          DEFAULT: 'rgb(var(--color-ink) / <alpha-value>)',
+          soft: 'rgb(var(--color-ink-soft) / <alpha-value>)',
+          softer: 'rgb(var(--color-ink-softer) / <alpha-value>)'
         },
-        paper: 'var(--color-paper, #EEF1F0)',
-        card: 'var(--color-card, #FFFFFF)',
-        line: 'var(--color-line, #DBDFDC)',
+        paper: 'rgb(var(--color-paper) / <alpha-value>)',
+        card: 'rgb(var(--color-card) / <alpha-value>)',
+        line: 'rgb(var(--color-line) / <alpha-value>)',
+        // Always-dark surface (footer, hero bands, top bar). `ink` flips to a light colour in dark
+        // mode, so anything that must stay dark in both themes uses `inverse` instead.
+        inverse: 'rgb(var(--color-inverse) / <alpha-value>)',
+        // Text colour to put on top of a `bg-ink` fill (dark button in light mode, light in dark mode).
+        'on-ink': 'rgb(var(--color-on-ink) / <alpha-value>)',
         // `safety` is the authoritative name for the primary red going forward — CTAs, alerts,
         // price emphasis, active nav state. Never used as a large background fill.
-        safety: { DEFAULT: '#D32B1E', dark: '#A32014', light: '#FCE6E2' },
-        amber: { DEFAULT: '#F2A900', light: '#FDF0D2' },
-        forest: { DEFAULT: '#1F7A4D', light: '#E3F2E9' },
-        slateink: '#454B52',
-        slate: { 50: '#F5F6F5', 100: '#EAEDEA', 400: '#8B9198', 600: '#565C63', 700: '#3B4046' }
+        safety: { DEFAULT: '#D32B1E', dark: '#A32014', light: 'rgb(var(--color-safety-light) / <alpha-value>)' },
+        amber: { DEFAULT: '#F2A900', light: 'rgb(var(--color-amber-light) / <alpha-value>)' },
+        forest: { DEFAULT: '#1F7A4D', light: 'rgb(var(--color-forest-light) / <alpha-value>)' },
+        slateink: 'rgb(var(--color-slateink) / <alpha-value>)',
+        slate: {
+          50: 'rgb(var(--color-slate-50) / <alpha-value>)',
+          100: 'rgb(var(--color-slate-100) / <alpha-value>)',
+          200: 'rgb(var(--color-slate-200) / <alpha-value>)',
+          400: 'rgb(var(--color-slate-400) / <alpha-value>)',
+          600: 'rgb(var(--color-slate-600) / <alpha-value>)',
+          700: 'rgb(var(--color-slate-700) / <alpha-value>)'
+        }
       },
       fontFamily: {
         sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],

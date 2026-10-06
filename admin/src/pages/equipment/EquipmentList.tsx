@@ -49,13 +49,13 @@ export default function EquipmentList() {
         <div className="flex flex-wrap items-center gap-2 border-b border-line p-4">
           <button
             onClick={() => setDueOnly(false)}
-            className={`rounded-full border px-3 py-1 text-xs font-medium ${!dueOnly ? 'border-ink bg-ink text-white' : 'border-line bg-white text-slateink hover:bg-paper'}`}
+            className={`rounded-full border px-3 py-1 text-xs font-medium ${!dueOnly ? 'border-ink bg-ink text-on-ink' : 'border-line bg-card text-slateink hover:bg-paper'}`}
           >
             All equipment
           </button>
           <button
             onClick={() => setDueOnly(true)}
-            className={`flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-medium ${dueOnly ? 'border-ink bg-ink text-white' : 'border-line bg-white text-slateink hover:bg-paper'}`}
+            className={`flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-medium ${dueOnly ? 'border-ink bg-ink text-on-ink' : 'border-line bg-card text-slateink hover:bg-paper'}`}
           >
             <AlertTriangle className="h-3 w-3" /> Due soon
           </button>

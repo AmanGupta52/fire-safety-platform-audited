@@ -23,9 +23,9 @@ export default function GalleryPage() {
 
       {categories.length > 0 && (
         <div className="mt-5 flex flex-wrap gap-2">
-          <button onClick={() => setCategory('')} className={`rounded-full border px-3 py-1 text-xs font-medium ${!category ? 'border-ink bg-ink text-white' : 'border-line text-slateink'}`}>All</button>
+          <button onClick={() => setCategory('')} className={`rounded-full border px-3 py-1 text-xs font-medium ${!category ? 'border-ink bg-ink text-on-ink' : 'border-line text-slateink'}`}>All</button>
           {categories.map((c) => (
-            <button key={c} onClick={() => setCategory(c)} className={`rounded-full border px-3 py-1 text-xs font-medium ${category === c ? 'border-ink bg-ink text-white' : 'border-line text-slateink'}`}>{c}</button>
+            <button key={c} onClick={() => setCategory(c)} className={`rounded-full border px-3 py-1 text-xs font-medium ${category === c ? 'border-ink bg-ink text-on-ink' : 'border-line text-slateink'}`}>{c}</button>
           ))}
         </div>
       )}

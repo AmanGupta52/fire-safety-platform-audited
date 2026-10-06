@@ -58,9 +58,9 @@ export function Header() {
   }
 
   return (
-    <header className="sticky top-0 z-40 bg-white">
+    <header className="sticky top-0 z-40 bg-card">
       {/* Utility strip */}
-      <div className="hidden bg-ink text-white/80 lg:block">
+      <div className="hidden bg-inverse text-white/80 lg:block">
         <div className="container-page flex items-center justify-between py-1.5 text-xs">
           <span className="flex items-center gap-1.5"><Phone className="h-3 w-3" /> Emergency support: {company.phone}</span>
           <div className="flex items-center gap-5">
@@ -73,7 +73,7 @@ export function Header() {
       <div
         className={clsx(
           'border-b border-line transition-all duration-200',
-          scrolled ? 'bg-white/95 shadow-card backdrop-blur' : 'bg-white'
+          scrolled ? 'bg-card/95 shadow-card backdrop-blur' : 'bg-card'
         )}
       >
         <div className={clsx('container-page flex items-center gap-2 transition-all duration-200 sm:gap-6', scrolled ? 'py-2.5' : 'py-4')}>
@@ -93,7 +93,7 @@ export function Header() {
               type="search"
               placeholder="Search extinguishers, alarms, AMC plans…"
               aria-label="Search products"
-              className="w-full rounded-pill border border-line bg-paper py-2.5 pl-10 pr-4 text-sm text-ink outline-none transition focus:border-ink focus:bg-white"
+              className="w-full rounded-pill border border-line bg-paper py-2.5 pl-10 pr-4 text-sm text-ink outline-none transition focus:border-ink focus:bg-card"
             />
           </form>
 
@@ -106,7 +106,7 @@ export function Header() {
                 {productsOpen && (
                   <motion.div
                     initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 6 }} transition={{ duration: 0.12 }}
-                    className="absolute left-1/2 top-full z-20 mt-2 w-[560px] -translate-x-1/2 rounded-card border border-line bg-white p-5 shadow-raised"
+                    className="absolute left-1/2 top-full z-20 mt-2 w-[560px] -translate-x-1/2 rounded-card border border-line bg-card p-5 shadow-raised"
                   >
                     {categoriesLoading ? (
                       <div className="grid grid-cols-3 gap-4">
@@ -180,7 +180,7 @@ export function Header() {
                 {user && <ChevronDown className="h-3 w-3" />}
               </button>
               {accountOpen && (
-                <div className="absolute right-0 top-full z-20 mt-1 w-52 rounded-card border border-line bg-white py-1.5 shadow-raised">
+                <div className="absolute right-0 top-full z-20 mt-1 w-52 rounded-card border border-line bg-card py-1.5 shadow-raised">
                   {user ? (
                     <>
                       <div className="border-b border-line px-3.5 py-2"><p className="text-sm font-medium text-ink">{user.name}</p><p className="text-xs text-slateink">{user.email}</p></div>
@@ -212,7 +212,7 @@ export function Header() {
         {searchOpen && (
           <motion.div
             initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.18 }}
-            className="overflow-hidden border-b border-line bg-white shadow-card"
+            className="overflow-hidden border-b border-line bg-card shadow-card"
           >
             <div className="container-page py-5">
               <form onSubmit={handleSearch} className="relative">
@@ -238,11 +238,11 @@ export function Header() {
         {mobileOpen && (
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-ink/40 lg:hidden" onClick={() => setMobileOpen(false)}
+            className="fixed inset-0 z-50 bg-black/50 lg:hidden" onClick={() => setMobileOpen(false)}
           >
             <motion.div
               initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'tween', duration: 0.22 }}
-              className="ml-auto flex h-full w-72 flex-col bg-white p-5" onClick={(e) => e.stopPropagation()}
+              className="ml-auto flex h-full w-72 flex-col bg-card p-5" onClick={(e) => e.stopPropagation()}
             >
               <div className="mb-4 flex items-center justify-between">
                 <span className="heading text-sm">Menu</span>

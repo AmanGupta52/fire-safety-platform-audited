@@ -103,7 +103,7 @@ export default function Settings() {
         <div className="mb-6 flex items-start gap-3 rounded border border-amber/30 bg-amber-light/30 p-4 text-sm text-ink">
           <ShieldAlert className="h-5 w-5 shrink-0 text-amber" />
           <div>
-            <p className="font-semibold text-amber-900">Super Admin Access Required</p>
+            <p className="font-semibold text-amber-900 dark:text-amber-300">Super Admin Access Required</p>
             <p className="mt-0.5 text-xs text-slateink">
               Only users with the <b>Super Admin</b> role can modify global company identity and tax settings.
               You are currently viewing in read-only mode.

@@ -5,7 +5,7 @@ import { Button } from './Button';
 type BadgeTone = 'neutral' | 'success' | 'warning' | 'danger' | 'info';
 const badgeTones: Record<BadgeTone, string> = {
   neutral: 'bg-paper text-slateink border-line',
-  success: 'bg-forest-light text-forest border-forest/20',
+  success: 'bg-forest-light text-forest dark:text-emerald-300 border-forest/20',
   warning: 'bg-amber-light text-amber border-amber/30',
   danger: 'bg-safety-light text-safety-dark border-safety/20',
   info: 'bg-ink/5 text-ink border-ink/10'
@@ -101,7 +101,7 @@ export function Spinner({ className, size = 40, tone = 'dark' }: { className?: s
         fill="none"
         role="img"
         aria-label="Loading"
-        style={{ color: tone === 'light' ? '#f5f5f7' : '#131316' }}
+        style={{ color: tone === 'light' ? '#f5f5f7' : 'rgb(var(--color-ink))' }}
       >
         <g className="lis-rig">
           <path className="lis-track" d={SPINNER_PATH} />

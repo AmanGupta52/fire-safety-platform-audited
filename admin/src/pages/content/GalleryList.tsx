@@ -110,7 +110,7 @@ export default function GalleryList() {
             onClick={() => setTab(t.key)}
             className={clsx(
               'rounded-full border px-3 py-1 text-xs font-medium transition-colors',
-              tab === t.key ? 'border-ink bg-ink text-white' : 'border-line bg-white text-slateink hover:bg-paper'
+              tab === t.key ? 'border-ink bg-ink text-on-ink' : 'border-line bg-card text-slateink hover:bg-paper'
             )}
           >
             {t.label} ({counts[t.key] || 0})
@@ -130,7 +130,7 @@ export default function GalleryList() {
                   <button
                     onClick={() => openSource(item)}
                     title={`Open ${SOURCE_LABEL[item.sourceType].toLowerCase()}`}
-                    className="absolute right-2 top-2 rounded-full bg-white/90 p-1.5 text-ink shadow hover:bg-white"
+                    className="absolute right-2 top-2 rounded-full bg-card/90 p-1.5 text-ink shadow hover:bg-card"
                   >
                     <ExternalLink className="h-3.5 w-3.5" />
                   </button>

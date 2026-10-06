@@ -122,7 +122,7 @@ export default function ProductDetail() {
               fallbackLabel="No image"
             />
             {product.images?.[activeImage]?.url && (
-              <span className="absolute bottom-3 right-3 flex items-center gap-1.5 rounded-pill bg-white/90 px-3 py-1.5 text-xs font-medium text-ink shadow-card">
+              <span className="absolute bottom-3 right-3 flex items-center gap-1.5 rounded-pill bg-card/90 px-3 py-1.5 text-xs font-medium text-ink shadow-card">
                 <ZoomIn className="h-3.5 w-3.5" /> Zoom
               </span>
             )}
@@ -140,7 +140,7 @@ export default function ProductDetail() {
           {/* Fullscreen lightbox */}
           {fullscreen && product.images?.[activeImage]?.url && (
             <div
-              className="fixed inset-0 z-50 flex items-center justify-center bg-ink/90 p-4"
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4"
               onClick={() => setFullscreen(false)}
             >
               <button
@@ -205,7 +205,7 @@ export default function ProductDetail() {
             </Button>
             <button
               onClick={() => toggleWishlist(product._id)}
-              className="flex items-center justify-center rounded-btn border border-line px-4 hover:bg-white"
+              className="flex items-center justify-center rounded-btn border border-line px-4 hover:bg-card"
               aria-label="Toggle wishlist"
             >
               <Heart className={clsx('h-4 w-4', isWishlisted(product._id) ? 'fill-safety text-safety' : 'text-slateink')} />

@@ -38,7 +38,7 @@ export default function Login() {
   return (
     <div className="flex min-h-screen">
       {/* Left: brand panel */}
-      <div className="relative hidden w-1/2 flex-col justify-between overflow-hidden bg-ink p-12 text-white lg:flex">
+      <div className="relative hidden w-1/2 flex-col justify-between overflow-hidden bg-inverse p-12 text-white lg:flex">
         <div className="flex items-center gap-2.5">
           <div className="flex h-9 w-9 items-center justify-center rounded bg-brand">
             <FlameKindling className="h-4 w-4 text-white" />

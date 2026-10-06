@@ -93,7 +93,7 @@ export default function CheckoutPage() {
                 <span
                   className={clsx(
                     'flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold',
-                    isCurrent ? 'bg-ink text-white' : isComplete ? 'bg-forest text-white' : 'bg-slate-100 text-slate-400'
+                    isCurrent ? 'bg-ink text-on-ink' : isComplete ? 'bg-forest text-white' : 'bg-slate-100 text-slate-400'
                   )}
                 >
                   {isComplete ? <Check className="h-3.5 w-3.5" /> : i + 1}

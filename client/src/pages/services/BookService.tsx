@@ -436,10 +436,10 @@ export default function BookService() {
                             <span
                               className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
                                 !s.isAvailable
-                                  ? 'bg-rose-100 text-rose-700'
+                                  ? 'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-300'
                                   : isSelected
                                   ? 'bg-safety text-white'
-                                  : 'bg-forest/10 text-forest'
+                                  : 'bg-forest/10 text-forest dark:bg-emerald-400/15 dark:text-emerald-300'
                               }`}
                             >
                               {s.isAvailable ? `${s.remainingCapacity} slots left` : 'Fully Booked'}

@@ -234,7 +234,7 @@ export default function ServicesList() {
           className="rounded p-1 text-slateink hover:bg-paper focus:outline-none"
           title={s.isFeatured ? 'Featured (Click to unfeature)' : 'Not featured (Click to feature)'}
         >
-          <Star className={clsx('h-4 w-4', s.isFeatured ? 'fill-amber text-amber' : 'text-slate-300')} />
+          <Star className={clsx('h-4 w-4', s.isFeatured ? 'fill-amber text-amber' : 'text-slate-300 dark:text-slate-600')} />
         </button>
       )
     },

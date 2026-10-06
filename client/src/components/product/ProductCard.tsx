@@ -39,7 +39,7 @@ export function ProductCard({ product }: { product: Product }) {
         onClick={(e) => { e.preventDefault(); toggleWishlist(product._id); }}
         aria-label="Toggle wishlist"
         className={clsx(
-          'absolute right-3 top-3 z-10 rounded-full bg-white/90 p-1.5 shadow-card transition-opacity hover:bg-white',
+          'absolute right-3 top-3 z-10 rounded-full bg-card/90 p-1.5 shadow-card transition-opacity hover:bg-card',
           'opacity-100 sm:opacity-0 sm:group-hover:opacity-100'
         )}
       >
@@ -85,8 +85,8 @@ export function ProductCard({ product }: { product: Product }) {
           onClick={handleAddToCart}
           disabled={outOfStock || isAdding}
           className={clsx(
-            'flex w-full items-center justify-center gap-2 rounded-btn py-2 text-xs font-medium text-white transition-colors disabled:opacity-40',
-            justAdded ? 'bg-forest' : 'bg-ink hover:bg-ink-soft'
+            'flex w-full items-center justify-center gap-2 rounded-btn py-2 text-xs font-medium transition-colors disabled:opacity-40',
+            justAdded ? 'bg-forest text-white' : 'bg-ink text-on-ink hover:bg-ink-soft'
           )}
         >
           {justAdded ? (<><Check className="h-3.5 w-3.5" /> Added</>) : (<><ShoppingCart className="h-3.5 w-3.5" /> Add to cart</>)}

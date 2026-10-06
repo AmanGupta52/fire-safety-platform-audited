@@ -137,14 +137,14 @@ export default function ProductForm({
                     placeholder="Name (e.g. Capacity)"
                     value={sp.key}
                     onChange={(e) => setSpecs(specs.map((row, idx) => (idx === i ? { ...row, key: e.target.value } : row)))}
-                    className="min-w-0 flex-1 rounded border border-line bg-white px-3 py-2 text-sm text-ink placeholder:text-slateink/60 focus:border-ink focus:outline-none"
+                    className="min-w-0 flex-1 rounded border border-line bg-card px-3 py-2 text-sm text-ink placeholder:text-slateink/60 focus:border-ink focus:outline-none"
                   />
                   <input
                     aria-label={`Specification ${i + 1} value`}
                     placeholder="Value (e.g. 6 kg)"
                     value={sp.value}
                     onChange={(e) => setSpecs(specs.map((row, idx) => (idx === i ? { ...row, value: e.target.value } : row)))}
-                    className="min-w-0 flex-1 rounded border border-line bg-white px-3 py-2 text-sm text-ink placeholder:text-slateink/60 focus:border-ink focus:outline-none"
+                    className="min-w-0 flex-1 rounded border border-line bg-card px-3 py-2 text-sm text-ink placeholder:text-slateink/60 focus:border-ink focus:outline-none"
                   />
                   <button
                     type="button"
@@ -180,7 +180,7 @@ export default function ProductForm({
                     placeholder="e.g. ISI marked"
                     value={f}
                     onChange={(e) => setFeatures(features.map((row, idx) => (idx === i ? e.target.value : row)))}
-                    className="min-w-0 flex-1 rounded border border-line bg-white px-3 py-2 text-sm text-ink placeholder:text-slateink/60 focus:border-ink focus:outline-none"
+                    className="min-w-0 flex-1 rounded border border-line bg-card px-3 py-2 text-sm text-ink placeholder:text-slateink/60 focus:border-ink focus:outline-none"
                   />
                   <button
                     type="button"

@@ -34,7 +34,7 @@ export default function ResetPassword() {
   if (!token) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-paper p-4">
-        <div className="w-full max-w-sm rounded border border-line bg-white p-6 text-center shadow-card">
+        <div className="w-full max-w-sm rounded border border-line bg-card p-6 text-center shadow-card">
           <h1 className="text-lg font-semibold text-ink">Invalid or Missing Link</h1>
           <p className="mt-2 text-xs text-slateink">This link is missing its security token or has expired.</p>
           <div className="mt-6">
@@ -51,7 +51,7 @@ export default function ResetPassword() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-paper p-4">
-      <div className="w-full max-w-sm rounded border border-line bg-white p-6 shadow-card">
+      <div className="w-full max-w-sm rounded border border-line bg-card p-6 shadow-card">
         <div className="mb-4 flex flex-col items-center">
           <div className="mb-2 flex h-10 w-10 items-center justify-center rounded bg-brand text-white">
             <FlameKindling className="h-5 w-5" />

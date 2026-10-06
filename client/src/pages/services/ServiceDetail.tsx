@@ -61,7 +61,7 @@ export default function ServiceDetail() {
   return (
     <div>
       {/* Header Banner */}
-      <section className="bg-ink py-16 text-white">
+      <section className="bg-inverse py-16 text-white">
         <div className="container-page">
           <Link to="/services" className="inline-flex items-center gap-1 text-xs text-white/60 hover:text-white mb-4">
             <ArrowLeft className="h-3 w-3" /> Back to services

@@ -27,7 +27,7 @@ export function AccountLayout() {
               className={({ isActive }) =>
                 clsx(
                   'flex shrink-0 items-center gap-2.5 whitespace-nowrap rounded px-3 py-2 text-sm font-medium transition-colors',
-                  isActive ? 'bg-ink text-white' : 'text-slateink hover:bg-white'
+                  isActive ? 'bg-ink text-on-ink' : 'text-slateink hover:bg-card'
                 )
               }
             >

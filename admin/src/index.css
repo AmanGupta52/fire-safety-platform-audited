@@ -3,23 +3,34 @@
 @tailwind utilities;
 
 :root {
-  --color-paper: #F7F5F1;
-  --color-card: #FFFFFF;
-  --color-line: #E4E0D8;
-  --color-ink: #1B2027;
-  --color-ink-soft: #262D37;
-  --color-ink-softer: #323B47;
-  --color-slateink: #4B5563;
+  /* RGB channels (not hex) so Tailwind opacity modifiers like bg-ink/40 keep working. */
+  --color-paper: 247 245 241;
+  --color-card: 255 255 255;
+  --color-line: 228 224 216;
+  --color-ink: 27 32 39;
+  --color-ink-soft: 38 45 55;
+  --color-ink-softer: 50 59 71;
+  --color-slateink: 75 85 99;
+  --color-inverse: 27 32 39;
+  --color-on-ink: 255 255 255;
+  --color-brand-light: 251 234 234;
+  --color-amber-light: 253 241 222;
+  --color-forest-light: 230 243 235;
 }
 
 html.dark {
-  --color-paper: #0F141C;
-  --color-card: #181F2A;
-  --color-line: #283344;
-  --color-ink: #F3F4F6;
-  --color-ink-soft: #E5E7EB;
-  --color-ink-softer: #D1D5DB;
-  --color-slateink: #9CA3AF;
+  --color-paper: 15 20 28;
+  --color-card: 24 31 42;
+  --color-line: 40 51 68;
+  --color-ink: 243 244 246;
+  --color-ink-soft: 229 231 235;
+  --color-ink-softer: 209 213 219;
+  --color-slateink: 156 163 175;
+  --color-inverse: 10 14 21;
+  --color-on-ink: 15 20 28;
+  --color-brand-light: 61 27 30;
+  --color-amber-light: 58 43 16;
+  --color-forest-light: 20 47 34;
   color-scheme: dark;
 }
 
@@ -41,6 +52,25 @@ html.dark {
     outline: 2px solid #C1272D;
     outline-offset: 2px;
   }
+
+  /* Browser autofill paints inputs pale yellow/white; keep them on the themed surface. */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus,
+  textarea:-webkit-autofill,
+  select:-webkit-autofill {
+    -webkit-box-shadow: 0 0 0 1000px rgb(var(--color-card)) inset;
+    -webkit-text-fill-color: rgb(var(--color-ink));
+    caret-color: rgb(var(--color-ink));
+  }
+}
+
+@layer utilities {
+  /* The brand red is tuned for a light page; lift it a little on dark surfaces so icons, links
+     and error text keep enough contrast. Fills (bg-brand) are unchanged. */
+  html.dark .text-brand { color: #F0646A; }
+  html.dark .text-brand-dark { color: #F58C90; }
+  html.dark .hover\:text-brand:hover { color: #F0646A; }
 }
 
 @layer components {

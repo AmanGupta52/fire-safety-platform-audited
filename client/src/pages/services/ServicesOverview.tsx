@@ -11,7 +11,7 @@ export default function ServicesOverview() {
 
   return (
     <div>
-      <section className="bg-ink py-16 text-white">
+      <section className="bg-inverse py-16 text-white">
         <div className="container-page">
           <h1 className="heading text-3xl">Fire safety services</h1>
           <p className="mt-2 max-w-lg text-sm text-white/70">
@@ -73,7 +73,7 @@ export default function ServicesOverview() {
                             From {formatServicePrice(s.startingPrice, s.priceUnit, s.currency === 'INR' ? '₹' : s.currency)}
                           </span>
                           {s.isFeatured && (
-                            <span className="inline-flex items-center gap-1 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">
+                            <span className="inline-flex items-center gap-1 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">
                               <Sparkles className="h-2.5 w-2.5" /> Popular
                             </span>
                           )}

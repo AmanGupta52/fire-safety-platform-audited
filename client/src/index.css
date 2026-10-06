@@ -3,23 +3,46 @@
 @tailwind utilities;
 
 :root {
-  --color-paper: #EEF1F0;
-  --color-card: #FFFFFF;
-  --color-line: #DBDFDC;
-  --color-ink: #1A1D1F;
-  --color-ink-soft: #242830;
-  --color-ink-softer: #2E333C;
-  --color-slateink: #454B52;
+  /* RGB channels (not hex) so Tailwind opacity modifiers like bg-ink/40 keep working. */
+  --color-paper: 238 241 240;
+  --color-card: 255 255 255;
+  --color-line: 219 223 220;
+  --color-ink: 26 29 31;
+  --color-ink-soft: 36 40 48;
+  --color-ink-softer: 46 51 60;
+  --color-slateink: 69 75 82;
+  --color-inverse: 26 29 31;
+  --color-on-ink: 255 255 255;
+  --color-safety-light: 252 230 226;
+  --color-amber-light: 253 240 210;
+  --color-forest-light: 227 242 233;
+  --color-slate-50: 245 246 245;
+  --color-slate-100: 234 237 234;
+  --color-slate-200: 226 232 240;
+  --color-slate-400: 139 145 152;
+  --color-slate-600: 86 92 99;
+  --color-slate-700: 59 64 70;
 }
 
 html.dark {
-  --color-paper: #111417;
-  --color-card: #1B1F24;
-  --color-line: #2D333B;
-  --color-ink: #F0F3F6;
-  --color-ink-soft: #DDE2E7;
-  --color-ink-softer: #CBD1D8;
-  --color-slateink: #8B949E;
+  --color-paper: 17 20 23;
+  --color-card: 27 31 36;
+  --color-line: 45 51 59;
+  --color-ink: 240 243 246;
+  --color-ink-soft: 221 226 231;
+  --color-ink-softer: 203 209 216;
+  --color-slateink: 139 148 158;
+  --color-inverse: 11 14 17;
+  --color-on-ink: 17 20 23;
+  --color-safety-light: 58 28 25;
+  --color-amber-light: 58 45 14;
+  --color-forest-light: 18 48 33;
+  --color-slate-50: 31 36 42;
+  --color-slate-100: 38 44 51;
+  --color-slate-200: 48 55 63;
+  --color-slate-400: 139 148 158;
+  --color-slate-600: 165 173 181;
+  --color-slate-700: 195 201 207;
   color-scheme: dark;
 }
 
@@ -31,6 +54,25 @@ html.dark {
   * { @apply border-line; }
   ::selection { background-color: #D32B1E33; }
   :focus-visible { outline: 2px solid #D32B1E; outline-offset: 2px; }
+  /* Browser autofill paints inputs pale yellow/white; keep them on the themed surface. */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus,
+  textarea:-webkit-autofill,
+  select:-webkit-autofill {
+    -webkit-box-shadow: 0 0 0 1000px rgb(var(--color-card)) inset;
+    -webkit-text-fill-color: rgb(var(--color-ink));
+    caret-color: rgb(var(--color-ink));
+  }
+}
+
+@layer utilities {
+  /* The brand red is tuned for a light page; lift it a little on dark surfaces so links, prices
+     and error text keep enough contrast. Fills (bg-safety) are unchanged. */
+  html.dark .text-safety { color: #FF6B5E; }
+  html.dark .text-safety-dark { color: #FF8A80; }
+  html.dark .hover\:text-safety-dark:hover { color: #FF8A80; }
+  html.dark .hover\:text-safety:hover { color: #FF6B5E; }
 }
 
 @layer components {
@@ -53,7 +95,7 @@ html.dark {
   .hazard-divider {
     background-image: repeating-linear-gradient(
       -45deg,
-      theme('colors.ink.DEFAULT') 0 14px,
+      theme('colors.inverse') 0 14px,
       theme('colors.amber.DEFAULT') 14px 28px
     );
   }

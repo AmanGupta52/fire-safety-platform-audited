@@ -183,7 +183,7 @@ export default function MyServices() {
                         size="sm"
                         variant="ghost"
                         onClick={() => setCancelBooking(b)}
-                        className="text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50"
+                        className="text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:text-rose-400 dark:hover:text-rose-300 dark:hover:bg-rose-500/10"
                       >
                         Cancel Booking
                       </Button>
@@ -195,7 +195,7 @@ export default function MyServices() {
                         size="sm"
                         variant="ghost"
                         onClick={() => setReviewBooking(b)}
-                        className="text-xs inline-flex items-center gap-1 text-amber-600 hover:bg-amber-50"
+                        className="text-xs inline-flex items-center gap-1 text-amber-600 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-500/10"
                       >
                         <Star className="h-3.5 w-3.5 fill-amber-500 text-amber-500" /> Rate Service
                       </Button>
@@ -326,7 +326,7 @@ function RescheduleModal({
                 >
                   <span className="text-ink">{s.label}</span>
                   <span className={`text-[10px] rounded px-2 py-0.5 font-bold ${
-                    s.isAvailable ? 'bg-forest/10 text-forest' : 'bg-rose-100 text-rose-700'
+                    s.isAvailable ? 'bg-forest/10 text-forest dark:bg-emerald-400/15 dark:text-emerald-300' : 'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-300'
                   }`}>
                     {s.isAvailable ? `${s.remainingCapacity} slots left` : 'Full'}
                   </span>

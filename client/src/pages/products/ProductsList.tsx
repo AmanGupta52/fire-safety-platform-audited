@@ -89,13 +89,13 @@ export default function ProductsList() {
       <div className="border-b border-line pb-6">
         <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-600">Categories</p>
         <div className="flex flex-col gap-1">
-          <button onClick={() => updateParam('category', '')} className={clsx('rounded-btn px-2 py-2 text-left text-sm', !category ? 'bg-ink text-white' : 'text-slateink hover:bg-white')}>
+          <button onClick={() => updateParam('category', '')} className={clsx('rounded-btn px-2 py-2 text-left text-sm', !category ? 'bg-ink text-on-ink' : 'text-slateink hover:bg-card')}>
             All categories
           </button>
           {(categories || []).map((c) => (
             <button
               key={c._id} onClick={() => updateParam('category', c.slug)}
-              className={clsx('rounded-btn px-2 py-2 text-left text-sm', category === c.slug ? 'bg-ink text-white' : 'text-slateink hover:bg-white')}
+              className={clsx('rounded-btn px-2 py-2 text-left text-sm', category === c.slug ? 'bg-ink text-on-ink' : 'text-slateink hover:bg-card')}
             >
               {c.name}
             </button>
@@ -186,8 +186,8 @@ export default function ProductsList() {
 
       {/* Mobile filter bottom sheet */}
       {mobileFiltersOpen && (
-        <div className="fixed inset-0 z-50 flex items-end bg-ink/40 lg:hidden" onClick={() => setMobileFiltersOpen(false)}>
-          <div className="max-h-[85vh] w-full overflow-y-auto rounded-t-card bg-white p-5" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-end bg-black/50 lg:hidden" onClick={() => setMobileFiltersOpen(false)}>
+          <div className="max-h-[85vh] w-full overflow-y-auto rounded-t-card bg-card p-5" onClick={(e) => e.stopPropagation()}>
             <div className="mb-4 flex items-center justify-between">
               <span className="heading text-sm">Filters</span>
               <button onClick={() => setMobileFiltersOpen(false)} aria-label="Close filters"><X className="h-5 w-5" /></button>

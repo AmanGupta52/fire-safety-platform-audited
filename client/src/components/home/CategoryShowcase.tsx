@@ -80,9 +80,9 @@ export function CategoryShowcase({ categories, loading, intervalMs = DEFAULT_ROT
           </div>
 
           {/* Legibility gradient + caption */}
-          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-ink/85 via-ink/15 to-transparent px-6 pb-5 pt-16">
-            <p className="heading text-xl text-paper sm:text-2xl">{cat.name}</p>
-            <p className="text-xs text-paper/70 sm:text-sm">Explore the collection →</p>
+          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-inverse/85 via-inverse/15 to-transparent px-6 pb-5 pt-16">
+            <p className="heading text-xl text-white sm:text-2xl">{cat.name}</p>
+            <p className="text-xs text-white/70 sm:text-sm">Explore the collection →</p>
           </div>
         </div>
       ))}

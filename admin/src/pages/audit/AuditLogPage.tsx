@@ -71,8 +71,8 @@ export default function AuditLogPage() {
       header: 'Chain Integrity',
       render: (l) => (
         <div className="flex items-center gap-1.5" title={`SHA-256: ${l.hash || 'Verified'}`}>
-          <Lock className="h-3 w-3 text-emerald-600" />
-          <span className="font-mono text-[10px] text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+          <Lock className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
+          <span className="font-mono text-[10px] text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 dark:text-emerald-300 dark:bg-emerald-500/10 dark:border-emerald-500/30">
             {l.hash ? `${l.hash.substring(0, 8)}...` : 'Sealed'}
           </span>
         </div>
@@ -102,23 +102,23 @@ export default function AuditLogPage() {
       />
 
       {/* Verification status header */}
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded border border-emerald-200 bg-emerald-50/70 p-3.5 text-xs text-emerald-950">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded border border-emerald-200 bg-emerald-50/70 p-3.5 text-xs text-emerald-950 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-100">
         <div className="flex items-center gap-2.5">
           <div className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-600 text-white">
             <ShieldCheck className="h-4 w-4" />
           </div>
           <div>
-            <p className="font-semibold text-emerald-900">
+            <p className="font-semibold text-emerald-900 dark:text-emerald-200">
               {verification?.isValid !== false ? 'Cryptographic Hash Chain Intact' : 'Integrity Alert'}
             </p>
-            <p className="text-[11px] text-emerald-800">
+            <p className="text-[11px] text-emerald-800 dark:text-emerald-300">
               {verification?.isValid !== false
                 ? `All ${verification?.totalLogs || 0} audit log entries verified against SHA-256 tamper-evident blockchain hash links.`
                 : verification?.reason || 'Integrity violation detected in audit log trail.'}
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-1.5 rounded bg-white/80 px-2.5 py-1 text-[11px] font-medium text-slateink border border-emerald-200/60">
+        <div className="flex items-center gap-1.5 rounded bg-card/80 px-2.5 py-1 text-[11px] font-medium text-slateink border border-emerald-200/60 dark:border-emerald-500/30">
           <Lock className="h-3 w-3 text-slateink" /> Read-Only Enforcement: Active
         </div>
       </div>
@@ -194,7 +194,7 @@ function AuditLogDetailModal({
         </div>
 
         {/* Cryptographic Proof */}
-        <div className="rounded border border-line bg-slate-50 p-3 space-y-2">
+        <div className="rounded border border-line bg-paper p-3 space-y-2">
           <div className="flex items-center gap-1.5 text-ink font-semibold">
             <Terminal className="h-3.5 w-3.5 text-brand" />
             <span>Cryptographic Proof (SHA-256 Hash Chain)</span>
@@ -226,9 +226,9 @@ function AuditLogDetailModal({
                 </thead>
                 <tbody className="divide-y divide-line font-mono text-[11px]">
                   {diffEntries.map(([field, change]) => (
-                    <tr key={field} className="hover:bg-slate-50/50">
+                    <tr key={field} className="hover:bg-paper/50">
                       <td className="p-2.5 font-semibold text-ink align-top">{field}</td>
-                      <td className="p-2.5 text-rose-700 bg-rose-50/40 align-top break-all max-w-[200px]">
+                      <td className="p-2.5 text-rose-700 bg-rose-50/40 dark:text-rose-300 dark:bg-rose-500/10 align-top break-all max-w-[200px]">
                         {change.before !== null && change.before !== undefined ? (
                           typeof change.before === 'object' ? (
                             JSON.stringify(change.before, null, 1)
@@ -239,7 +239,7 @@ function AuditLogDetailModal({
                           <span className="italic text-slateink/60">— null / none —</span>
                         )}
                       </td>
-                      <td className="p-2.5 text-emerald-700 bg-emerald-50/40 align-top break-all max-w-[200px]">
+                      <td className="p-2.5 text-emerald-700 bg-emerald-50/40 dark:text-emerald-300 dark:bg-emerald-500/10 align-top break-all max-w-[200px]">
                         {change.after !== null && change.after !== undefined ? (
                           typeof change.after === 'object' ? (
                             JSON.stringify(change.after, null, 1)

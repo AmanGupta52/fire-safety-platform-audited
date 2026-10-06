@@ -108,7 +108,7 @@ export default function ReviewsList() {
       header: 'Rating',
       sortKey: 'rating',
       render: (r) => (
-        <div className="flex items-center gap-1 text-amber-500 text-xs font-semibold">
+        <div className="flex items-center gap-1 text-amber-500 dark:text-amber-400 text-xs font-semibold">
           <span>{'★'.repeat(r.rating) + '☆'.repeat(5 - r.rating)}</span>
           <span className="text-slateink font-normal text-[11px]">({r.rating}/5)</span>
         </div>

@@ -24,7 +24,7 @@ function FieldChrome({ label, error, hint, required, children }: FieldWrapProps 
 }
 
 const baseInputStyles =
-  'w-full rounded border border-line bg-white px-3 py-2 text-sm text-ink placeholder:text-slateink/60 focus:border-ink focus:outline-none transition-colors';
+  'w-full rounded border border-line bg-card px-3 py-2 text-sm text-ink placeholder:text-slateink/60 focus:border-ink focus:outline-none transition-colors';
 
 interface InputProps extends InputHTMLAttributes<HTMLInputElement>, FieldWrapProps {}
 export const Input = forwardRef<HTMLInputElement, InputProps>(
@@ -61,7 +61,7 @@ interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement>, FieldWrap
 export const Select = forwardRef<HTMLSelectElement, SelectProps>(
   ({ label, error, hint, required, options, placeholder, className, ...props }, ref) => (
     <FieldChrome label={label} error={error} hint={hint} required={required}>
-      <select ref={ref} className={clsx(baseInputStyles, 'bg-white', error && 'border-brand', className)} {...props}>
+      <select ref={ref} className={clsx(baseInputStyles, 'bg-card', error && 'border-brand', className)} {...props}>
         {placeholder && <option value="">{placeholder}</option>}
         {options.map((opt) => (
           <option key={opt.value} value={opt.value}>{opt.label}</option>

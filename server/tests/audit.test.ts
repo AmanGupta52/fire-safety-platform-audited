@@ -77,8 +77,11 @@ describe('Audit log: tamper-evident chain', () => {
   it('detects swapped entries', async () => {
     await write(4);
     const [a, b] = await AuditLog.find({ seq: { $in: [2, 3] } }).sort({ seq: 1 }).lean();
-    await AuditLog.collection.updateOne({ _id: a._id }, { $set: { seq: 3 } });
+    // `seq` has a unique index (that is what stops forks), so a direct swap collides on the first
+    // update. Park one entry on a free number first; the end state is the same swap.
+    await AuditLog.collection.updateOne({ _id: a._id }, { $set: { seq: 999 } });
     await AuditLog.collection.updateOne({ _id: b._id }, { $set: { seq: 2 } });
+    await AuditLog.collection.updateOne({ _id: a._id }, { $set: { seq: 3 } });
     expect((await verifyAuditChain()).isValid).toBe(false);
   });
 

@@ -44,11 +44,11 @@ export default function Register() {
         <h1 className="heading text-center text-xl text-ink">Create your account</h1>
         <p className="mt-1 text-center text-sm text-slateink">Shop fire safety products and manage your services in one place.</p>
 
-        <div className="mt-5 flex rounded-full border border-line bg-white p-1">
+        <div className="mt-5 flex rounded-full border border-line bg-card p-1">
           {(['b2c', 'b2b'] as const).map((t) => (
             <button
               key={t} type="button" onClick={() => setCustomerType(t)}
-              className={clsx('flex-1 rounded-full py-2 text-sm font-medium transition-colors', customerType === t ? 'bg-ink text-white' : 'text-slateink')}
+              className={clsx('flex-1 rounded-full py-2 text-sm font-medium transition-colors', customerType === t ? 'bg-ink text-on-ink' : 'text-slateink')}
             >
               {t === 'b2c' ? 'Individual' : 'Business'}
             </button>

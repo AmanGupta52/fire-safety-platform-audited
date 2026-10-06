@@ -7,12 +7,12 @@ export function Footer() {
   const whatsappClean = company.whatsapp ? company.whatsapp.replace(/[^0-9]/g, '') : '910000000000';
 
   return (
-    <footer className="mt-20 bg-ink text-slate-400">
+    <footer className="mt-20 border-t border-white/5 bg-inverse text-slate-400">
       <div className="container-page grid grid-cols-2 gap-8 py-12 md:grid-cols-4">
         <div className="col-span-2 md:col-span-1">
           <div className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded bg-safety"><FlameKindling className="h-4 w-4 text-white" /></div>
-            <span className="heading text-sm text-paper">{company.companyName}</span>
+            <span className="heading text-sm text-white">{company.companyName}</span>
           </div>
           <p className="mt-3 text-sm leading-relaxed">Fire extinguishers, alarm systems and safety equipment, with installation, refilling, inspection and AMC services across India.</p>
         </div>
@@ -49,8 +49,8 @@ export function Footer() {
             <span className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" /> {company.address || 'Navi Mumbai, Maharashtra, India'}</span>
           </div>
           <div className="flex flex-wrap gap-4">
-            <Link to="/privacy-policy" className="transition-colors hover:text-paper">Privacy policy</Link>
-            <Link to="/terms" className="transition-colors hover:text-paper">Terms of service</Link>
+            <Link to="/privacy-policy" className="transition-colors hover:text-white">Privacy policy</Link>
+            <Link to="/terms" className="transition-colors hover:text-white">Terms of service</Link>
             <span>© {new Date().getFullYear()} {company.companyName}</span>
           </div>
         </div>
@@ -71,11 +71,11 @@ export function Footer() {
 function FooterColumn({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div>
-      <p className="heading text-sm uppercase tracking-wide text-paper">{title}</p>
+      <p className="heading text-sm uppercase tracking-wide text-white">{title}</p>
       <div className="mt-4 flex flex-col gap-2">{children}</div>
     </div>
   );
 }
 function FooterLink({ to, children }: { to: string; children: React.ReactNode }) {
-  return <Link to={to} className="text-sm transition-colors hover:text-paper">{children}</Link>;
+  return <Link to={to} className="text-sm transition-colors hover:text-white">{children}</Link>;
 }

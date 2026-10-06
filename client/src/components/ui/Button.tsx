@@ -17,11 +17,11 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 // produced unreliable/near-invisible buttons depending on utility-class order.
 const variants = {
   primary: 'bg-safety text-white hover:bg-safety-dark active:bg-safety-dark',
-  secondary: 'bg-white text-ink border border-ink hover:bg-slate-50',
+  secondary: 'bg-card text-ink border border-ink hover:bg-slate-50',
   ghost: 'bg-transparent text-ink hover:bg-slate-50',
-  dark: 'bg-ink text-white hover:bg-ink-soft',
-  danger: 'bg-white text-safety border border-safety/30 hover:bg-safety-light',
-  outlineLight: 'bg-transparent text-paper border border-paper/40 hover:bg-white/10'
+  dark: 'bg-ink text-on-ink hover:bg-ink-soft',
+  danger: 'bg-card text-safety border border-safety/30 hover:bg-safety-light',
+  outlineLight: 'bg-transparent text-white border border-white/40 hover:bg-white/10'
 };
 
 const sizes = {

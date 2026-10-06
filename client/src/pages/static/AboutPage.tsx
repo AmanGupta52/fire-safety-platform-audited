@@ -6,7 +6,7 @@ export default function AboutPage() {
   const { company } = usePublicSettings();
   return (
     <div>
-      <section className="bg-ink py-16 text-white">
+      <section className="bg-inverse py-16 text-white">
         <div className="container-page max-w-2xl">
           <h1 className="heading text-3xl">About {company.companyName}</h1>
           <p className="mt-3 text-sm leading-relaxed text-white/70">

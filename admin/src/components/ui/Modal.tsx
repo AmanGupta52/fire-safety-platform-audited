@@ -23,8 +23,8 @@ export function Modal({ open, onClose, title, children, width = 'md' }: ModalPro
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-ink/40 p-3 pt-6 sm:p-6 sm:pt-16">
-      <div className={`w-full ${widths[width]} rounded-md border border-line bg-white shadow-popover`}>
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-3 pt-6 sm:p-6 sm:pt-16">
+      <div className={`w-full ${widths[width]} rounded-md border border-line bg-card shadow-popover`}>
         <div className="flex items-center justify-between border-b border-line px-5 py-4">
           <h2 className="page-heading text-base text-ink">{title}</h2>
           <button onClick={onClose} aria-label="Close" className="rounded p-1 text-slateink hover:bg-paper">
