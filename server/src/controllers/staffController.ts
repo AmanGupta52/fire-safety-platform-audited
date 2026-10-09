@@ -265,7 +265,7 @@ export const updateStaff = asyncHandler(async (req: Request, res: Response) => {
         emailTemplates.staffPasswordReset(staff.name)
       );
     } catch (err) {
-      console.error('[staffController] Failed to send password reset alert email:', err);
+      logger.error({ err }, '[staff] Failed to send password reset alert email');
     }
   }
 

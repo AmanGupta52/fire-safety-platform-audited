@@ -1,5 +1,6 @@
 import { v2 as cloudinary } from 'cloudinary';
 import { env } from './env';
+import { logger } from './logger';
 
 if (env.cloudinary.enabled) {
   cloudinary.config({
@@ -8,9 +9,9 @@ if (env.cloudinary.enabled) {
     api_secret: env.cloudinary.apiSecret,
     secure: true
   });
-  console.log('[cloudinary] configured');
+  logger.info('[cloudinary] configured');
 } else {
-  console.warn('[cloudinary] not configured — file uploads will be stored locally under /uploads in development');
+  logger.warn('[cloudinary] not configured — file uploads will be stored locally under /uploads');
 }
 
 export { cloudinary };

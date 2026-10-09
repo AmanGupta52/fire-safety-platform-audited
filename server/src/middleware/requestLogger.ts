@@ -1,5 +1,6 @@
 import pinoHttp from 'pino-http';
 import { randomUUID } from 'crypto';
+import type { IncomingMessage, ServerResponse } from 'http';
 import type { Logger } from 'pino';
 import { logger as appLogger } from '../config/logger';
 
@@ -10,6 +11,18 @@ const SAFE_REQUEST_ID = /^[A-Za-z0-9._-]{8,64}$/;
 /** URL without its query string: query strings can carry tokens and personal data. */
 function pathOnly(url: string | undefined): string {
   return (url || '').split('?')[0];
+}
+
+/** The per-request fields shared by success and error log lines. */
+function requestFields(req: IncomingMessage & { originalUrl?: string; ip?: string; id?: unknown }, res: ServerResponse) {
+  return {
+    requestId: req.id,
+    method: req.method,
+    route: pathOnly(req.originalUrl || req.url),
+    statusCode: res.statusCode,
+    // Express resolves this through "trust proxy"; the raw socket address is just the proxy (::1) on Render.
+    ip: req.ip
+  };
 }
 
 /** Builds the request-logging middleware around a given logger (the app logger by default; tests pass their own). */
@@ -32,16 +45,21 @@ export function buildRequestLogger(log: Logger = appLogger) {
       if (res.statusCode >= 400) return 'warn';
       return 'info';
     },
-    customProps: (req, res) => ({
-      requestId: req.id,
-      method: req.method,
-      route: pathOnly((req as { originalUrl?: string }).originalUrl || req.url),
-      statusCode: res.statusCode
-    }),
+    // Skip platform health probes (Render pings /health constantly) so they don't bury real traffic.
+    autoLogging: { ignore: (req) => pathOnly(req.url) === '/health' },
+    // Added when the response finishes. (customProps would run at request start too, which logged every
+    // field twice and recorded a stale 200 status before the real one.)
+    customSuccessObject: (req, res, val) => ({ ...val, ...requestFields(req, res) }),
+    // Drop pino-http's own synthetic "failed with status code 500" error: it carries a useless stack. The real
+    // error (with its real stack) is logged once by errorHandler.
+    customErrorObject: (req, res, _err, val) => {
+      const { err: _ignored, ...rest } = val as Record<string, unknown>;
+      return { ...rest, ...requestFields(req, res) };
+    },
     customSuccessMessage: (req, res, responseTime) =>
       `${req.method} ${pathOnly((req as { originalUrl?: string }).originalUrl || req.url)} ${res.statusCode} - ${responseTime}ms`,
-    customErrorMessage: (req, res, err) =>
-      `${req.method} ${pathOnly((req as { originalUrl?: string }).originalUrl || req.url)} ${res.statusCode} - ${err.message}`
+    customErrorMessage: (req, res) =>
+      `${req.method} ${pathOnly((req as { originalUrl?: string }).originalUrl || req.url)} ${res.statusCode} - request failed`
   });
 }
 

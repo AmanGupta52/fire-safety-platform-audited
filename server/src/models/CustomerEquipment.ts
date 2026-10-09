@@ -1,3 +1,4 @@
+import { logger } from '../config/logger';
 import { Schema, model, Document, Types } from 'mongoose';
 import QRCode from 'qrcode';
 import { env } from '../config/env';
@@ -133,7 +134,7 @@ customerEquipmentSchema.pre('save', async function (next) {
         width: 300
       });
     } catch (err) {
-      console.error('[CustomerEquipment] Failed to generate QR code:', err);
+      logger.error({ err }, '[CustomerEquipment] Failed to generate QR code');
     }
   }
   next();

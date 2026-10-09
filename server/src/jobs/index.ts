@@ -1,45 +1,32 @@
 import cron from 'node-cron';
 import { env } from '../config/env';
+import { logger } from '../config/logger';
 import { runEquipmentReminderScan, runAmcExpiryScan, runLowStockScan } from './reminderJob';
 import { runAbandonedCartCheck, runNotificationCleanup } from './maintenanceJobs';
 
+/** Runs one scheduled job with start/finish logging. A failing job is logged and never takes the server down. */
+function schedule(name: string, expression: string, job: () => Promise<unknown>): void {
+  cron.schedule(expression, async () => {
+    const started = Date.now();
+    logger.info(`[cron] ${name}: started`);
+    try {
+      const result = await job();
+      logger.info({ result }, `[cron] ${name}: finished in ${Date.now() - started}ms`);
+    } catch (err) {
+      logger.error({ err }, `[cron] ${name}: FAILED after ${Date.now() - started}ms`);
+    }
+  });
+}
+
 export function registerCronJobs(): void {
-  cron.schedule(env.cron.refillReminder, async () => {
-    console.log('[cron] Running equipment refill/inspection reminder scan...');
-    const result = await runEquipmentReminderScan();
-    console.log('[cron] Equipment reminder scan complete:', result);
-  });
+  schedule('equipment refill/inspection reminders', env.cron.refillReminder, runEquipmentReminderScan);
+  schedule('AMC expiry scan', env.cron.amcReminder, runAmcExpiryScan);
+  schedule('low stock scan', env.cron.lowStock, runLowStockScan);
+  // Fixed sensible defaults for jobs not exposed as separate env vars.
+  schedule('abandoned cart check', '0 10 * * *', runAbandonedCartCheck);
+  schedule('notification cleanup', '0 3 * * 0', runNotificationCleanup);
 
-  cron.schedule(env.cron.amcReminder, async () => {
-    console.log('[cron] Running AMC expiry scan...');
-    const result = await runAmcExpiryScan();
-    console.log('[cron] AMC expiry scan complete:', result);
-  });
-
-  cron.schedule(env.cron.lowStock, async () => {
-    console.log('[cron] Running low stock scan...');
-    const result = await runLowStockScan();
-    console.log('[cron] Low stock scan complete:', result);
-  });
-
-  // Fixed sensible defaults for jobs not exposed as separate env vars in the spec's example.
-  cron.schedule('0 10 * * *', async () => {
-    console.log('[cron] Running abandoned cart check...');
-    const result = await runAbandonedCartCheck();
-    console.log('[cron] Abandoned cart check complete:', result);
-  });
-
-  cron.schedule('0 3 * * 0', async () => {
-    console.log('[cron] Running notification cleanup...');
-    const result = await runNotificationCleanup();
-    console.log('[cron] Notification cleanup complete:', result);
-  });
-
-  console.log('[cron] All jobs registered:', {
-    refillReminder: env.cron.refillReminder,
-    amcReminder: env.cron.amcReminder,
-    lowStock: env.cron.lowStock,
-    abandonedCart: '0 10 * * *',
-    notificationCleanup: '0 3 * * 0'
-  });
+  logger.info(
+    `[cron] 5 jobs registered (refill ${env.cron.refillReminder} | AMC ${env.cron.amcReminder} | stock ${env.cron.lowStock} | carts 0 10 * * * | cleanup 0 3 * * 0)`
+  );
 }

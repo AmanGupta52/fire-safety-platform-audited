@@ -1,4 +1,5 @@
 import { createApp } from './app';
+import { logger } from './config/logger';
 import { connectDB } from './config/db';
 import { env } from './config/env';
 import { registerCronJobs } from './jobs';
@@ -17,12 +18,12 @@ async function bootstrap() {
   registerCronJobs();
 
   app.listen(env.port, () => {
-    console.log(`[server] Fire Safety Platform API running on port ${env.port} (${env.nodeEnv})`);
-    console.log(`[server] Client URL: ${env.clientUrl} | Admin URL: ${env.adminUrl}`);
+    logger.info(`[server] Fire Safety Platform API running on port ${env.port} (${env.nodeEnv})`);
+    logger.info(`[server] Client URL: ${env.clientUrl} | Admin URL: ${env.adminUrl}`);
   });
 }
 
 bootstrap().catch((err) => {
-  console.error('[server] Failed to start:', err);
+  logger.fatal({ err }, '[server] Failed to start');
   process.exit(1);
 });

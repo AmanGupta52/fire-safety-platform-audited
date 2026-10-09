@@ -11,7 +11,12 @@ function getTransporter() {
       host: env.email.host,
       port: env.email.port,
       secure: env.email.port === 465,
-      auth: env.email.user ? { user: env.email.user, pass: env.email.password } : undefined
+      auth: env.email.user ? { user: env.email.user, pass: env.email.password } : undefined,
+      // Without these, nodemailer waits ~2 minutes for an unreachable SMTP server (e.g. a host that blocks
+      // outbound SMTP ports), which used to hold the whole API request open for that long.
+      connectionTimeout: 10_000,
+      greetingTimeout: 10_000,
+      socketTimeout: 20_000
     });
   }
   return transporter;
@@ -19,7 +24,8 @@ function getTransporter() {
 
 export async function sendEmail(to: string, subject: string, html: string): Promise<{ sent: boolean; info?: unknown }> {
   if (env.email.mode !== 'production' || !getTransporter()) {
-    logger.info({ to, subject, html }, '[email:dev] Email not sent (dev mode); printed instead');
+    logger.info({ to, subject }, `[email:dev] Not sent (dev mode): "${subject}" -> ${to}`);
+    logger.debug({ html }, '[email:dev] body');
     return { sent: true, info: 'logged-to-console' };
   }
 
@@ -27,7 +33,12 @@ export async function sendEmail(to: string, subject: string, html: string): Prom
     const info = await getTransporter()!.sendMail({ from: env.email.from, to, subject, html });
     return { sent: true, info };
   } catch (err) {
-    logger.error({ err, to, subject }, '[email] send failed');
+    const e = err as { message?: string; code?: string };
+    // One readable line instead of a stack trace: a failed send is an expected, recoverable condition.
+    logger.error(
+      { to, subject, code: e.code },
+      `[email] Failed to send "${subject}" to ${to}: ${e.message ?? 'unknown error'}${e.code ? ` (${e.code})` : ''}`
+    );
     return { sent: false };
   }
 }

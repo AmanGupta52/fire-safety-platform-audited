@@ -1,3 +1,4 @@
+import { logger } from '../config/logger';
 import { Types } from 'mongoose';
 import { GalleryItem, GallerySourceType } from '../models/Content';
 
@@ -27,7 +28,7 @@ export async function mirrorGalleryImages(params: {
         { image, sourceType, sourceId },
         { title: sourceLabel, category: sourceType, image, sourceType, sourceId, sourceLabel },
         { upsert: true }
-      ).catch((err) => console.error('[gallery-mirror] failed to mirror image:', err))
+      ).catch((err) => logger.error({ err }, '[gallery-mirror] failed to mirror image'))
     )
   );
 }
@@ -38,6 +39,6 @@ export async function removeMirroredGalleryImages(
   sourceId: Types.ObjectId
 ): Promise<void> {
   await GalleryItem.deleteMany({ sourceType, sourceId }).catch((err) =>
-    console.error('[gallery-mirror] failed to clean up mirrored images:', err)
+    logger.error({ err }, '[gallery-mirror] failed to clean up mirrored images')
   );
 }

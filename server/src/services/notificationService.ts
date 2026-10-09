@@ -1,6 +1,7 @@
 import { Types } from 'mongoose';
 import { Notification, NotificationType } from '../models/Notification';
-import { sendEmail } from './emailService';
+import { sendEmail, escapeHtml } from './emailService';
+import { inBackground } from '../utils/background';
 import { sendSms, sendWhatsApp } from './messagingService';
 
 interface NotifyParams {
@@ -25,11 +26,19 @@ export async function notify(params: NotifyParams) {
     relatedEntityId: params.relatedEntityId
   });
 
+  // The in-app notification above is the source of truth. Email/SMS/WhatsApp are best-effort and run in the
+  // background so a slow or unreachable mail server can never delay (or fail) the request that triggered them.
   if (params.email) {
-    await sendEmail(params.email, params.title, params.emailHtml || `<p>${params.message}</p>`);
+    const to = params.email;
+    inBackground('notification email', () =>
+      sendEmail(to, params.title, params.emailHtml || `<p>${escapeHtml(params.message)}</p>`)
+    );
   }
   if (params.phone) {
-    await sendSms(params.phone, params.message);
-    await sendWhatsApp(params.phone, params.message);
+    const phone = params.phone;
+    inBackground('notification SMS/WhatsApp', async () => {
+      await sendSms(phone, params.message);
+      await sendWhatsApp(phone, params.message);
+    });
   }
 }
