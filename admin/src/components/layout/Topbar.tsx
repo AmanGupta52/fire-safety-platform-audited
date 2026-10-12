@@ -28,6 +28,10 @@ const RELATED_ENTITY_PATH: Record<string, string> = {
 
 export function Topbar({ title, onMenuClick }: { title?: string; onMenuClick?: () => void }) {
   const user = useAuthStore((s) => s.user);
+  const hasPermission = useAuthStore((s) => s.hasPermission);
+  // The search endpoint answers 403 unless the account can read at least one of the things it searches, so
+  // roles without any of these (e.g. technicians) don't get the search button or the Ctrl+K shortcut at all.
+  const canSearch = (['orders.read', 'customers.read', 'service_bookings.read', 'products.read'] as const).some((p) => hasPermission(p));
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -36,6 +40,7 @@ export function Topbar({ title, onMenuClick }: { title?: string; onMenuClick?: (
   const { isDark, toggleTheme } = useTheme();
 
   useEffect(() => {
+    if (!canSearch) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
@@ -44,11 +49,11 @@ export function Topbar({ title, onMenuClick }: { title?: string; onMenuClick?: (
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [canSearch]);
 
   const { data: notifData } = useQuery({
     queryKey: ['my-notifications'],
-    queryFn: async () => (await api.get('/notifications')).data.data as { notifications: Notification[]; unreadCount: number },
+    queryFn: async () => (await api.get('/notifications', { silentWake: true })).data.data as { notifications: Notification[]; unreadCount: number },
     refetchInterval: 60_000
   });
 
@@ -83,6 +88,7 @@ export function Topbar({ title, onMenuClick }: { title?: string; onMenuClick?: (
 
       <div className="flex items-center gap-1 sm:gap-3">
         {/* Quick Global Search Trigger Button */}
+        {canSearch && (
         <button
           onClick={() => setSearchOpen(true)}
           className="flex items-center gap-2 rounded-md border border-line bg-paper px-2.5 py-1.5 text-xs text-slateink hover:text-ink transition-colors"
@@ -95,6 +101,7 @@ export function Topbar({ title, onMenuClick }: { title?: string; onMenuClick?: (
             Ctrl+K
           </kbd>
         </button>
+        )}
 
         {/* Dark Mode Toggle */}
         <button
@@ -123,7 +130,7 @@ export function Topbar({ title, onMenuClick }: { title?: string; onMenuClick?: (
               <div className="flex items-center justify-between border-b border-line px-3 py-2">
                 <p className="text-xs font-semibold text-ink">Notifications</p>
                 {Boolean(notifData?.unreadCount) && (
-                  <button
+                  <button disabled={markAllReadMutation.isPending}
                     onClick={() => markAllReadMutation.mutate()}
                     className="flex items-center gap-1 text-[11px] font-medium text-slateink hover:text-ink"
                   >
@@ -194,7 +201,7 @@ export function Topbar({ title, onMenuClick }: { title?: string; onMenuClick?: (
         </div>
       </div>
 
-      <GlobalSearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />
+      <GlobalSearchModal open={searchOpen && canSearch} onClose={() => setSearchOpen(false)} />
     </header>
   );
 }

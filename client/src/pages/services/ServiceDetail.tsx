@@ -6,6 +6,7 @@ import { Card, ErrorState } from '../../components/ui/Primitives';
 import { useService } from '../../hooks/useServices';
 import { getServiceIcon, formatServicePrice } from '../../utils/serviceUtils';
 import { NotFound404 } from '../errors/StatusPages';
+import { MetaTags, truncate } from '../../components/seo/MetaTags';
 
 export default function ServiceDetail() {
   const { slug } = useParams<{ slug: string }>();
@@ -60,6 +61,11 @@ export default function ServiceDetail() {
 
   return (
     <div>
+      <MetaTags
+        title={service.seoTitle || service.name}
+        description={service.seoDescription || truncate(service.shortDescription || service.description)}
+        image={typeof service.image === 'string' ? service.image : service.image?.url}
+      />
       {/* Header Banner */}
       <section className="bg-inverse py-16 text-white">
         <div className="container-page">
@@ -112,7 +118,7 @@ export default function ServiceDetail() {
                 <h2 className="heading text-base text-ink mb-3">Key Features</h2>
                 <ul className="flex flex-col gap-2.5">
                   {service.features.map((feat, idx) => (
-                    <li key={idx} className="flex items-start gap-2.5 text-sm text-ink">
+                    <li key={`${feat}-${idx}`} className="flex items-start gap-2.5 text-sm text-ink">
                       <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-forest" />
                       <span>{feat}</span>
                     </li>
@@ -131,7 +137,7 @@ export default function ServiceDetail() {
                     </p>
                     <ul className="flex flex-col gap-2 text-xs text-ink">
                       {service.inclusions.map((inc, i) => (
-                        <li key={i} className="flex items-start gap-2">
+                        <li key={`${inc}-${i}`} className="flex items-start gap-2">
                           <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-forest" />
                           <span>{inc}</span>
                         </li>
@@ -147,7 +153,7 @@ export default function ServiceDetail() {
                     </p>
                     <ul className="flex flex-col gap-2 text-xs text-slateink">
                       {service.exclusions.map((exc, i) => (
-                        <li key={i} className="flex items-start gap-2">
+                        <li key={`${exc}-${i}`} className="flex items-start gap-2">
                           <XCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand" />
                           <span>{exc}</span>
                         </li>
@@ -165,7 +171,7 @@ export default function ServiceDetail() {
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                   {gallery.map((imgUrl, i) => (
                     <img
-                      key={i}
+                      key={`${imgUrl}-${i}`}
                       src={imgUrl}
                       alt={`${service.name} gallery ${i + 1}`}
                       className="h-28 w-full rounded border border-line object-cover"

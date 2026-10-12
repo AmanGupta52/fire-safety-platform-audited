@@ -1,6 +1,7 @@
 import { Link, useSearchParams } from 'react-router-dom';
 import { CheckCircle2 } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
+import { MetaTags } from '../../components/seo/MetaTags';
 
 export default function OrderSuccessPage() {
   const [params] = useSearchParams();
@@ -8,6 +9,7 @@ export default function OrderSuccessPage() {
 
   return (
     <div className="container-page flex min-h-[70vh] flex-col items-center justify-center py-16 text-center">
+      <MetaTags title="Order confirmed" noindex />
       <div className="flex h-16 w-16 items-center justify-center rounded-full bg-forest-light">
         <CheckCircle2 className="h-8 w-8 text-forest" />
       </div>

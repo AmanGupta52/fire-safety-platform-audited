@@ -13,6 +13,7 @@ import { SkeletonCard } from '../components/ui/Skeleton';
 import { Reveal } from '../components/ui/Reveal';
 import { HomeBannerCarousel } from '../components/home/HomeBannerCarousel';
 import { CategoryCircles } from '../components/home/CategoryCircles';
+import { MetaTags } from '../components/seo/MetaTags';
 
 export default function Home() {
   const { data: services, isLoading: servicesLoading } = useServices();
@@ -38,6 +39,7 @@ export default function Home() {
 
   return (
     <div>
+      <MetaTags />
       {/* HERO BANNER — admin-managed promotional banners (Content > Banners), cross-fading
           every 3s. Clicking a banner follows the URL set on it in the admin panel, if any. */}
       <section className="container-page py-10 lg:py-14">

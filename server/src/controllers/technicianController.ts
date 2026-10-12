@@ -8,7 +8,7 @@ import { writeAuditLog } from '../services/auditService';
 
 export const listTechnicians = asyncHandler(async (req: Request, res: Response) => {
   const filter = req.query.status ? { status: req.query.status } : {};
-  const technicians = await Technician.find(filter).sort({ name: 1 });
+  const technicians = await Technician.find(filter).sort({ name: 1 }).limit(200);
   return ok(res, technicians);
 });
 

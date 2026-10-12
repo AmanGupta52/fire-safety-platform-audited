@@ -6,6 +6,7 @@ import { GalleryItem } from '../../types';
 import { Card, EmptyState, ErrorState, SkeletonGroup } from '../../components/ui/Primitives';
 import { SkeletonImage } from '../../components/ui/Skeleton';
 import { ImageWithFallback } from '../../components/ui/ImageWithFallback';
+import { MetaTags } from '../../components/seo/MetaTags';
 
 export default function GalleryPage() {
   const [category, setCategory] = useState('');
@@ -18,6 +19,7 @@ export default function GalleryPage() {
 
   return (
     <div className="container-page py-10">
+      <MetaTags title="Gallery" description="Photos of our fire safety installations, equipment and service work." />
       <h1 className="heading text-2xl text-ink">Project gallery</h1>
       <p className="mt-1 text-sm text-slateink">A look at our installations and completed projects.</p>
 

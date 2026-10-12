@@ -1,19 +1,20 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { useQuery, useMutation } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Navigate, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
 import { Check } from 'lucide-react';
-import { api, apiErrorMessage } from '../../lib/apiClient';
+import { api, toastApiError } from '../../lib/apiClient';
 import { useCart } from '../../hooks/useCart';
 import { Address } from '../../types';
 import { Card } from '../../components/ui/Primitives';
 import { PageLoader } from '../../components/ui/Loader';
 import { Input } from '../../components/ui/FormControls';
 import { Button } from '../../components/ui/Button';
-
-function formatInr(n: number) { return `₹${n.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`; }
+import { MetaTags } from '../../components/seo/MetaTags';
+import { formatInr } from '../../lib/format';
+import { MESSAGES, isValidGstin, normalizeGstin, optionalTextRules, phoneRules, pincodeRules, requiredTextRules } from '../../lib/validators';
 
 interface AddressForm {
   contactName: string; phone: string; line1: string; line2?: string; city: string; state: string; pincode: string;
@@ -23,7 +24,11 @@ const STEPS = ['Address', 'Delivery', 'Payment', 'Review'] as const;
 
 export default function CheckoutPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { cart, isLoading } = useCart();
+  // Set the moment an order succeeds. Placing the order empties the cart, and without this flag the "cart is
+  // empty" redirect below would fire in the gap before we reach the success page and bounce the shopper to /cart.
+  const orderPlacedRef = useRef(false);
   const [selectedAddressId, setSelectedAddressId] = useState<string | 'new' | null>(null);
   // Online payment isn't wired up to a real payment gateway yet, so Cash on Delivery is the
   // only method offered at checkout for now — nothing here should look like a working "pay
@@ -31,20 +36,27 @@ export default function CheckoutPage() {
   const paymentMethod = 'cod' as const;
   const [companyName, setCompanyName] = useState('');
   const [gstNumber, setGstNumber] = useState('');
+  const [gstError, setGstError] = useState<string | undefined>();
 
   const { data: addresses } = useQuery({
     queryKey: ['addresses'],
-    queryFn: async () => {
-      const list = (await api.get('/addresses')).data.data as Address[];
-      if (!selectedAddressId) {
-        if (list.length > 0) setSelectedAddressId(list.find((a) => a.isDefault)?._id || list[0]._id);
-        else setSelectedAddressId('new');
-      }
-      return list;
-    }
+    queryFn: async () => (await api.get('/addresses')).data.data as Address[]
   });
 
-  const { register, getValues, formState: { errors }, trigger } = useForm<AddressForm>();
+  // Pre-select an address once the list is available (also when it comes straight from the cache on a return
+  // visit): the default address, else the first one, else the "new address" form.
+  useEffect(() => {
+    if (!addresses || selectedAddressId !== null) return;
+    setSelectedAddressId(addresses.find((a) => a.isDefault)?._id ?? addresses[0]?._id ?? 'new');
+  }, [addresses, selectedAddressId]);
+
+  const { register, getValues, formState: { errors }, trigger } = useForm<AddressForm>({ mode: 'onTouched' });
+
+  function validateGstin(value: string): boolean {
+    const ok = isValidGstin(value);
+    setGstError(ok ? undefined : MESSAGES.gstin);
+    return ok;
+  }
 
   // Steps are informational (this is a single-page checkout) — "Address" is active until an
   // address is chosen/entered, then Delivery + Payment read as complete since both have a
@@ -53,9 +65,10 @@ export default function CheckoutPage() {
 
   const checkoutMutation = useMutation({
     mutationFn: async () => {
+      if (!validateGstin(gstNumber)) throw new Error('__validation__');
       let shippingAddress: AddressForm;
       if (selectedAddressId === 'new') {
-        const valid = await trigger();
+        const valid = await trigger(undefined, { shouldFocus: true });
         if (!valid) throw new Error('__validation__');
         shippingAddress = getValues();
       } else {
@@ -64,22 +77,34 @@ export default function CheckoutPage() {
         shippingAddress = addr;
       }
       return (await api.post('/orders/checkout', {
-        billingAddress: shippingAddress, shippingAddress, companyName: companyName || undefined,
-        gstNumber: gstNumber || undefined, paymentMethod
+        billingAddress: shippingAddress, shippingAddress, companyName: companyName.trim() || undefined,
+        gstNumber: normalizeGstin(gstNumber) || undefined, paymentMethod
       })).data.data;
     },
-    onSuccess: (order) => { toast.success('Order placed!'); navigate(`/order-success?orderNumber=${order.orderNumber}`); },
-    onError: (err: any) => { if (err.message !== '__validation__') toast.error(apiErrorMessage(err)); }
+    onSuccess: (order) => {
+      orderPlacedRef.current = true;
+      toast.success('Order placed!');
+      // The order just emptied the server-side cart: refresh everything that shows it, or the header badge and
+      // the cart page keep showing the old items.
+      queryClient.invalidateQueries({ queryKey: ['cart'] });
+      queryClient.invalidateQueries({ queryKey: ['my-orders'] });
+      queryClient.invalidateQueries({ queryKey: ['my-orders-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['my-notifications-full'] });
+      navigate(`/order-success?orderNumber=${encodeURIComponent(order.orderNumber)}`, { replace: true });
+    },
+    onError: (err) => { if (!(err instanceof Error && err.message === '__validation__')) toastApiError(err); }
   });
 
   if (isLoading) return <PageLoader label="Loading checkout" />;
   if (!cart || cart.items.length === 0) {
-    navigate('/cart');
-    return null;
+    // After a successful order the cart is empty on purpose and we are already on our way to the success page.
+    if (orderPlacedRef.current) return null;
+    return <Navigate to="/cart" replace />;
   }
 
   return (
     <div className="container-page py-8">
+      <MetaTags title="Checkout" noindex />
       <h1 className="heading text-2xl text-ink">Checkout</h1>
 
       {/* Stepper */}
@@ -128,13 +153,13 @@ export default function CheckoutPage() {
 
             {selectedAddressId === 'new' && (
               <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 border-t border-line pt-4">
-                <Input label="Full name" required error={errors.contactName?.message} {...register('contactName', { required: 'Required' })} />
-                <Input label="Phone" required error={errors.phone?.message} {...register('phone', { required: 'Required' })} />
-                <Input label="Address line 1" required className="col-span-2" error={errors.line1?.message} {...register('line1', { required: 'Required' })} />
-                <Input label="Address line 2" className="col-span-2" {...register('line2')} />
-                <Input label="City" required error={errors.city?.message} {...register('city', { required: 'Required' })} />
-                <Input label="State" required error={errors.state?.message} {...register('state', { required: 'Required' })} />
-                <Input label="Pincode" required error={errors.pincode?.message} {...register('pincode', { required: 'Required' })} />
+                <Input label="Full name" required autoComplete="name" error={errors.contactName?.message} {...register('contactName', requiredTextRules)} />
+                <Input label="Phone" required type="tel" inputMode="tel" autoComplete="tel" placeholder="98765 43210" error={errors.phone?.message} {...register('phone', phoneRules)} />
+                <Input label="Address line 1" required className="col-span-2" autoComplete="address-line1" error={errors.line1?.message} {...register('line1', requiredTextRules)} />
+                <Input label="Address line 2" className="col-span-2" autoComplete="address-line2" error={errors.line2?.message} {...register('line2', optionalTextRules)} />
+                <Input label="City" required autoComplete="address-level2" error={errors.city?.message} {...register('city', requiredTextRules)} />
+                <Input label="State" required autoComplete="address-level1" error={errors.state?.message} {...register('state', requiredTextRules)} />
+                <Input label="Pincode" required inputMode="numeric" maxLength={6} autoComplete="postal-code" error={errors.pincode?.message} {...register('pincode', pincodeRules)} />
               </div>
             )}
           </Card>
@@ -142,8 +167,16 @@ export default function CheckoutPage() {
           <Card className="p-5">
             <p className="heading text-sm text-ink">Business details (optional)</p>
             <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Input label="Company name" value={companyName} onChange={(e) => setCompanyName(e.target.value)} />
-              <Input label="GSTIN" value={gstNumber} onChange={(e) => setGstNumber(e.target.value)} />
+              <Input label="Company name" maxLength={100} value={companyName} onChange={(e) => setCompanyName(e.target.value)} />
+              <Input
+                label="GSTIN"
+                maxLength={15}
+                placeholder="22AAAAA0000A1Z5"
+                value={gstNumber}
+                error={gstError}
+                onChange={(e) => { setGstNumber(e.target.value.toUpperCase()); if (gstError) setGstError(undefined); }}
+                onBlur={() => validateGstin(gstNumber)}
+              />
             </div>
           </Card>
 
@@ -164,7 +197,7 @@ export default function CheckoutPage() {
               {cart.items.map((item) => (
                 <div key={item.product._id} className="flex justify-between text-slateink">
                   <span className="line-clamp-1 pr-2">{item.product.name} × {item.quantity}</span>
-                  <span className="shrink-0 text-ink">₹{((item.product.discountPrice ?? item.product.price) * item.quantity).toLocaleString('en-IN')}</span>
+                  <span className="shrink-0 text-ink">{formatInr((item.product.discountPrice ?? item.product.price) * item.quantity)}</span>
                 </div>
               ))}
               <div className="my-1 border-t border-line" />

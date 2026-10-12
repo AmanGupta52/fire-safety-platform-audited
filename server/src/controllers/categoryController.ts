@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import slugify from 'slugify';
 import { Category } from '../models/Category';
 import { asyncHandler } from '../utils/asyncHandler';
+import { publicCache, setPublicCacheHeader, cacheKey, PUBLIC_TTL_MS } from '../utils/ttlCache';
 import { ApiError } from '../utils/ApiError';
 import { ok, created } from '../utils/apiResponse';
 import { writeAuditLog } from '../services/auditService';
@@ -14,7 +15,16 @@ export const listCategories = asyncHandler(async (req: Request, res: Response) =
   // had been deliberately hidden.
   const includeInactive = req.query.includeInactive === 'true' && Boolean(req.user?.permissions.includes('categories.read'));
   const filter = includeInactive ? {} : { isActive: true };
-  const categories = await Category.find(filter).sort({ sortOrder: 1, name: 1 });
+
+  // Staff asking for inactive categories get a fresh, uncached, non-public response.
+  if (includeInactive) {
+    return ok(res, await Category.find(filter).sort({ sortOrder: 1, name: 1 }).lean());
+  }
+  // The public list is the same for every visitor, so it is cached (key includes the query string).
+  const categories = await publicCache.wrap(cacheKey('categories', req), PUBLIC_TTL_MS, async () =>
+    Category.find(filter).sort({ sortOrder: 1, name: 1 }).lean()
+  );
+  setPublicCacheHeader(res);
   return ok(res, categories);
 });
 
@@ -32,6 +42,7 @@ export const createCategory = asyncHandler(async (req: Request, res: Response) =
   const category = await Category.create({ ...req.body, slug });
   await writeAuditLog(req, 'create', 'categories', 'Category', category._id, null, category.toObject());
   void mirrorGalleryImages({ images: [category.image], sourceType: 'category', sourceId: category._id, sourceLabel: category.name });
+  publicCache.deleteByPrefix('categories:');
   return created(res, category);
 });
 
@@ -48,6 +59,7 @@ export const updateCategory = asyncHandler(async (req: Request, res: Response) =
 
   await writeAuditLog(req, 'update', 'categories', 'Category', category._id, previous, category.toObject());
   void mirrorGalleryImages({ images: [category.image], sourceType: 'category', sourceId: category._id, sourceLabel: category.name });
+  publicCache.deleteByPrefix('categories:');
   return ok(res, category, 'Category updated');
 });
 
@@ -57,5 +69,6 @@ export const deleteCategory = asyncHandler(async (req: Request, res: Response) =
   await category.deleteOne();
   await writeAuditLog(req, 'delete', 'categories', 'Category', category._id, category.toObject(), null);
   void removeMirroredGalleryImages('category', category._id);
+  publicCache.deleteByPrefix('categories:');
   return ok(res, {}, 'Category deleted');
 });

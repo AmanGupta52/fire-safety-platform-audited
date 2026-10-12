@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { Layers, Plus, Pencil, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { api, apiErrorMessage } from '../../lib/apiClient';
+import { api, toastApiError } from '../../lib/apiClient';
 import { Category } from '../../types';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { Button } from '../../components/ui/Button';
@@ -41,14 +41,14 @@ export default function CategoriesList() {
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => api.delete(`/categories/${id}`),
     onSuccess: () => { toast.success('Category deleted'); queryClient.invalidateQueries({ queryKey: ['categories-all'] }); },
-    onError: (err) => toast.error(apiErrorMessage(err))
+    onError: toastApiError
   });
 
   const columns: Column<Category>[] = [
     {
       header: '', className: 'w-14',
       render: (c) => c.image
-        ? <img src={c.image} alt="" className="h-9 w-9 rounded object-cover" />
+        ? <img loading="lazy" decoding="async" src={c.image} alt="" className="h-9 w-9 rounded object-cover" />
         : <div className="flex h-9 w-9 items-center justify-center rounded bg-paper text-slateink"><Layers className="h-4 w-4" /></div>
     },
     { header: 'Name', render: (c) => <span className="font-medium text-ink">{c.name}</span> },
@@ -60,10 +60,10 @@ export default function CategoriesList() {
       render: (c) => (
         <div className="flex justify-end gap-1">
           {hasPermission('categories.update') && (
-            <button onClick={() => setEditing(c)} className="rounded p-1.5 text-slateink hover:bg-paper"><Pencil className="h-3.5 w-3.5" /></button>
+            <button aria-label="Edit" onClick={() => setEditing(c)} className="rounded p-1.5 text-slateink hover:bg-paper"><Pencil className="h-3.5 w-3.5" /></button>
           )}
           {hasPermission('categories.delete') && (
-            <button
+            <button aria-label="Delete" disabled={deleteMutation.isPending}
               onClick={() => { if (confirm(`Delete "${c.name}"?`)) deleteMutation.mutate(c._id); }}
               className="rounded p-1.5 text-brand hover:bg-brand-light"
             ><Trash2 className="h-3.5 w-3.5" /></button>
@@ -113,7 +113,7 @@ function CategoryForm({ category, onClose }: { category: Category | null; onClos
       queryClient.invalidateQueries({ queryKey: ['categories-all'] });
       onClose();
     },
-    onError: (err) => toast.error(apiErrorMessage(err))
+    onError: toastApiError
   });
 
   return (

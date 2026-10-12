@@ -5,6 +5,8 @@ import { Card } from '../../components/ui/Primitives';
 import { Input, Textarea } from '../../components/ui/FormControls';
 import { Button } from '../../components/ui/Button';
 import { usePublicSettings } from '../../hooks/usePublicSettings';
+import { MetaTags } from '../../components/seo/MetaTags';
+import { optionalPhoneRules } from '../../lib/validators';
 
 interface FormValues { name: string; email: string; phone?: string; message: string }
 
@@ -22,6 +24,7 @@ export default function ContactPage() {
 
   return (
     <div className="container-page py-10">
+      <MetaTags title="Contact us" description="Get in touch with our team for orders, quotes, service bookings and support." />
       <h1 className="heading text-2xl text-ink">Contact us</h1>
       <p className="mt-1 max-w-lg text-sm text-slateink">Questions about a product, service or existing order? Reach out and our team will respond within one business day.</p>
 
@@ -32,7 +35,7 @@ export default function ContactPage() {
               <Input label="Name" required error={errors.name?.message} {...register('name', { required: 'Required' })} />
               <Input label="Email" type="email" required error={errors.email?.message} {...register('email', { required: 'Required' })} />
             </div>
-            <Input label="Phone" {...register('phone')} />
+            <Input label="Phone" type="tel" inputMode="tel" error={errors.phone?.message} {...register('phone', optionalPhoneRules)} />
             <Textarea label="Message" required error={errors.message?.message} {...register('message', { required: 'Required' })} />
             <Button type="submit" loading={isSubmitting} className="self-start">Send message</Button>
           </form>

@@ -6,6 +6,7 @@ import { useAuthStore } from '../../store/authStore';
 import { Order, Quote, CustomerEquipment, ServiceBooking } from '../../types';
 import { Card, ErrorState, SkeletonGroup } from '../../components/ui/Primitives';
 import { SkeletonStat, SkeletonList } from '../../components/ui/Skeleton';
+import { formatInr } from '../../lib/format';
 
 export default function AccountOverview() {
   const user = useAuthStore((s) => s.user);
@@ -67,7 +68,7 @@ export default function AccountOverview() {
                   <p className="text-sm font-medium text-ink">{o.orderNumber}</p>
                   <p className="text-xs capitalize text-slateink">{o.status}</p>
                 </div>
-                <p className="text-sm font-medium text-ink">₹{o.totalAmount.toLocaleString('en-IN')}</p>
+                <p className="text-sm font-medium text-ink">{formatInr(o.totalAmount)}</p>
               </Card>
             </Link>
           ))}

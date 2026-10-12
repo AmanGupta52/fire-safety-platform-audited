@@ -4,6 +4,9 @@ import { Types } from 'mongoose';
 import { Service, IService } from '../models/Service';
 import { ServiceBooking } from '../models/ServiceBooking';
 import { asyncHandler } from '../utils/asyncHandler';
+import { publicCache } from '../utils/ttlCache';
+import { setPublicCacheHeader } from '../utils/ttlCache';
+import { parsePagination } from '../utils/pagination';
 import { ApiError } from '../utils/ApiError';
 import { ok, created, paginationMeta } from '../utils/apiResponse';
 import { writeAuditLog } from '../services/auditService';
@@ -52,8 +55,10 @@ export const listPublicServices = asyncHandler(async (req: Request, res: Respons
 
   const services = await Service.find(filter)
     .select('name slug shortDescription description startingPrice priceUnit currency category image gallery features inclusions exclusions estimatedDuration displayOrder isFeatured seoTitle seoDescription createdAt')
-    .sort({ displayOrder: 1, createdAt: 1 });
+    .sort({ displayOrder: 1, createdAt: 1 })
+    .lean();
 
+  setPublicCacheHeader(res);
   return ok(res, services, 'Services catalog fetched');
 });
 
@@ -76,8 +81,7 @@ export const getPublicServiceBySlug = asyncHandler(async (req: Request, res: Res
 // ------------------- Admin Endpoints -------------------
 
 export const adminListServices = asyncHandler(async (req: Request, res: Response) => {
-  const page = Math.max(1, Number(req.query.page) || 1);
-  const limit = Math.min(100, Number(req.query.limit) || 20);
+  const { page, limit, skip } = parsePagination(req, { defaultLimit: 20, maxLimit: 100 });
   const filter: Record<string, unknown> = {};
 
   if (req.query.includeDeleted !== 'true') {
@@ -115,7 +119,7 @@ export const adminListServices = asyncHandler(async (req: Request, res: Response
       .populate('createdBy', 'name email')
       .populate('updatedBy', 'name email')
       .sort({ displayOrder: 1, createdAt: -1 })
-      .skip((page - 1) * limit)
+      .skip(skip)
       .limit(limit),
     Service.countDocuments(filter)
   ]);
@@ -199,6 +203,7 @@ export const adminCreateService = asyncHandler(async (req: Request, res: Respons
 
   await writeAuditLog(req, 'create', 'services', 'Service', service._id, null, service.toObject());
 
+  publicCache.deleteByPrefix('sitemap:');
   return created(res, service, 'Service created successfully');
 });
 
@@ -262,6 +267,7 @@ export const adminUpdateService = asyncHandler(async (req: Request, res: Respons
 
   await writeAuditLog(req, 'update', 'services', 'Service', service._id, previous, service.toObject());
 
+  publicCache.deleteByPrefix('sitemap:');
   return ok(res, service, 'Service updated successfully');
 });
 
@@ -286,6 +292,7 @@ export const adminUpdateServiceStatus = asyncHandler(async (req: Request, res: R
 
   await writeAuditLog(req, 'update_status', 'services', 'Service', service._id, previous, service.toObject());
 
+  publicCache.deleteByPrefix('sitemap:');
   return ok(res, service, 'Service status updated successfully');
 });
 
@@ -316,12 +323,14 @@ export const adminDeleteService = asyncHandler(async (req: Request, res: Respons
       reason: `Preserved due to ${bookingCount} existing bookings`
     });
 
+    publicCache.deleteByPrefix('sitemap:');
     return ok(res, service, `Service has ${bookingCount} historical booking(s); it has been safely deactivated and archived.`);
   }
 
   if (req.query.permanent === 'true') {
     await Service.findByIdAndDelete(service._id);
     await writeAuditLog(req, 'delete', 'services', 'Service', service._id, previous, null);
+    publicCache.deleteByPrefix('sitemap:');
     return ok(res, { id: service._id }, 'Service permanently deleted');
   }
 
@@ -333,6 +342,7 @@ export const adminDeleteService = asyncHandler(async (req: Request, res: Respons
 
   await writeAuditLog(req, 'soft_delete', 'services', 'Service', service._id, previous, { isDeleted: true });
 
+  publicCache.deleteByPrefix('sitemap:');
   return ok(res, service, 'Service deactivated and moved to archive');
 });
 
@@ -351,6 +361,7 @@ export const adminRestoreService = asyncHandler(async (req: Request, res: Respon
 
   await writeAuditLog(req, 'restore', 'services', 'Service', service._id, previous, service.toObject());
 
+  publicCache.deleteByPrefix('sitemap:');
   return ok(res, service, 'Service restored successfully');
 });
 
@@ -365,5 +376,6 @@ export const adminReorderServices = asyncHandler(async (req: Request, res: Respo
 
   await writeAuditLog(req, 'reorder', 'services', 'Service', 'bulk', null, { itemsCount: items.length });
 
+  publicCache.deleteByPrefix('sitemap:');
   return ok(res, { count: items.length }, 'Services reordered successfully');
 });

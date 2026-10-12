@@ -8,7 +8,7 @@ export interface Column<T> {
   header: string;
   render: (row: T) => React.ReactNode;
   className?: string;
-  sortKey?: keyof T | ((row: T) => any);
+  sortKey?: keyof T | ((row: T) => unknown);
   sortable?: boolean;
 }
 
@@ -39,6 +39,13 @@ interface DataTableProps<T> {
 }
 
 // Escapes CSV cell to prevent formula injection & handle special characters
+/** A column's raw value for a row: its sortKey function, the named field, or (no sortKey) the lower-cased header. */
+function cellValue<T>(row: T, col: Column<T>): unknown {
+  if (typeof col.sortKey === 'function') return col.sortKey(row);
+  const record = row as unknown as Record<string, unknown>;
+  return record[(col.sortKey as string | undefined) ?? col.header.toLowerCase()];
+}
+
 function sanitizeCsvValue(val: unknown): string {
   if (val === null || val === undefined) return '';
   let str = typeof val === 'object' ? JSON.stringify(val) : String(val);
@@ -91,7 +98,7 @@ export function DataTable<T>({
       // Default heuristic: search across common fields or row keys
       for (const col of columns) {
         if (col.sortKey && typeof col.sortKey === 'string') {
-          const val = (row as any)[col.sortKey];
+          const val = cellValue(row, col);
           if (val !== undefined && val !== null && String(val).toLowerCase().includes(q)) {
             return true;
           }
@@ -109,19 +116,8 @@ export function DataTable<T>({
     if (!targetCol) return filteredRows;
 
     return [...filteredRows].sort((a, b) => {
-      let valA: any;
-      let valB: any;
-
-      if (typeof targetCol.sortKey === 'function') {
-        valA = targetCol.sortKey(a);
-        valB = targetCol.sortKey(b);
-      } else if (targetCol.sortKey) {
-        valA = (a as any)[targetCol.sortKey];
-        valB = (b as any)[targetCol.sortKey];
-      } else {
-        valA = (a as any)[targetCol.header.toLowerCase()];
-        valB = (b as any)[targetCol.header.toLowerCase()];
-      }
+      const valA = cellValue(a, targetCol);
+      const valB = cellValue(b, targetCol);
 
       if (valA === valB) return 0;
       if (valA === undefined || valA === null) return 1;
@@ -165,7 +161,7 @@ export function DataTable<T>({
     }
   };
 
-  const toggleSelectRow = (e: React.MouseEvent, id: string) => {
+  const toggleSelectRow = (e: { stopPropagation: () => void }, id: string) => {
     e.stopPropagation();
     const next = new Set(selectedIds);
     if (next.has(id)) {
@@ -187,15 +183,7 @@ export function DataTable<T>({
 
     const dataLines = rowsToExport.map((row) => {
       return exportableCols.map((col) => {
-        let val: any;
-        if (typeof col.sortKey === 'function') {
-          val = col.sortKey(row);
-        } else if (col.sortKey) {
-          val = (row as any)[col.sortKey];
-        } else {
-          val = (row as any)[col.header.toLowerCase()];
-        }
-        return sanitizeCsvValue(val);
+        return sanitizeCsvValue(cellValue(row, col));
       }).join(',');
     });
 
@@ -230,7 +218,7 @@ export function DataTable<T>({
               className="w-full rounded-md border border-line bg-paper py-1.5 pl-8 pr-7 text-xs text-ink placeholder:text-slateink/60 focus:border-brand focus:bg-card focus:outline-none"
             />
             {searchQuery && (
-              <button
+              <button aria-label="Clear search"
                 type="button"
                 onClick={() => setSearchQuery('')}
                 className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slateink hover:text-ink"
@@ -363,7 +351,7 @@ export function DataTable<T>({
                         <input
                           type="checkbox"
                           checked={isSelected}
-                          onChange={(e) => toggleSelectRow(e as any, key)}
+                          onChange={(e) => toggleSelectRow(e, key)}
                           className="h-3.5 w-3.5 rounded border-line text-brand focus:ring-brand cursor-pointer"
                         />
                       </td>

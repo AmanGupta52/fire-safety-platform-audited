@@ -1,51 +1,15 @@
 import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
-import { useEffect } from 'react';
+import { Suspense, useEffect } from 'react';
 import { StorefrontLayout } from './components/layout/StorefrontLayout';
 import { AccountLayout } from './components/layout/AccountLayout';
 import { ProtectedRoute } from './routes/ProtectedRoute';
 
-import Home from './pages/Home';
-import ProductsList from './pages/products/ProductsList';
-import ProductDetail from './pages/products/ProductDetail';
-import CartPage from './pages/cart/CartPage';
-import WishlistPage from './pages/wishlist/WishlistPage';
-import CheckoutPage from './pages/checkout/CheckoutPage';
-import OrderSuccessPage from './pages/checkout/OrderSuccessPage';
-
-import Login from './pages/auth/Login';
-import Register from './pages/auth/Register';
-import VerifyEmail from './pages/auth/VerifyEmail';
-import ForgotPassword from './pages/auth/ForgotPassword';
-import ResetPassword from './pages/auth/ResetPassword';
-
-import AccountOverview from './pages/account/AccountOverview';
-import MyOrders from './pages/account/MyOrders';
-import OrderDetail from './pages/account/OrderDetail';
-import MyQuotes from './pages/account/MyQuotes';
-import MyEquipment from './pages/account/MyEquipment';
-import MyServices from './pages/account/MyServices';
-import MyInvoices from './pages/account/MyInvoices';
-import MyAddresses from './pages/account/MyAddresses';
-import MyNotifications from './pages/account/MyNotifications';
-import Profile from './pages/account/Profile';
-
-import ServicesOverview from './pages/services/ServicesOverview';
-import ServiceDetail from './pages/services/ServiceDetail';
-import BookService from './pages/services/BookService';
-import RequestQuote from './pages/services/RequestQuote';
-
-import BlogList from './pages/blog/BlogList';
-import BlogDetail from './pages/blog/BlogDetail';
-
-import GalleryPage from './pages/static/GalleryPage';
-import FaqPage from './pages/static/FaqPage';
-import ContactPage from './pages/static/ContactPage';
-import AboutPage from './pages/static/AboutPage';
-import EquipmentPassport from './pages/EquipmentPassport';
-import { PrivacyPage, TermsPage } from './pages/static/StaticPages';
 import { Unauthorized401, Forbidden403, NotFound404, ServerError500, ServiceUnavailable503 } from './pages/errors/StatusPages';
 import { setNavigate } from './lib/navigation';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { Home, ProductsList, ProductDetail, CartPage, WishlistPage, CheckoutPage, OrderSuccessPage, Login, Register, VerifyEmail, ForgotPassword, ResetPassword, AccountOverview, MyOrders, OrderDetail, MyQuotes, MyEquipment, MyServices, MyInvoices, MyAddresses, MyNotifications, Profile, ServicesOverview, ServiceDetail, BookService, RequestQuote, BlogList, BlogDetail, GalleryPage, FaqPage, ContactPage, AboutPage, EquipmentPassport, PrivacyPage, TermsPage } from './routes/lazyPages';
+import { PageLoader } from './components/ui/Loader';
+import { ServerWakingBanner } from './components/ui/ServerWakingBanner';
 
 // Registers the router's navigate() function for apiClient.ts to use when a 401/403/500/503
 // needs to send the person to the matching status page — see lib/navigation.ts.
@@ -59,7 +23,9 @@ export default function App() {
   return (
     <BrowserRouter>
       <NavigateRegistrar />
+      <ServerWakingBanner />
       <ErrorBoundary>
+        <Suspense fallback={<PageLoader />}>
         <Routes>
         <Route element={<StorefrontLayout />}>
           <Route index element={<Home />} />
@@ -115,6 +81,7 @@ export default function App() {
           <Route path="*" element={<NotFound404 />} />
         </Route>
         </Routes>
+        </Suspense>
       </ErrorBoundary>
     </BrowserRouter>
   );

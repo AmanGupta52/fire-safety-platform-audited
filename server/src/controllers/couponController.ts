@@ -6,7 +6,7 @@ import { ok, created } from '../utils/apiResponse';
 import { writeAuditLog } from '../services/auditService';
 
 export const listCoupons = asyncHandler(async (_req: Request, res: Response) => {
-  const coupons = await Coupon.find().sort({ createdAt: -1 });
+  const coupons = await Coupon.find().sort({ createdAt: -1 }).limit(200);
   return ok(res, coupons);
 });
 

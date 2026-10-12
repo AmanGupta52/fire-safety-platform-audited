@@ -2,13 +2,14 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Star, Check, X } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { format } from 'date-fns';
-import { api, apiErrorMessage } from '../../lib/apiClient';
+
+import { api, apiErrorMessage, toastApiError } from '../../lib/apiClient';
 import { Review } from '../../types';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { Card, Badge } from '../../components/ui/Primitives';
 import { DataTable, Column, BulkActionOption } from '../../components/ui/DataTable';
 import { Select } from '../../components/ui/FormControls';
+import { formatDate } from '../../lib/format';
 
 export default function ReviewsList() {
   const [status, setStatus] = useState('pending');
@@ -35,7 +36,7 @@ export default function ReviewsList() {
       toast.success(`Review ${vars.status}`);
       queryClient.invalidateQueries({ queryKey: ['reviews'] });
     },
-    onError: (err) => toast.error(apiErrorMessage(err))
+    onError: toastApiError
   });
 
   // Bulk moderation
@@ -135,7 +136,7 @@ export default function ReviewsList() {
     {
       header: 'Date',
       sortKey: (r) => new Date(r.createdAt).getTime(),
-      render: (r) => format(new Date(r.createdAt), 'd MMM yyyy')
+      render: (r) => formatDate(r.createdAt)
     },
     {
       header: 'Actions',
@@ -143,7 +144,7 @@ export default function ReviewsList() {
       render: (r) => (
         <div className="flex justify-end gap-1.5">
           {r.status !== 'approved' && (
-            <button
+            <button disabled={moderateMutation.isPending}
               type="button"
               onClick={() => moderateMutation.mutate({ id: r._id, status: 'approved' })}
               className="inline-flex items-center gap-1 rounded bg-forest/10 px-2 py-1 text-xs font-semibold text-forest hover:bg-forest/20"
@@ -153,7 +154,7 @@ export default function ReviewsList() {
             </button>
           )}
           {r.status !== 'rejected' && (
-            <button
+            <button disabled={moderateMutation.isPending}
               type="button"
               onClick={() => moderateMutation.mutate({ id: r._id, status: 'rejected' })}
               className="inline-flex items-center gap-1 rounded bg-brand/10 px-2 py-1 text-xs font-semibold text-brand hover:bg-brand/20"

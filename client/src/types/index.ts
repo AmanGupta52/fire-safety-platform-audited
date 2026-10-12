@@ -207,17 +207,6 @@ export interface ServiceBooking {
   createdAt: string;
 }
 
-export type AMCStatus = 'requested' | 'active' | 'expiring_soon' | 'expired' | 'renewed' | 'cancelled';
-export interface AMCContract {
-  _id: string;
-  contractNumber: string;
-  planName: string;
-  startDate: string;
-  endDate: string;
-  status: AMCStatus;
-  amount: number;
-}
-
 
 export interface Invoice {
   _id: string;

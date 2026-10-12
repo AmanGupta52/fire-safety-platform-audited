@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { Setting, ICompanySettings } from '../models/AuditLog';
 import { asyncHandler } from '../utils/asyncHandler';
+import { publicCache, setPublicCacheHeader, cacheKey, PUBLIC_TTL_MS } from '../utils/ttlCache';
 import { ok } from '../utils/apiResponse';
 import { ApiError } from '../utils/ApiError';
 import { writeAuditLog } from '../services/auditService';
@@ -42,41 +43,45 @@ export const getSetting = asyncHandler(async (req: Request, res: Response) => {
  * Public, read-only subset used by the storefront footer, contact page, checkout.
  * Returns only safe fields; never exposes secrets, credentials, or internal configuration.
  */
-export const getPublicSettings = asyncHandler(async (_req: Request, res: Response) => {
-  const settings = await Setting.find({ key: { $in: PUBLIC_SETTING_KEYS } });
-  const result: Record<string, unknown> = {};
+export const getPublicSettings = asyncHandler(async (req: Request, res: Response) => {
+  const data = await publicCache.wrap(cacheKey('settings', req), PUBLIC_TTL_MS, async () => {
+    const settings = await Setting.find({ key: { $in: PUBLIC_SETTING_KEYS } }).lean();
+    const result: Record<string, unknown> = {};
 
-  for (const s of settings) {
-    if (s.key === 'company' && typeof s.value === 'object' && s.value !== null) {
-      const rawCompany = s.value as Record<string, unknown>;
-      const safeCompany: Record<string, unknown> = {};
-      for (const k of SAFE_COMPANY_KEYS) {
-        if (rawCompany[k] !== undefined) {
-          safeCompany[k] = rawCompany[k];
+    for (const s of settings) {
+      if (s.key === 'company' && typeof s.value === 'object' && s.value !== null) {
+        const rawCompany = s.value as Record<string, unknown>;
+        const safeCompany: Record<string, unknown> = {};
+        for (const k of SAFE_COMPANY_KEYS) {
+          if (rawCompany[k] !== undefined) {
+            safeCompany[k] = rawCompany[k];
+          }
         }
+        // Ensure canonical naming fallbacks
+        safeCompany.companyName = safeCompany.companyName || safeCompany.name || 'Shubam Fire Protection';
+        safeCompany.name = safeCompany.name || safeCompany.companyName;
+        result.company = safeCompany;
+      } else {
+        result[s.key] = s.value;
       }
-      // Ensure canonical naming fallbacks
-      safeCompany.companyName = safeCompany.companyName || safeCompany.name || 'Shubam Fire Protection';
-      safeCompany.name = safeCompany.name || safeCompany.companyName;
-      result.company = safeCompany;
-    } else {
-      result[s.key] = s.value;
     }
-  }
 
-  // Fallback default company if not yet saved in DB
-  if (!result.company) {
-    result.company = {
-      companyName: 'Shubam Fire Protection',
-      name: 'Shubam Fire Protection',
-      phone: '+91-00000-00000',
-      email: 'info@firesafety.example',
-      address: 'Mumbai, Maharashtra, India',
-      businessHours: 'Mon - Sat: 9:00 AM - 6:00 PM'
-    };
-  }
+    // Fallback default company if not yet saved in DB
+    if (!result.company) {
+      result.company = {
+        companyName: 'Shubam Fire Protection',
+        name: 'Shubam Fire Protection',
+        phone: '+91-00000-00000',
+        email: 'info@firesafety.example',
+        address: 'Mumbai, Maharashtra, India',
+        businessHours: 'Mon - Sat: 9:00 AM - 6:00 PM'
+      };
+    }
 
-  return ok(res, result);
+    return result;
+  });
+  setPublicCacheHeader(res);
+  return ok(res, data);
 });
 
 export const updateSetting = asyncHandler(async (req: Request, res: Response) => {
@@ -123,6 +128,7 @@ export const updateSetting = asyncHandler(async (req: Request, res: Response) =>
   );
 
   await writeAuditLog(req, 'update', 'settings', 'Setting', key, previous?.value, finalValue);
+  publicCache.deleteByPrefix('settings:');
   return ok(res, updated, 'Setting updated');
 });
 

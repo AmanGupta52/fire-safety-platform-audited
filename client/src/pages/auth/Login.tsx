@@ -6,10 +6,11 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import axios from 'axios';
 import { FlameKindling } from 'lucide-react';
-import { api, apiErrorMessage } from '../../lib/apiClient';
+import { api, toastApiError, type ApiErrorBody } from '../../lib/apiClient';
 import { useAuthStore } from '../../store/authStore';
 import { Input, PasswordInput } from '../../components/ui/FormControls';
 import { Button } from '../../components/ui/Button';
+import { MetaTags } from '../../components/seo/MetaTags';
 
 const schema = z.object({
   email: z.string().email('Enter a valid email'),
@@ -34,19 +35,20 @@ export default function Login() {
     onError: (err, values) => {
       // The account exists and the password is correct, but the email was never verified —
       // send them to the same OTP screen used right after registration instead of a dead-end error.
-      const isUnverified = axios.isAxiosError(err) &&
-        (err.response?.data as any)?.errors?.some((e: any) => e.code === 'EMAIL_NOT_VERIFIED');
+      const isUnverified = axios.isAxiosError<ApiErrorBody & { errors?: { code?: string }[] }>(err) &&
+        Boolean(err.response?.data?.errors?.some((e) => e.code === 'EMAIL_NOT_VERIFIED'));
       if (isUnverified) {
         toast('Please verify your email to continue', { icon: '🔒' });
         navigate('/verify-email', { state: { email: values.email } });
         return;
       }
-      toast.error(apiErrorMessage(err));
+      toastApiError(err);
     }
   });
 
   return (
     <div className="container-page flex min-h-[80vh] items-center justify-center py-12">
+      <MetaTags title="Sign in" noindex />
       <div className="w-full max-w-sm">
         <div className="mb-6 flex items-center justify-center gap-2">
           <div className="flex h-9 w-9 items-center justify-center rounded bg-safety"><FlameKindling className="h-4 w-4 text-white" /></div>

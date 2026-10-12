@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { Banner, GalleryItem, FAQ } from '../models/Content';
 import { asyncHandler } from '../utils/asyncHandler';
+import { publicCache, setPublicCacheHeader, cacheKey, PUBLIC_TTL_MS } from '../utils/ttlCache';
 import { ApiError } from '../utils/ApiError';
 import { ok, created } from '../utils/apiResponse';
 import { mirrorGalleryImages, removeMirroredGalleryImages } from '../services/galleryMirrorService';
@@ -13,23 +14,32 @@ export const listBanners = asyncHandler(async (req: Request, res: Response) => {
   // Banners page) — without this check, ?includeInactive=true would let anyone browse
   // banners that were deliberately taken down.
   const includeInactive = req.query.includeInactive === 'true' && Boolean(req.user?.permissions.includes('gallery.read'));
-  const banners = await Banner.find(includeInactive ? {} : { isActive: true }).sort({ sortOrder: 1 });
+  if (includeInactive) {
+    return ok(res, await Banner.find({}).sort({ sortOrder: 1 }).lean());
+  }
+  const banners = await publicCache.wrap(cacheKey('banners', req), PUBLIC_TTL_MS, async () =>
+    Banner.find({ isActive: true }).sort({ sortOrder: 1 }).lean()
+  );
+  setPublicCacheHeader(res);
   return ok(res, banners);
 });
 export const adminCreateBanner = asyncHandler(async (req: Request, res: Response) => {
   const banner = await Banner.create(req.body);
   void mirrorGalleryImages({ images: [banner.image], sourceType: 'banner', sourceId: banner._id, sourceLabel: banner.title });
+  publicCache.deleteByPrefix('banners:');
   return created(res, banner);
 });
 export const adminUpdateBanner = asyncHandler(async (req: Request, res: Response) => {
   const banner = await Banner.findByIdAndUpdate(req.params.id, req.body, { new: true });
   if (!banner) throw ApiError.notFound('Banner not found');
   void mirrorGalleryImages({ images: [banner.image], sourceType: 'banner', sourceId: banner._id, sourceLabel: banner.title });
+  publicCache.deleteByPrefix('banners:');
   return ok(res, banner, 'Banner updated');
 });
 export const adminDeleteBanner = asyncHandler(async (req: Request, res: Response) => {
   const banner = await Banner.findByIdAndDelete(req.params.id);
   if (banner) void removeMirroredGalleryImages('banner', banner._id);
+  publicCache.deleteByPrefix('banners:');
   return ok(res, {}, 'Banner deleted');
 });
 

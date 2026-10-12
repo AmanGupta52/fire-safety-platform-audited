@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { api, apiErrorMessage } from '../lib/apiClient';
+import { api, toastApiError } from '../lib/apiClient';
 import { useAuthStore } from '../store/authStore';
 import { Product } from '../types';
 
@@ -20,13 +20,13 @@ export function useWishlist() {
   const addMutation = useMutation({
     mutationFn: async (productId: string) => api.post('/wishlist', { productId }),
     onSuccess: () => { toast.success('Added to wishlist'); queryClient.invalidateQueries({ queryKey: ['wishlist'] }); },
-    onError: (err) => toast.error(apiErrorMessage(err))
+    onError: toastApiError
   });
 
   const removeMutation = useMutation({
     mutationFn: async (productId: string) => api.delete(`/wishlist/${productId}`),
     onSuccess: () => { toast.success('Removed from wishlist'); queryClient.invalidateQueries({ queryKey: ['wishlist'] }); },
-    onError: (err) => toast.error(apiErrorMessage(err))
+    onError: toastApiError
   });
 
   function isWishlisted(productId: string) {

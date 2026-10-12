@@ -3,10 +3,11 @@ import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { MailCheck, ShieldCheck } from 'lucide-react';
-import { api, apiErrorMessage } from '../../lib/apiClient';
+import { api, toastApiError } from '../../lib/apiClient';
 import { useAuthStore } from '../../store/authStore';
 import { OtpInput } from '../../components/ui/OtpInput';
 import { Button } from '../../components/ui/Button';
+import { MetaTags } from '../../components/seo/MetaTags';
 
 const RESEND_COOLDOWN_SECONDS = 60;
 
@@ -37,7 +38,7 @@ export default function VerifyEmail() {
       navigate('/account');
     },
     onError: (err) => {
-      toast.error(apiErrorMessage(err));
+      toastApiError(err);
       setOtp('');
     }
   });
@@ -45,13 +46,14 @@ export default function VerifyEmail() {
   const resendMutation = useMutation({
     mutationFn: async () => (await api.post('/auth/resend-otp', { email })).data.data,
     onSuccess: () => { toast.success('A new code has been sent'); setCooldown(RESEND_COOLDOWN_SECONDS); setOtp(''); },
-    onError: (err) => toast.error(apiErrorMessage(err))
+    onError: toastApiError
   });
 
   if (!email) return null;
 
   return (
     <div className="container-page flex min-h-[80vh] items-center justify-center py-12">
+      <MetaTags title="Verify your email" noindex />
       <div className="w-full max-w-sm text-center">
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-safety-light">
           <MailCheck className="h-6 w-6 text-safety" />

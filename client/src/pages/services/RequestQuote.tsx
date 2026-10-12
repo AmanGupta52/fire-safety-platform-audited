@@ -1,13 +1,15 @@
 import { useState } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { CheckCircle2, Plus, Trash2 } from 'lucide-react';
-import { api, apiErrorMessage } from '../../lib/apiClient';
+import { api, toastApiError } from '../../lib/apiClient';
 import { Product } from '../../types';
 import { Card } from '../../components/ui/Primitives';
 import { Input, Select, Textarea } from '../../components/ui/FormControls';
 import { Button } from '../../components/ui/Button';
+import { MetaTags } from '../../components/seo/MetaTags';
+import { gstinRules, phoneRules } from '../../lib/validators';
 
 interface FormValues {
   customerName: string; companyName?: string; phone: string; email: string; gstNumber?: string; address?: string;
@@ -28,10 +30,16 @@ export default function RequestQuote() {
   });
   const { fields, append, remove } = useFieldArray({ control, name: 'items' });
 
+  const queryClient = useQueryClient();
   const mutation = useMutation({
     mutationFn: async (values: FormValues) => (await api.post('/quotes', values)).data.data,
-    onSuccess: (data) => { toast.success('Quote request submitted!'); setSubmitted(data.quoteNumber); },
-    onError: (err) => toast.error(apiErrorMessage(err))
+    onSuccess: (data) => {
+      toast.success('Quote request submitted!');
+      queryClient.invalidateQueries({ queryKey: ['my-quotes'] });
+      queryClient.invalidateQueries({ queryKey: ['my-quotes-summary'] });
+      setSubmitted(data.quoteNumber);
+    },
+    onError: toastApiError
   });
 
   if (submitted) {
@@ -47,6 +55,7 @@ export default function RequestQuote() {
 
   return (
     <div className="container-page max-w-2xl py-10">
+      <MetaTags title="Request a quote" description="Tell us what you need and get a quote for fire safety equipment or services." />
       <h1 className="heading text-xl text-ink">Request a bulk quotation</h1>
       <p className="mt-1 text-sm text-slateink">For offices, factories, warehouses, schools, hospitals and societies — tell us what you need.</p>
 
@@ -57,11 +66,11 @@ export default function RequestQuote() {
             <Input label="Company name" {...register('companyName')} />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input label="Phone" required error={errors.phone?.message} {...register('phone', { required: 'Required' })} />
+            <Input label="Phone" required type="tel" inputMode="tel" error={errors.phone?.message} {...register('phone', phoneRules)} />
             <Input label="Email" type="email" required error={errors.email?.message} {...register('email', { required: 'Required' })} />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input label="GSTIN" {...register('gstNumber')} />
+            <Input label="GSTIN" maxLength={15} error={errors.gstNumber?.message} {...register('gstNumber', gstinRules)} />
             <Input label="Preferred date" type="date" {...register('preferredDate')} />
           </div>
           <Textarea label="Delivery / site address" {...register('address')} />
@@ -78,7 +87,7 @@ export default function RequestQuote() {
                   />
                   <Input type="number" className="w-24" min={1} defaultValue={1} {...register(`items.${index}.quantity` as const, { valueAsNumber: true, min: 1 })} />
                   {fields.length > 1 && (
-                    <button type="button" onClick={() => remove(index)} className="rounded p-2.5 text-safety hover:bg-safety-light"><Trash2 className="h-4 w-4" /></button>
+                    <button aria-label="Remove item" type="button" onClick={() => remove(index)} className="rounded p-2.5 text-safety hover:bg-safety-light"><Trash2 className="h-4 w-4" /></button>
                   )}
                 </div>
               ))}

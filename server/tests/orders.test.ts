@@ -8,7 +8,7 @@ vi.mock('../src/services/pdfService', async (importOriginal) => {
   return { ...original, generateInvoicePdf: vi.fn(async () => ({ url: 'https://files.example.test/invoice.pdf' })) };
 });
 
-import { app, connectTestDb, disconnectTestDb, clearCollections, createTestUser } from './setup';
+import { app, connectTestDb, disconnectTestDb, clearCollections, createTestUser, detectEmulatedMongo } from './setup';
 import { generateInvoicePdf } from '../src/services/pdfService';
 import { Product } from '../src/models/Product';
 import { Category } from '../src/models/Category';
@@ -18,6 +18,10 @@ import { Invoice } from '../src/models/Invoice';
 import { Setting } from '../src/models/AuditLog';
 import { Cart } from '../src/models/Cart';
 import { env } from '../src/config/env';
+import { Payment } from '../src/models/Payment';
+import { checkout as checkoutHandler } from '../src/controllers/orderController';
+
+const EMULATED = await detectEmulatedMongo();
 
 const address = (state: string) => ({
   contactName: 'Asha Verma', phone: '9876543210', line1: '14 MG Road', city: 'Pune', state, pincode: '411001'
@@ -300,5 +304,191 @@ describe('Invoices created at checkout', () => {
     expect((await status('confirmed')).status).toBe(200);
     expect((await status('processing')).status).toBeLessThan(500);
     expect(await Invoice.countDocuments()).toBe(1);
+  });
+});
+
+describe('Checkout: payment method gating (a free "mock" order must be impossible in production)', () => {
+  const saved = { nodeEnv: env.nodeEnv, mode: env.payment.mode };
+  beforeAll(connectTestDb);
+  afterAll(disconnectTestDb);
+  beforeEach(async () => {
+    env.nodeEnv = saved.nodeEnv;
+    env.payment.mode = saved.mode;
+    await clearCollections('users', 'products', 'categories', 'carts', 'orders', 'payments', 'invoices', 'coupons', 'settings', 'counters', 'notifications');
+    await Setting.create({ key: 'company', value: { companyName: 'Acme Fire', gstin: '27ABCDE1234F1Z5', state: 'Maharashtra', address: 'Mumbai' } });
+  });
+  afterAll(() => {
+    env.nodeEnv = saved.nodeEnv;
+    env.payment.mode = saved.mode;
+  });
+
+  it('in production "mock" is rejected and creates no order, no payment and no stock change', async () => {
+    const { token, user } = await createTestUser('customer');
+    const p = await product({ stock: 5 });
+    await addToCart(token, p._id.toString(), 2);
+
+    env.nodeEnv = 'production';
+    const res = await checkout(token, { paymentMethod: 'mock' });
+
+    // The request validator stops it first (same 422 shape as every other validation failure).
+    expect(res.status).toBe(422);
+    expect(JSON.stringify(res.body)).toContain('Payment method not available');
+    expect(await Order.countDocuments()).toBe(0);
+    expect(await Payment.countDocuments()).toBe(0);
+    expect(await Invoice.countDocuments()).toBe(0);
+    expect((await Product.findById(p._id))!.stock).toBe(5);
+    expect((await Cart.findOne({ user: user._id }))!.items).toHaveLength(1); // cart untouched
+  });
+
+  it('the controller has its own guard: reaching checkout without the validator still returns 400 and changes nothing', async () => {
+    const { user } = await createTestUser('customer');
+    const p = await product({ stock: 5 });
+    await Cart.create({ user: user._id, items: [{ product: p._id, quantity: 2, priceAtAdd: 1000 }] });
+
+    env.nodeEnv = 'production';
+    const next = vi.fn();
+    const req = { body: { paymentMethod: 'mock', billingAddress: address('Maharashtra'), shippingAddress: address('Maharashtra') }, user: { id: user._id.toString(), role: 'customer', permissions: [] } };
+    await checkoutHandler(req as never, {} as never, next);
+
+    expect(next).toHaveBeenCalledTimes(1);
+    const err = next.mock.calls[0][0] as { status: number; message: string };
+    expect(err.status).toBe(400);
+    expect(err.message).toBe('Payment method not available');
+    expect(await Order.countDocuments()).toBe(0);
+    expect(await Payment.countDocuments()).toBe(0);
+    expect((await Product.findById(p._id))!.stock).toBe(5);
+  });
+
+  it('"mock" is also refused when PAYMENT_MODE is not mock, and razorpay without keys is refused', async () => {
+    const { token } = await createTestUser('customer');
+    const p = await product();
+    await addToCart(token, p._id.toString(), 1);
+    env.payment.mode = 'razorpay';
+    expect((await checkout(token, { paymentMethod: 'mock' })).status).toBe(422);
+    expect((await checkout(token, { paymentMethod: 'razorpay' })).status).toBe(422); // no Razorpay keys in the test env
+    expect(await Order.countDocuments()).toBe(0);
+  });
+
+  it('cash on delivery works in production and is never marked paid at checkout', async () => {
+    const { token } = await createTestUser('customer');
+    const p = await product({ stock: 5 });
+    await addToCart(token, p._id.toString(), 1);
+
+    env.nodeEnv = 'production';
+    const res = await checkout(token, { paymentMethod: 'cod' });
+    expect(res.status).toBe(201);
+    expect(res.body.data).toMatchObject({ paymentMethod: 'cod', paymentStatus: 'unpaid', status: 'pending' });
+    expect(await Invoice.countDocuments()).toBe(0); // nothing was paid, so no invoice yet
+    expect((await Payment.findOne())!.status).toBe('initiated');
+    expect((await Product.findById(p._id))!.stock).toBe(4);
+  });
+
+  it('in test/development with PAYMENT_MODE=mock the mock flow still works as before', async () => {
+    const { token } = await createTestUser('customer');
+    const p = await product();
+    await addToCart(token, p._id.toString(), 1);
+    const res = await checkout(token, { paymentMethod: 'mock' });
+    expect(res.status).toBe(201);
+    expect(res.body.data).toMatchObject({ paymentStatus: 'paid', status: 'confirmed' });
+  });
+});
+
+describe('Checkout: stock is handled for every line at once, and rolled back as a whole', () => {
+  beforeAll(connectTestDb);
+  afterAll(disconnectTestDb);
+  beforeEach(async () => {
+    await clearCollections('users', 'products', 'categories', 'carts', 'orders', 'payments', 'invoices', 'coupons', 'settings', 'counters', 'notifications');
+    await Setting.create({ key: 'company', value: { companyName: 'Acme Fire', gstin: '27ABCDE1234F1Z5', state: 'Maharashtra', address: 'Mumbai' } });
+  });
+
+  it('a multi-item cart decrements every product exactly once', async () => {
+    const { token } = await createTestUser('customer');
+    const a = await product({ stock: 10 });
+    const b = await product({ stock: 7 });
+    const c = await product({ stock: 4 });
+    await addToCart(token, a._id.toString(), 3);
+    await addToCart(token, b._id.toString(), 2);
+    await addToCart(token, c._id.toString(), 4);
+
+    const res = await checkout(token);
+    expect(res.status).toBe(201);
+    expect(res.body.data.items).toHaveLength(3);
+    expect((await Product.findById(a._id))!.stock).toBe(7);
+    expect((await Product.findById(b._id))!.stock).toBe(5);
+    expect((await Product.findById(c._id))!.stock).toBe(0);
+  });
+
+  it('when one of several lines is out of stock, every other line is given back and nothing is committed', async () => {
+    const { token, user } = await createTestUser('customer');
+    const a = await product({ stock: 10 });
+    const b = await product({ stock: 10 });
+    const scarce = await product({ stock: 5 });
+    const code = await coupon();
+    await addToCart(token, a._id.toString(), 2);
+    await addToCart(token, scarce._id.toString(), 3);
+    await addToCart(token, b._id.toString(), 4);
+    await Product.updateOne({ _id: scarce._id }, { $set: { stock: 1 } }); // someone else bought most of it
+
+    const res = await checkout(token, { couponCode: code.code });
+    expect(res.status).toBe(400);
+    expect(res.body.message).toContain('Insufficient stock');
+    expect((await Product.findById(a._id))!.stock).toBe(10);
+    expect((await Product.findById(b._id))!.stock).toBe(10);
+    expect((await Product.findById(scarce._id))!.stock).toBe(1);
+    expect(await Order.countDocuments()).toBe(0);
+    expect((await Coupon.findById(code._id))!.usedCount).toBe(0);
+    expect((await Cart.findOne({ user: user._id }))!.items).toHaveLength(3);
+  });
+
+  it('a product that was switched off after being added to the cart blocks the checkout before any stock moves', async () => {
+    const { token } = await createTestUser('customer');
+    const a = await product({ stock: 10 });
+    const gone = await product({ stock: 10 });
+    await addToCart(token, a._id.toString(), 1);
+    await addToCart(token, gone._id.toString(), 1);
+    await Product.updateOne({ _id: gone._id }, { $set: { isActive: false } });
+
+    const res = await checkout(token);
+    expect(res.status).toBe(400);
+    expect(res.body.message).toContain('no longer available');
+    expect((await Product.findById(a._id))!.stock).toBe(10);
+  });
+
+  it.skipIf(EMULATED)('two customers racing for the last unit: exactly one wins and stock never goes negative', async () => {
+    const one = await createTestUser('customer');
+    const two = await createTestUser('customer');
+    const p = await product({ stock: 1 });
+    await addToCart(one.token, p._id.toString(), 1);
+    await addToCart(two.token, p._id.toString(), 1);
+
+    const [r1, r2] = await Promise.all([checkout(one.token), checkout(two.token)]);
+    expect([r1.status, r2.status].sort()).toEqual([201, 400]);
+    expect((await Product.findById(p._id))!.stock).toBe(0);
+    expect(await Order.countDocuments()).toBe(1);
+  });
+
+  it('cancelling an order returns the stock of EVERY line and the coupon use, once', async () => {
+    const { token, user } = await createTestUser('customer');
+    const a = await product({ stock: 10 });
+    const b = await product({ stock: 10 });
+    const code = await coupon();
+    await addToCart(token, a._id.toString(), 3);
+    await addToCart(token, b._id.toString(), 2);
+    const placed = await checkout(token, { couponCode: code.code });
+    expect(placed.status).toBe(201);
+    expect((await Product.findById(a._id))!.stock).toBe(7);
+    expect((await Product.findById(b._id))!.stock).toBe(8);
+
+    const cancelled = await request(app).post(`/api/orders/my/${placed.body.data._id}/cancel`).set('Authorization', `Bearer ${token}`).send({});
+    expect(cancelled.status).toBe(200);
+    expect((await Product.findById(a._id))!.stock).toBe(10);
+    expect((await Product.findById(b._id))!.stock).toBe(10);
+    expect((await Coupon.findById(code._id))!.usedCount).toBe(0);
+    expect((await Payment.findOne({ user: user._id }))!.status).toBe('refunded');
+
+    // Cancelling again is refused, so the stock cannot be added twice.
+    const again = await request(app).post(`/api/orders/my/${placed.body.data._id}/cancel`).set('Authorization', `Bearer ${token}`).send({});
+    expect(again.status).toBe(400);
+    expect((await Product.findById(a._id))!.stock).toBe(10);
   });
 });

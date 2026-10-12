@@ -27,7 +27,7 @@ function validDate(value: unknown): Date | undefined {
 }
 
 export const listMyEquipment = asyncHandler(async (req: Request, res: Response) => {
-  const equipment = await CustomerEquipment.find({ user: req.user!.id }).sort({ createdAt: -1 });
+  const equipment = await CustomerEquipment.find({ user: req.user!.id }).sort({ createdAt: -1 }).limit(200);
   const withStatus = equipment.map((e) => ({ ...e.toObject(), status: e.computeStatus() }));
   return ok(res, withStatus);
 });
@@ -251,7 +251,7 @@ export const logPassportService = asyncHandler(async (req: Request, res: Respons
 export const adminListEquipment = asyncHandler(async (req: Request, res: Response) => {
   const filter: Record<string, unknown> = {};
   if (req.query.userId && Types.ObjectId.isValid(String(req.query.userId))) filter.user = String(req.query.userId);
-  const equipment = await CustomerEquipment.find(filter).populate('user', 'name email phone').sort({ nextRefillDate: 1 });
+  const equipment = await CustomerEquipment.find(filter).populate('user', 'name email phone').sort({ nextRefillDate: 1 }).limit(200);
   const withStatus = equipment.map((e) => ({ ...e.toObject(), status: e.computeStatus() }));
   return ok(res, withStatus);
 });
@@ -261,7 +261,7 @@ export const adminDueEquipment = asyncHandler(async (req: Request, res: Response
   const cutoff = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
   const equipment = await CustomerEquipment.find({
     $or: [{ nextInspectionDate: { $lte: cutoff } }, { nextRefillDate: { $lte: cutoff } }]
-  }).populate('user', 'name email phone');
+  }).populate('user', 'name email phone').limit(200);
   const withStatus = equipment.map((e) => ({ ...e.toObject(), status: e.computeStatus() }));
   return ok(res, withStatus);
 });

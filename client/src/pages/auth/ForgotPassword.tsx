@@ -4,11 +4,11 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useMutation } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import toast from 'react-hot-toast';
 import { MailCheck } from 'lucide-react';
-import { api, apiErrorMessage } from '../../lib/apiClient';
+import { api, toastApiError } from '../../lib/apiClient';
 import { Input } from '../../components/ui/FormControls';
 import { Button } from '../../components/ui/Button';
+import { MetaTags } from '../../components/seo/MetaTags';
 
 const schema = z.object({
   email: z.string().email('Enter a valid email')
@@ -25,7 +25,7 @@ export default function ForgotPassword() {
   const mutation = useMutation({
     mutationFn: async (values: FormValues) => (await api.post('/auth/forgot-password', values)).data.data,
     onSuccess: (_data, values) => setSentTo(values.email),
-    onError: (err) => toast.error(apiErrorMessage(err))
+    onError: toastApiError
   });
 
   if (sentTo) {
@@ -50,6 +50,7 @@ export default function ForgotPassword() {
 
   return (
     <div className="container-page flex min-h-[80vh] items-center justify-center py-12">
+      <MetaTags title="Reset your password" noindex />
       <div className="w-full max-w-sm">
         <h1 className="heading text-center text-xl text-ink">Forgot your password?</h1>
         <p className="mt-1 text-center text-sm text-slateink">

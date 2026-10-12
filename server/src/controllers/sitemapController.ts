@@ -4,14 +4,15 @@ import { Service } from '../models/Service';
 import { BlogPost } from '../models/BlogPost';
 import { env } from '../config/env';
 import { asyncHandler } from '../utils/asyncHandler';
+import { publicCache, cacheKey, PUBLIC_TTL_MS } from '../utils/ttlCache';
 
-export const getSitemapXml = asyncHandler(async (_req: Request, res: Response) => {
+async function buildSitemapXml(): Promise<string> {
   const baseUrl = (env.clientUrl || 'http://localhost:5173').replace(/\/$/, '');
 
   const [products, services, blogs] = await Promise.all([
-    Product.find({ isActive: true, isDeleted: false }).select('slug updatedAt'),
-    Service.find({ isActive: true, isDeleted: false }).select('slug updatedAt'),
-    BlogPost.find({ isPublished: true }).select('slug updatedAt')
+    Product.find({ isActive: true, isDeleted: false }).select('slug updatedAt').lean(),
+    Service.find({ isActive: true, isDeleted: false }).select('slug updatedAt').lean(),
+    BlogPost.find({ isPublished: true }).select('slug updatedAt').lean()
   ]);
 
   const staticRoutes = [
@@ -67,7 +68,12 @@ export const getSitemapXml = asyncHandler(async (_req: Request, res: Response) =
   }
 
   xml += '</urlset>';
+  return xml;
+}
 
+export const getSitemapXml = asyncHandler(async (req: Request, res: Response) => {
+  // Built from three collection scans, so it is cached server-side for a minute (admin writes invalidate it).
+  const xml = (await publicCache.wrap(cacheKey('sitemap', req), PUBLIC_TTL_MS, buildSitemapXml)) as string;
   res.header('Content-Type', 'application/xml');
   res.header('Cache-Control', 'public, max-age=86400');
   res.send(xml);

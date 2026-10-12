@@ -2,9 +2,8 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Wrench, User, MapPin, Calendar, Star, QrCode, FileText } from 'lucide-react';
-import { format, addDays } from 'date-fns';
 import toast from 'react-hot-toast';
-import { api, apiErrorMessage } from '../../lib/apiClient';
+import { api, toastApiError } from '../../lib/apiClient';
 import { ServiceBooking, Service } from '../../types';
 import { Card, Badge, EmptyState, ErrorState, Spinner } from '../../components/ui/Primitives';
 import { SkeletonList } from '../../components/ui/Skeleton';
@@ -12,6 +11,7 @@ import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { Textarea, Input } from '../../components/ui/FormControls';
 import { TrackingTimeline } from '../../components/tracking/TrackingTimeline';
+import { formatDate, todayIST, addDaysIST } from '../../lib/format';
 
 const statusTone: Record<string, 'neutral' | 'success' | 'warning' | 'danger' | 'info'> = {
   requested: 'warning',
@@ -100,7 +100,7 @@ export default function MyServices() {
 
                     <p className="mt-1 flex items-center gap-1.5 text-xs text-slateink">
                       <Calendar className="h-3.5 w-3.5 text-slateink" />
-                      Scheduled: <span className="font-semibold text-ink">{format(new Date(b.preferredDate), 'd MMMM yyyy')}</span>
+                      Scheduled: <span className="font-semibold text-ink">{formatDate(b.preferredDate, 'long')}</span>
                       {b.timeSlot || b.preferredTime ? ` · ${b.timeSlot || b.preferredTime}` : ''}
                     </p>
 
@@ -122,7 +122,7 @@ export default function MyServices() {
                       {b.status.replace(/_/g, ' ')}
                     </Badge>
                     <span className="text-[10px] text-slateink">
-                      Requested {format(new Date(b.createdAt), 'd MMM yyyy')}
+                      Requested {formatDate(b.createdAt)}
                     </span>
                   </div>
                 </div>
@@ -155,7 +155,7 @@ export default function MyServices() {
                     {/* View Passport if equipment is linked */}
                     {b.equipment && (
                       <Link
-                        to={`/passport/${typeof b.equipment === 'object' ? (b.equipment as any).serialNumber || (b.equipment as any)._id : b.equipment}`}
+                        to={`/passport/${typeof b.equipment === 'object' ? b.equipment.serialNumber || b.equipment._id : b.equipment}`}
                         target="_blank"
                         className="inline-flex items-center gap-1.5 text-xs font-semibold text-safety hover:underline"
                       >
@@ -259,7 +259,7 @@ function RescheduleModal({
   onClose: () => void;
   onSuccess: () => void;
 }) {
-  const [newDate, setNewDate] = useState(format(addDays(new Date(), 1), 'yyyy-MM-dd'));
+  const [newDate, setNewDate] = useState(addDaysIST(1));
   const [selectedSlot, setSelectedSlot] = useState(booking.timeSlot || '09:00 - 11:00');
   const [reason, setReason] = useState('');
 
@@ -283,7 +283,7 @@ function RescheduleModal({
       toast.success('Service booking rescheduled successfully');
       onSuccess();
     },
-    onError: (err) => toast.error(apiErrorMessage(err))
+    onError: toastApiError
   });
 
   return (
@@ -297,7 +297,7 @@ function RescheduleModal({
           <label className="mb-1 block text-xs font-semibold text-slateink">New Service Date</label>
           <input
             type="date"
-            min={format(new Date(), 'yyyy-MM-dd')}
+            min={todayIST()}
             value={newDate}
             onChange={(e) => setNewDate(e.target.value)}
             className="w-full rounded-md border border-line bg-card px-3 py-2 text-sm text-ink focus:border-safety focus:outline-none"
@@ -376,7 +376,7 @@ function CancelModal({
       toast.success('Booking cancelled');
       onSuccess();
     },
-    onError: (err) => toast.error(apiErrorMessage(err))
+    onError: toastApiError
   });
 
   return (
@@ -437,7 +437,7 @@ function ReviewModal({
       toast.success('Thank you! Your review has been submitted for moderation.');
       onSuccess();
     },
-    onError: (err) => toast.error(apiErrorMessage(err))
+    onError: toastApiError
   });
 
   return (
@@ -456,6 +456,8 @@ function ReviewModal({
                 key={star}
                 type="button"
                 onClick={() => setRating(star)}
+                aria-label={`${star} star${star > 1 ? 's' : ''}`}
+                aria-pressed={star <= rating}
                 className="p-1 hover:scale-110 transition-transform"
               >
                 <Star

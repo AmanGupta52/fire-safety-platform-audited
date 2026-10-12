@@ -3,6 +3,7 @@ import { Quote } from '../models/Quote';
 import { Product } from '../models/Product';
 import { Order } from '../models/Order';
 import { asyncHandler } from '../utils/asyncHandler';
+import { parsePagination } from '../utils/pagination';
 import { ApiError } from '../utils/ApiError';
 import { ok, created, paginationMeta } from '../utils/apiResponse';
 import { nextNumber } from '../services/numberingService';
@@ -48,13 +49,12 @@ export const myQuotes = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const adminListQuotes = asyncHandler(async (req: Request, res: Response) => {
-  const page = Math.max(1, Number(req.query.page) || 1);
-  const limit = Math.min(100, Number(req.query.limit) || 20);
+  const { page, limit, skip } = parsePagination(req, { defaultLimit: 20, maxLimit: 100 });
   const filter: Record<string, unknown> = {};
   if (req.query.status) filter.status = req.query.status;
 
   const [items, total] = await Promise.all([
-    Quote.find(filter).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit),
+    Quote.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit),
     Quote.countDocuments(filter)
   ]);
   return ok(res, items, 'Quotes fetched', paginationMeta(page, limit, total));
@@ -152,35 +152,47 @@ export const adminConvertQuoteToOrder = asyncHandler(async (req: Request, res: R
   const decremented: { productId: string; quantity: number }[] = [];
 
   async function rollbackDecrements() {
-    for (const d of decremented) {
-      await Product.updateOne({ _id: d.productId }, { $inc: { stock: d.quantity } }).catch(() => undefined);
-    }
+    await Promise.all(
+      decremented.map((d) => Product.updateOne({ _id: d.productId }, { $inc: { stock: d.quantity } }).catch(() => undefined))
+    );
   }
 
   try {
-    for (const item of quote.items) {
-      const product = await Product.findById(item.product);
-      if (!product) continue;
+    // One query for all products on the quote; lines whose product no longer exists are skipped as before.
+    const products = await Product.find({ _id: { $in: quote.items.map((i) => i.product) } });
+    const productById = new Map(products.map((p) => [p._id.toString(), p]));
+    const resolved = quote.items.flatMap((item) => {
+      const product = productById.get(String(item.product));
+      if (!product) return [];
       const unitPrice = item.unitPrice ?? product.discountPrice ?? product.price;
       const gstPercentage = item.gstPercentage ?? product.gstPercentage;
       const lineTotal = Math.round(unitPrice * item.quantity * (1 + gstPercentage / 100) * 100) / 100;
+      return [{ item, product, unitPrice, gstPercentage, lineTotal }];
+    });
 
-      // Same atomic, race-safe decrement used at checkout — a quote converted to an order is
-      // treated as sold, so the inventory count has to actually reflect that (previously this
-      // never touched stock at all, which let the same units be oversold afterwards).
-      if (product.allowBackorder) {
-        await Product.updateOne({ _id: product._id }, { $inc: { stock: -item.quantity } });
-      } else {
-        const result = await Product.updateOne(
-          { _id: product._id, stock: { $gte: item.quantity } },
-          { $inc: { stock: -item.quantity } }
-        );
-        if (result.matchedCount === 0) {
-          throw ApiError.badRequest(`Insufficient stock for ${product.name} — adjust the quote or restock before converting`);
+    // Same atomic, race-safe decrement used at checkout, run in parallel — a quote converted to an order is
+    // treated as sold, so the inventory count has to actually reflect that. allSettled so every write has
+    // finished before the successful ones are rolled back on failure.
+    const outcomes = await Promise.allSettled(
+      resolved.map(async ({ item, product }) => {
+        if (product.allowBackorder) {
+          await Product.updateOne({ _id: product._id }, { $inc: { stock: -item.quantity } });
+        } else {
+          const result = await Product.updateOne(
+            { _id: product._id, stock: { $gte: item.quantity } },
+            { $inc: { stock: -item.quantity } }
+          );
+          if (result.matchedCount === 0) {
+            throw ApiError.badRequest(`Insufficient stock for ${product.name} — adjust the quote or restock before converting`);
+          }
         }
-      }
-      decremented.push({ productId: product._id.toString(), quantity: item.quantity });
+        decremented.push({ productId: product._id.toString(), quantity: item.quantity });
+      })
+    );
+    const failed = outcomes.find((o): o is PromiseRejectedResult => o.status === 'rejected');
+    if (failed) throw failed.reason;
 
+    for (const { item, product, unitPrice, gstPercentage, lineTotal } of resolved) {
       items.push({ product: product._id, name: product.name, sku: product.sku, quantity: item.quantity, unitPrice, gstPercentage, lineTotal });
       subtotal += unitPrice * item.quantity;
       gstAmount += unitPrice * item.quantity * (gstPercentage / 100);

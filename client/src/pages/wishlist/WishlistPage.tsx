@@ -4,12 +4,14 @@ import { useWishlist } from '../../hooks/useWishlist';
 import { ProductCard } from '../../components/product/ProductCard';
 import { EmptyState } from '../../components/ui/Primitives';
 import { Button } from '../../components/ui/Button';
+import { MetaTags } from '../../components/seo/MetaTags';
 
 export default function WishlistPage() {
   const { wishlist } = useWishlist();
 
   return (
     <div className="container-page py-8">
+      <MetaTags title="Your wishlist" noindex />
       <h1 className="heading text-xl text-ink">Your wishlist</h1>
 
       {wishlist.length === 0 ? (

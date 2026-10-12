@@ -30,6 +30,9 @@ const notificationSchema = new Schema<INotification>(
   { timestamps: { createdAt: true, updatedAt: false } }
 );
 
+// myNotifications filters by user and sorts newest-first; this index serves both without an in-memory sort.
+notificationSchema.index({ user: 1, createdAt: -1 });
+
 export const Notification = model<INotification>('Notification', notificationSchema);
 
 // Deduplication log: one row per (entity, type, milestone) so the reminder cron never re-sends.

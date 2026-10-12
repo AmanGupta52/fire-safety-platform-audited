@@ -1,7 +1,7 @@
 import { ButtonHTMLAttributes, forwardRef } from 'react';
 import clsx from 'clsx';
 import { Loader2 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, type HTMLMotionProps } from 'framer-motion';
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'ghost' | 'danger' | 'dark' | 'outlineLight';
@@ -50,7 +50,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
           'disabled:opacity-50 disabled:cursor-not-allowed',
           variants[variant], sizes[size], fullWidth && 'w-full', className
         )}
-        {...(props as any)}
+        {...(props as unknown as HTMLMotionProps<'button'>)}
       >
         {loading ? (
           <>

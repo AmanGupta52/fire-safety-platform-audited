@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { HelpCircle, Plus, Pencil, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { api, apiErrorMessage } from '../../lib/apiClient';
+import { api, toastApiError } from '../../lib/apiClient';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { Button } from '../../components/ui/Button';
 import { Input, Textarea } from '../../components/ui/FormControls';
@@ -26,7 +26,7 @@ export default function FaqList() {
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => api.delete(`/faqs/${id}`),
     onSuccess: () => { toast.success('FAQ deleted'); queryClient.invalidateQueries({ queryKey: ['faqs-admin'] }); },
-    onError: (err) => toast.error(apiErrorMessage(err))
+    onError: toastApiError
   });
 
   const columns: Column<FAQ>[] = [
@@ -37,8 +37,8 @@ export default function FaqList() {
       header: '', className: 'text-right',
       render: (f) => (
         <div className="flex justify-end gap-1">
-          <button onClick={() => setEditing(f)} className="rounded p-1.5 text-slateink hover:bg-paper"><Pencil className="h-3.5 w-3.5" /></button>
-          <button onClick={() => { if (confirm('Delete this FAQ?')) deleteMutation.mutate(f._id); }} className="rounded p-1.5 text-brand hover:bg-brand-light"><Trash2 className="h-3.5 w-3.5" /></button>
+          <button aria-label="Edit" onClick={() => setEditing(f)} className="rounded p-1.5 text-slateink hover:bg-paper"><Pencil className="h-3.5 w-3.5" /></button>
+          <button aria-label="Delete" disabled={deleteMutation.isPending} onClick={() => { if (confirm('Delete this FAQ?')) deleteMutation.mutate(f._id); }} className="rounded p-1.5 text-brand hover:bg-brand-light"><Trash2 className="h-3.5 w-3.5" /></button>
         </div>
       )
     }
@@ -65,7 +65,7 @@ function FaqForm({ faq, onClose }: { faq: FAQ | null; onClose: () => void }) {
   const mutation = useMutation({
     mutationFn: async (values: FormValues) => (isEdit && faq ? api.put(`/faqs/${faq._id}`, values) : api.post('/faqs', values)),
     onSuccess: () => { toast.success(isEdit ? 'FAQ updated' : 'FAQ added'); queryClient.invalidateQueries({ queryKey: ['faqs-admin'] }); onClose(); },
-    onError: (err) => toast.error(apiErrorMessage(err))
+    onError: toastApiError
   });
 
   return (

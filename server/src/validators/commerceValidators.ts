@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { isPaymentMethodAllowed } from '../config/env';
 
 export const addToCartSchema = z.object({
   body: z.object({
@@ -33,7 +34,11 @@ export const checkoutSchema = z.object({
     companyName: z.string().optional(),
     gstNumber: z.string().optional(),
     couponCode: z.string().optional(),
-    paymentMethod: z.enum(['mock', 'cod', 'razorpay'])
+    // The enum keeps unknown values out; the refine rejects methods that are valid in the schema but not
+    // enabled in this environment (e.g. "mock" in production). Checkout re-checks this as a second guard.
+    paymentMethod: z
+      .enum(['mock', 'cod', 'razorpay'])
+      .refine((method) => isPaymentMethodAllowed(method), { message: 'Payment method not available' })
   }),
   query: z.any().optional(),
   params: z.any().optional()

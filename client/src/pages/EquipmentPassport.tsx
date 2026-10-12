@@ -1,13 +1,12 @@
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import {
-  Flame, ShieldCheck, AlertTriangle, AlertOctagon, Calendar, MapPin,
-  Clock, Printer, CheckCircle2, History, Wrench, ArrowRight
-} from 'lucide-react';
-import { format, differenceInDays } from 'date-fns';
+import { Flame, ShieldCheck, AlertTriangle, AlertOctagon, Calendar, MapPin, Clock, Printer, CheckCircle2, History, Wrench, ArrowRight } from 'lucide-react';
+import { differenceInDays } from 'date-fns';
 import { api, apiErrorMessage } from '../lib/apiClient';
 import { Card, Badge, Spinner } from '../components/ui/Primitives';
 import { Button } from '../components/ui/Button';
+import { formatDate } from '../lib/format';
+import { MetaTags } from '../components/seo/MetaTags';
 
 interface EquipmentHistory {
   _id?: string;
@@ -122,6 +121,7 @@ export default function EquipmentPassport() {
 
   return (
     <div className="container-page max-w-4xl py-8 print:p-0">
+      <MetaTags title="Equipment passport" noindex />
       {/* Top Banner */}
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-line pb-4 print:hidden">
         <div>
@@ -240,25 +240,25 @@ export default function EquipmentPassport() {
               <div>
                 <p className="text-[10px] text-slateink uppercase font-semibold">Last Refill</p>
                 <p className="text-xs font-semibold text-ink mt-0.5">
-                  {equipment.lastRefillDate ? format(new Date(equipment.lastRefillDate), 'd MMM yyyy') : '—'}
+                  {equipment.lastRefillDate ? formatDate(equipment.lastRefillDate) : '—'}
                 </p>
               </div>
               <div>
                 <p className="text-[10px] text-slateink uppercase font-semibold">Last Inspection</p>
                 <p className="text-xs font-semibold text-ink mt-0.5">
-                  {equipment.lastInspectionDate ? format(new Date(equipment.lastInspectionDate), 'd MMM yyyy') : '—'}
+                  {equipment.lastInspectionDate ? formatDate(equipment.lastInspectionDate) : '—'}
                 </p>
               </div>
               <div>
                 <p className="text-[10px] text-slateink uppercase font-semibold">Next Inspection</p>
                 <p className="text-xs font-semibold text-ink mt-0.5">
-                  {equipment.nextInspectionDate ? format(new Date(equipment.nextInspectionDate), 'd MMM yyyy') : '—'}
+                  {equipment.nextInspectionDate ? formatDate(equipment.nextInspectionDate) : '—'}
                 </p>
               </div>
               <div>
                 <p className="text-[10px] text-slateink uppercase font-semibold">Next Refill Due</p>
                 <p className="text-xs font-semibold text-safety mt-0.5">
-                  {equipment.nextRefillDate ? format(new Date(equipment.nextRefillDate), 'd MMM yyyy') : '—'}
+                  {equipment.nextRefillDate ? formatDate(equipment.nextRefillDate) : '—'}
                 </p>
               </div>
             </div>
@@ -297,7 +297,7 @@ export default function EquipmentPassport() {
                           {item.type.replace(/_/g, ' ')}
                         </span>
                         <span className="text-[11px] text-slateink flex items-center gap-1">
-                          <Calendar className="h-3 w-3" /> {format(new Date(item.date), 'PP')}
+                          <Calendar className="h-3 w-3" /> {formatDate(item.date)}
                         </span>
                       </div>
 

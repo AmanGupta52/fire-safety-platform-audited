@@ -11,6 +11,7 @@ import { useWishlist } from '../../hooks/useWishlist';
 import { usePublicSettings } from '../../hooks/usePublicSettings';
 import { useTheme } from '../../lib/theme';
 import { Category } from '../../types';
+import { preloadRoute } from '../../routes/lazyPages';
 
 // AMC intentionally has no top-level nav link — it's one of the options on the
 // Services page (and listed under Services in the footer), so it doesn't need its own slot.
@@ -99,7 +100,7 @@ export function Header() {
 
           <nav className="hidden items-center gap-6 lg:flex">
             <div className="relative" onMouseEnter={() => setProductsOpen(true)} onMouseLeave={() => setProductsOpen(false)}>
-              <Link to="/products" className="flex items-center gap-1 text-sm font-medium text-slateink hover:text-ink">
+              <Link to="/products" onMouseEnter={() => preloadRoute('/products')} className="flex items-center gap-1 text-sm font-medium text-slateink hover:text-ink">
                 Products <ChevronDown className="h-3.5 w-3.5" />
               </Link>
               <AnimatePresence>
@@ -138,9 +139,9 @@ export function Header() {
             </div>
 
             {NAV_LINKS.map((link) => (
-              <Link key={link.to} to={link.to} className="text-sm font-medium text-slateink hover:text-ink">{link.label}</Link>
+              <Link key={link.to} to={link.to} onMouseEnter={() => preloadRoute(link.to)} onFocus={() => preloadRoute(link.to)} className="text-sm font-medium text-slateink hover:text-ink">{link.label}</Link>
             ))}
-            <Link to="/request-quote" className="text-sm font-medium text-safety hover:text-safety-dark">Book a service →</Link>
+            <Link to="/request-quote" onMouseEnter={() => preloadRoute('/request-quote')} className="text-sm font-medium text-safety hover:text-safety-dark">Book a service →</Link>
           </nav>
 
           <div className="ml-auto flex shrink-0 items-center sm:gap-1">
@@ -159,7 +160,7 @@ export function Header() {
               <Heart className="h-5 w-5" />
               {wishlistCount > 0 && <span className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-pill bg-safety text-[9px] font-semibold text-white">{wishlistCount}</span>}
             </Link>
-            <Link to="/cart" className="relative rounded-full p-2 text-ink hover:bg-paper sm:p-2.5" aria-label="Cart">
+            <Link to="/cart" onMouseEnter={() => preloadRoute('/cart')} className="relative rounded-full p-2 text-ink hover:bg-paper sm:p-2.5" aria-label="Cart">
               <ShoppingCart className="h-5 w-5" />
               <AnimatePresence>
                 {itemCount > 0 && (
@@ -175,7 +176,7 @@ export function Header() {
             </Link>
 
             <div className="relative hidden lg:block">
-              <button onClick={() => setAccountOpen((v) => !v)} className="flex items-center gap-1.5 rounded-full p-2 text-ink hover:bg-paper sm:p-2.5">
+              <button onClick={() => setAccountOpen((v) => !v)} aria-label="Account menu" aria-haspopup="menu" aria-expanded={accountOpen} className="flex items-center gap-1.5 rounded-full p-2 text-ink hover:bg-paper sm:p-2.5">
                 <User className="h-5 w-5" />
                 {user && <ChevronDown className="h-3 w-3" />}
               </button>

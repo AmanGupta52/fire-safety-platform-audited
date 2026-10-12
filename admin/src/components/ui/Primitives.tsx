@@ -70,3 +70,13 @@ export function Spinner({ className }: { className?: string }) {
     </div>
   );
 }
+
+// ---------- PageLoader ----------
+/** Full-area loading state used while a lazily loaded page is being downloaded. */
+export function PageLoader({ label = 'Loading' }: { label?: string }) {
+  return (
+    <div role="status" aria-label={label} className="flex items-center justify-center py-24">
+      <div className="h-6 w-6 animate-spin rounded-full border-2 border-line border-t-ink" />
+    </div>
+  );
+}

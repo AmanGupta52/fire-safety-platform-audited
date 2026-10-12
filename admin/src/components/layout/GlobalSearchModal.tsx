@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, Package, ShoppingCart, User, Wrench, ArrowRight, X, Loader2 } from 'lucide-react';
-import { api } from '../../lib/apiClient';
+import toast from 'react-hot-toast';
+import { api, apiErrorMessage } from '../../lib/apiClient';
 
 interface SearchResultItem {
   id: string;
@@ -24,6 +25,48 @@ interface GlobalSearchModalProps {
   onClose: () => void;
 }
 
+/** One clickable search hit: title and subtitle, an optional status chip, and an arrow. */
+function SearchResultRow({ item, showStatus, onSelect }: { item: SearchResultItem; showStatus?: boolean; onSelect: (link: string) => void }) {
+  return (
+    <button
+      onClick={() => onSelect(item.link)}
+      className="flex w-full items-center justify-between p-3 text-left hover:bg-card transition-colors"
+    >
+      <div>
+        <p className="text-xs font-semibold text-ink">{item.title}</p>
+        <p className="text-[11px] text-slateink">{item.subtitle}</p>
+      </div>
+      <div className="flex items-center gap-2">
+        {showStatus && (
+          <span className="rounded bg-paper px-2 py-0.5 text-[10px] font-medium text-slateink uppercase">
+            {item.status.replace(/_/g, ' ')}
+          </span>
+        )}
+        <ArrowRight className="h-3.5 w-3.5 text-slateink" />
+      </div>
+    </button>
+  );
+}
+
+/** A titled group of search hits (Orders, Customers, ...); renders nothing when the group is empty. */
+function ResultGroup({
+  icon: Icon, iconClass, title, items, onSelect, showStatus
+}: {
+  icon: typeof Search; iconClass: string; title: string; items: SearchResultItem[]; onSelect: (link: string) => void; showStatus?: boolean;
+}) {
+  if (items.length === 0) return null;
+  return (
+    <div>
+      <p className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slateink">
+        <Icon className={`h-3.5 w-3.5 ${iconClass}`} /> {title} ({items.length})
+      </p>
+      <div className="divide-y divide-line rounded-lg border border-line bg-paper/50">
+        {items.map((item) => <SearchResultRow key={item.id} item={item} showStatus={showStatus} onSelect={onSelect} />)}
+      </div>
+    </div>
+  );
+}
+
 export function GlobalSearchModal({ open, onClose }: GlobalSearchModalProps) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResponse | null>(null);
@@ -34,11 +77,11 @@ export function GlobalSearchModal({ open, onClose }: GlobalSearchModalProps) {
   // Focus input when modal opens
   useEffect(() => {
     if (open) {
-      setTimeout(() => inputRef.current?.focus(), 50);
-    } else {
-      setQuery('');
-      setResults(null);
+      const focusTimer = setTimeout(() => inputRef.current?.focus(), 50);
+      return () => clearTimeout(focusTimer);
     }
+    setQuery('');
+    setResults(null);
   }, [open]);
 
   // Debounced search query
@@ -50,18 +93,25 @@ export function GlobalSearchModal({ open, onClose }: GlobalSearchModalProps) {
     }
 
     setIsLoading(true);
+    // Each keystroke cancels the previous request, so a slow older answer can never overwrite a newer one, and
+    // nothing updates state after the modal has closed.
+    const controller = new AbortController();
     const timer = setTimeout(async () => {
       try {
-        const res = await api.get(`/reports/global-search?q=${encodeURIComponent(query.trim())}`);
-        setResults(res.data.data);
+        const res = await api.get('/reports/global-search', { params: { q: query.trim() }, signal: controller.signal });
+        if (!controller.signal.aborted) setResults(res.data.data);
       } catch (err) {
-        console.error('Global search error:', err);
+        if (controller.signal.aborted) return;
+        toast.error(apiErrorMessage(err), { id: 'global-search-error' });
       } finally {
-        setIsLoading(false);
+        if (!controller.signal.aborted) setIsLoading(false);
       }
     }, 250);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
   }, [query]);
 
   // Handle ESC key to close
@@ -89,8 +139,14 @@ export function GlobalSearchModal({ open, onClose }: GlobalSearchModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-16 sm:pt-24 bg-black/50 backdrop-blur-sm animate-in fade-in duration-150">
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-16 sm:pt-24 bg-black/50 backdrop-blur-sm animate-in fade-in duration-150"
+      onClick={onClose}
+    >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Global search"
         className="w-full max-w-2xl rounded-xl border border-line bg-card shadow-2xl overflow-hidden flex flex-col max-h-[80vh]"
         onClick={(e) => e.stopPropagation()}
       >
@@ -102,6 +158,7 @@ export function GlobalSearchModal({ open, onClose }: GlobalSearchModalProps) {
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            aria-label="Search orders, customers, bookings or products"
             placeholder="Search orders, customers, bookings, or products... (Esc to close)"
             className="w-full bg-transparent text-sm text-ink placeholder:text-slateink/60 focus:outline-none"
           />
@@ -111,6 +168,7 @@ export function GlobalSearchModal({ open, onClose }: GlobalSearchModalProps) {
             <button
               onClick={() => setQuery('')}
               className="text-slateink hover:text-ink text-xs p-1"
+              aria-label="Clear search"
             >
               <X className="h-4 w-4" />
             </button>
@@ -140,110 +198,13 @@ export function GlobalSearchModal({ open, onClose }: GlobalSearchModalProps) {
             </div>
           ) : (
             <>
-              {/* Orders */}
-              {results && results.orders.length > 0 && (
-                <div>
-                  <p className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slateink">
-                    <ShoppingCart className="h-3.5 w-3.5 text-brand" /> Orders ({results.orders.length})
-                  </p>
-                  <div className="divide-y divide-line rounded-lg border border-line bg-paper/50">
-                    {results.orders.map((item) => (
-                      <button
-                        key={item.id}
-                        onClick={() => handleSelect(item.link)}
-                        className="flex w-full items-center justify-between p-3 text-left hover:bg-card transition-colors"
-                      >
-                        <div>
-                          <p className="text-xs font-semibold text-ink">{item.title}</p>
-                          <p className="text-[11px] text-slateink">{item.subtitle}</p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="rounded bg-paper px-2 py-0.5 text-[10px] font-medium text-slateink uppercase">
-                            {item.status}
-                          </span>
-                          <ArrowRight className="h-3.5 w-3.5 text-slateink" />
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Bookings */}
-              {results && results.bookings.length > 0 && (
-                <div>
-                  <p className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slateink">
-                    <Wrench className="h-3.5 w-3.5 text-forest" /> Service Bookings ({results.bookings.length})
-                  </p>
-                  <div className="divide-y divide-line rounded-lg border border-line bg-paper/50">
-                    {results.bookings.map((item) => (
-                      <button
-                        key={item.id}
-                        onClick={() => handleSelect(item.link)}
-                        className="flex w-full items-center justify-between p-3 text-left hover:bg-card transition-colors"
-                      >
-                        <div>
-                          <p className="text-xs font-semibold text-ink">{item.title}</p>
-                          <p className="text-[11px] text-slateink">{item.subtitle}</p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="rounded bg-paper px-2 py-0.5 text-[10px] font-medium text-slateink uppercase">
-                            {item.status.replace(/_/g, ' ')}
-                          </span>
-                          <ArrowRight className="h-3.5 w-3.5 text-slateink" />
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Customers */}
-              {results && results.customers.length > 0 && (
-                <div>
-                  <p className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slateink">
-                    <User className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" /> Customers ({results.customers.length})
-                  </p>
-                  <div className="divide-y divide-line rounded-lg border border-line bg-paper/50">
-                    {results.customers.map((item) => (
-                      <button
-                        key={item.id}
-                        onClick={() => handleSelect(item.link)}
-                        className="flex w-full items-center justify-between p-3 text-left hover:bg-card transition-colors"
-                      >
-                        <div>
-                          <p className="text-xs font-semibold text-ink">{item.title}</p>
-                          <p className="text-[11px] text-slateink">{item.subtitle}</p>
-                        </div>
-                        <ArrowRight className="h-3.5 w-3.5 text-slateink" />
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Products */}
-              {results && results.products.length > 0 && (
-                <div>
-                  <p className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slateink">
-                    <Package className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" /> Products ({results.products.length})
-                  </p>
-                  <div className="divide-y divide-line rounded-lg border border-line bg-paper/50">
-                    {results.products.map((item) => (
-                      <button
-                        key={item.id}
-                        onClick={() => handleSelect(item.link)}
-                        className="flex w-full items-center justify-between p-3 text-left hover:bg-card transition-colors"
-                      >
-                        <div>
-                          <p className="text-xs font-semibold text-ink">{item.title}</p>
-                          <p className="text-[11px] text-slateink">{item.subtitle}</p>
-                        </div>
-                        <ArrowRight className="h-3.5 w-3.5 text-slateink" />
-                      </button>
-                    ))}
-                  </div>
-                </div>
+              {results && (
+                <>
+                  <ResultGroup icon={ShoppingCart} iconClass="text-brand" title="Orders" items={results.orders} onSelect={handleSelect} showStatus />
+                  <ResultGroup icon={Wrench} iconClass="text-forest" title="Service Bookings" items={results.bookings} onSelect={handleSelect} showStatus />
+                  <ResultGroup icon={User} iconClass="text-blue-600 dark:text-blue-400" title="Customers" items={results.customers} onSelect={handleSelect} />
+                  <ResultGroup icon={Package} iconClass="text-amber-600 dark:text-amber-400" title="Products" items={results.products} onSelect={handleSelect} />
+                </>
               )}
             </>
           )}

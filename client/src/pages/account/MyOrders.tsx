@@ -1,11 +1,11 @@
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Package } from 'lucide-react';
-import { format } from 'date-fns';
 import { api } from '../../lib/apiClient';
 import { Order } from '../../types';
 import { Card, Badge, EmptyState, ErrorState } from '../../components/ui/Primitives';
 import { SkeletonList } from '../../components/ui/Skeleton';
+import { formatInr, formatDate } from '../../lib/format';
 
 const statusTone: Record<string, 'neutral' | 'success' | 'warning' | 'danger' | 'info'> = {
   pending: 'warning', confirmed: 'info', processing: 'info', packed: 'info',
@@ -34,11 +34,11 @@ export default function MyOrders() {
               <Card className="flex flex-col gap-2 p-4 hover:shadow-lift sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="text-sm font-medium text-ink">{order.orderNumber}</p>
-                  <p className="text-xs text-slateink">{format(new Date(order.createdAt), 'd MMM yyyy')} · {order.items.length} item{order.items.length !== 1 ? 's' : ''}</p>
+                  <p className="text-xs text-slateink">{formatDate(order.createdAt)} · {order.items.length} item{order.items.length !== 1 ? 's' : ''}</p>
                 </div>
                 <div className="flex items-center gap-3">
                   <Badge tone={statusTone[order.status] || 'neutral'}>{order.status}</Badge>
-                  <p className="text-sm font-medium text-ink">₹{order.totalAmount.toLocaleString('en-IN')}</p>
+                  <p className="text-sm font-medium text-ink">{formatInr(order.totalAmount)}</p>
                 </div>
               </Card>
             </Link>

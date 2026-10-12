@@ -1,6 +1,9 @@
+import { MetaTags } from '../../components/seo/MetaTags';
+
 export function PrivacyPage() {
   return (
     <div className="container-page max-w-2xl py-10">
+      <MetaTags title="Privacy Policy" description="How we collect, use and protect your personal information." />
       <h1 className="heading text-2xl text-ink">Privacy policy</h1>
       <p className="mt-2 text-xs text-slateink">This is placeholder policy text for development. Replace with your company's reviewed legal copy before going live.</p>
       <div className="mt-6 flex flex-col gap-4 text-sm leading-relaxed text-slateink">
@@ -15,6 +18,7 @@ export function PrivacyPage() {
 export function TermsPage() {
   return (
     <div className="container-page max-w-2xl py-10">
+      <MetaTags title="Terms & Conditions" description="The terms that apply when you buy from us or book our services." />
       <h1 className="heading text-2xl text-ink">Terms of service</h1>
       <p className="mt-2 text-xs text-slateink">This is placeholder terms text for development. Replace with your company's reviewed legal copy before going live.</p>
       <div className="mt-6 flex flex-col gap-4 text-sm leading-relaxed text-slateink">

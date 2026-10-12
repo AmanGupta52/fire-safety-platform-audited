@@ -1,6 +1,9 @@
+import { Suspense } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
+import { PageLoader } from '../ui/Loader';
 import { LayoutDashboard, Package, FileText, MapPin, FlameKindling, FileBadge, Wrench, User, Bell } from 'lucide-react';
 import clsx from 'clsx';
+import { MetaTags } from '../seo/MetaTags';
 
 const links = [
   { to: '/account', label: 'Overview', icon: LayoutDashboard, end: true },
@@ -17,6 +20,7 @@ const links = [
 export function AccountLayout() {
   return (
     <div className="container-page py-8">
+      <MetaTags title="My account" noindex />
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[220px_1fr]">
         <aside className="flex gap-1 overflow-x-auto lg:flex-col lg:overflow-visible">
           {links.map((link) => (
@@ -36,7 +40,9 @@ export function AccountLayout() {
           ))}
         </aside>
         <div className="min-w-0">
-          <Outlet />
+          <Suspense fallback={<PageLoader />}>
+            <Outlet />
+          </Suspense>
         </div>
       </div>
     </div>

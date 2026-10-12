@@ -1,84 +1,13 @@
 import { NavLink } from 'react-router-dom';
 import clsx from 'clsx';
-import {
-  LayoutDashboard, Package, Layers, ShoppingCart, FileText, Wrench, ShieldCheck,
-  Users, Newspaper, Image, ImagePlus, HelpCircle, Ticket, Star, UserCog, HardHat, Receipt, Settings, History, FlameKindling, CalendarCheck, ClipboardList
-} from 'lucide-react';
+import { FlameKindling } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
-import { Permission, Role } from '../../types';
-
-interface NavItem {
-  to: string;
-  label: string;
-  icon: typeof LayoutDashboard;
-  permission?: Permission;
-  roles?: Role[];
-}
-
-interface NavGroup {
-  label: string;
-  items: NavItem[];
-}
-
-const groups: NavGroup[] = [
-  { label: 'Overview', items: [{ to: '/', label: 'Dashboard', icon: LayoutDashboard }] },
-  {
-    label: 'Catalog',
-    items: [
-      { to: '/products', label: 'Products', icon: Package, permission: 'products.read' },
-      { to: '/categories', label: 'Categories', icon: Layers, permission: 'categories.read' }
-    ]
-  },
-  {
-    label: 'Commerce',
-    items: [
-      { to: '/orders', label: 'Orders', icon: ShoppingCart, permission: 'orders.read' },
-      { to: '/invoices', label: 'Invoices', icon: Receipt, permission: 'orders.read' },
-      { to: '/quotes', label: 'Quotes', icon: FileText, permission: 'quotes.read' },
-      { to: '/coupons', label: 'Coupons', icon: Ticket, permission: 'coupons.read' }
-    ]
-  },
-  {
-    label: 'Services',
-    items: [
-      { to: '/my-jobs', label: 'My jobs', icon: ClipboardList, roles: ['technician'] },
-      { to: '/services', label: 'Services', icon: Wrench, permission: 'services.read' },
-      { to: '/bookings', label: 'Bookings', icon: CalendarCheck, permission: 'services.read' },
-      { to: '/amc', label: 'AMC Contracts', icon: ShieldCheck, permission: 'amc.read' },
-      { to: '/technicians', label: 'Technicians', icon: UserCog, permission: 'technicians.read' },
-      { to: '/equipment', label: 'Equipment', icon: HardHat, permission: 'equipment.read' }
-    ]
-  },
-  {
-    label: 'CRM',
-    items: [
-      { to: '/customers', label: 'Customers', icon: Users, permission: 'customers.read' },
-      { to: '/reviews', label: 'Reviews', icon: Star, permission: 'reviews.read' }
-    ]
-  },
-  {
-    label: 'Content',
-    items: [
-      { to: '/blog', label: 'Blog', icon: Newspaper, permission: 'blog.read' },
-      { to: '/banners', label: 'Banners', icon: ImagePlus, permission: 'gallery.read' },
-      { to: '/gallery', label: 'Gallery', icon: Image, permission: 'gallery.read' },
-      { to: '/faqs', label: 'FAQs', icon: HelpCircle, permission: 'faqs.read' }
-    ]
-  },
-  {
-    label: 'Administration',
-    items: [
-      { to: '/reports', label: 'Reports', icon: LayoutDashboard, permission: 'reports.read' },
-      { to: '/staff', label: 'Staff & Roles', icon: UserCog, permission: 'staff.read' },
-      { to: '/audit-logs', label: 'Audit Log', icon: History, permission: 'audit.read' },
-      { to: '/settings', label: 'Settings', icon: Settings, roles: ['super_admin'] }
-    ]
-  }
-];
+import { NAV_GROUPS, canAccessNavItem } from '../../lib/navConfig';
+import { preloadRoute } from '../../routes/lazyPages';
 
 export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
   const hasPermission = useAuthStore((s) => s.hasPermission);
-  const role = useAuthStore((s) => s.user?.role);
+  const user = useAuthStore((s) => s.user);
 
   return (
     <>
@@ -102,10 +31,8 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
       </div>
 
       <nav className="flex-1 space-y-5 overflow-y-auto px-3 pb-4">
-        {groups.map((group) => {
-          const visibleItems = group.items.filter(
-            (item) => (!item.permission || hasPermission(item.permission)) && (!item.roles || (role && item.roles.includes(role)))
-          );
+        {NAV_GROUPS.map((group) => {
+          const visibleItems = group.items.filter((item) => canAccessNavItem(item, user, hasPermission));
           if (visibleItems.length === 0) return null;
           return (
             <div key={group.label}>
@@ -117,6 +44,8 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
                     to={item.to}
                     end={item.to === '/'}
                     onClick={onClose}
+                    onMouseEnter={() => preloadRoute(item.to)}
+                    onFocus={() => preloadRoute(item.to)}
                     className={({ isActive }) =>
                       clsx(
                         'flex items-center gap-2.5 rounded px-2.5 py-2 text-[13px] font-medium transition-colors',

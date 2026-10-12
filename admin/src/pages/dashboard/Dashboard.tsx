@@ -1,12 +1,15 @@
 import { useQuery } from '@tanstack/react-query';
 import { IndianRupee, ShoppingCart, Users, PackageX, ArrowRight, HardHat, CalendarClock } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, BarChart, Bar } from 'recharts';
-import { useNavigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { api } from '../../lib/apiClient';
+import { useAuthStore } from '../../store/authStore';
+import { NAV_GROUPS, canAccessNavItem, getHomeRouteFor } from '../../lib/navConfig';
 import { StatCard, Card, Spinner } from '../../components/ui/Primitives';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { DashboardSummary } from '../../types';
-import { format, differenceInDays } from 'date-fns';
+import { differenceInDays } from 'date-fns';
+import { formatInr, formatDate } from '../../lib/format';
 
 
 // Chart colours follow the active theme (CSS variables set in index.css) so axes, grid lines,
@@ -21,10 +24,6 @@ const chartTooltipStyle = {
   border: '1px solid rgb(var(--color-line))',
   color: 'rgb(var(--color-ink))'
 };
-
-function formatInr(n: number) {
-  return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n);
-}
 
 interface DashboardV2Data {
   revenueTrend: { _id: string; revenue: number; orders: number }[];
@@ -73,21 +72,52 @@ const JOB_STATUS_COLORS: Record<string, { bg: string; text: string; label: strin
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const user = useAuthStore((s) => s.user);
+  const hasPermission = useAuthStore((s) => s.hasPermission);
+  // Every /reports/* endpoint needs reports.read. Staff without it (technicians, content editors, ...) must not
+  // even trigger the requests: the API would answer 403 and the global handler would bounce them to /403.
+  const canViewReports = hasPermission('reports.read');
 
   const { data: summary, isLoading: isSummaryLoading } = useQuery({
     queryKey: ['dashboard-summary'],
-    queryFn: async () => (await api.get('/reports/dashboard')).data.data as DashboardSummary
+    queryFn: async () => (await api.get('/reports/dashboard')).data.data as DashboardSummary,
+    enabled: canViewReports
   });
 
   const { data: v2Data, isLoading: isV2Loading } = useQuery({
     queryKey: ['dashboard-v2'],
-    queryFn: async () => (await api.get('/reports/dashboard-v2')).data.data as DashboardV2Data
+    queryFn: async () => (await api.get('/reports/dashboard-v2')).data.data as DashboardV2Data,
+    enabled: canViewReports
   });
 
   const { data: categoryChart } = useQuery({
     queryKey: ['sales-by-category'],
-    queryFn: async () => (await api.get('/reports/sales-by-category')).data.data as { _id: string; revenue: number }[]
+    queryFn: async () => (await api.get('/reports/sales-by-category')).data.data as { _id: string; revenue: number }[],
+    enabled: canViewReports
   });
+
+  if (!canViewReports) {
+    const home = getHomeRouteFor(user, hasPermission);
+    if (home !== '/') return <Navigate to={home} replace />;
+    // Nothing else to send them to: a friendly landing page instead of a blank or forbidden screen.
+    const links = NAV_GROUPS.flatMap((g) => g.items).filter((i) => i.to !== '/' && canAccessNavItem(i, user, hasPermission));
+    return (
+      <div className="space-y-6">
+        <PageHeader title={`Welcome${user ? `, ${user.name.split(' ')[0]}` : ''}`} description="Your account doesn't include the dashboard reports." />
+        <Card className="p-5">
+          {links.length === 0 ? (
+            <p className="text-sm text-slateink">No pages are enabled for your account yet. Ask a super admin to grant access.</p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {links.map((l) => (
+                <Link key={l.to} to={l.to} className="rounded border border-line px-3 py-2 text-sm text-ink hover:bg-paper">{l.label}</Link>
+              ))}
+            </div>
+          )}
+        </Card>
+      </div>
+    );
+  }
 
   if (isSummaryLoading || isV2Loading || !summary || !v2Data) return <Spinner />;
 
@@ -125,7 +155,7 @@ export default function Dashboard() {
                 <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} vertical={false} />
                 <XAxis
                   dataKey="_id"
-                  tickFormatter={(v) => format(new Date(v), 'd MMM')}
+                  tickFormatter={(v) => formatDate(v, 'dayMonth')}
                   tick={{ fontSize: 11, fill: CHART_MUTED }}
                   axisLine={{ stroke: CHART_GRID }}
                   tickLine={false}
@@ -139,7 +169,7 @@ export default function Dashboard() {
                 />
                 <Tooltip
                   formatter={(v: number) => [formatInr(v), 'Revenue']}
-                  labelFormatter={(v) => format(new Date(v), 'd MMM yyyy')}
+                  labelFormatter={(v) => formatDate(v)}
                   contentStyle={chartTooltipStyle} labelStyle={{ color: CHART_INK }} itemStyle={{ color: CHART_INK }}
                 />
                 <Line
@@ -260,7 +290,7 @@ export default function Dashboard() {
                         {daysLeft <= 0 ? 'Expires today' : `${daysLeft} days left`}
                       </span>
                       <p className="mt-1 text-[10px] text-slateink">
-                        Ends {format(new Date(contract.endDate), 'd MMM yyyy')}
+                        Ends {formatDate(contract.endDate)}
                       </p>
                     </div>
                   </div>
@@ -304,7 +334,7 @@ export default function Dashboard() {
                     }`}>
                       {prod.stock === 0 ? 'Out of stock' : `${prod.stock} left`}
                     </span>
-                    <p className="mt-0.5 text-[11px] font-medium text-ink">₹{prod.price.toLocaleString('en-IN')}</p>
+                    <p className="mt-0.5 text-[11px] font-medium text-ink">{formatInr(prod.price, 2)}</p>
                   </div>
                 </div>
               ))

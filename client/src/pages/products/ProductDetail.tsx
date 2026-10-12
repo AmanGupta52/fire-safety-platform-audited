@@ -6,7 +6,7 @@ import toast from 'react-hot-toast';
 import clsx from 'clsx';
 import { Heart, ShoppingCart, FileDown, FlameKindling, Minus, Plus, MessageSquarePlus, ZoomIn, X } from 'lucide-react';
 import axios from 'axios';
-import { api, apiErrorMessage } from '../../lib/apiClient';
+import { api, toastApiError } from '../../lib/apiClient';
 import { NotFound404 } from '../errors/StatusPages';
 import { Product, Review } from '../../types';
 import { useCart } from '../../hooks/useCart';
@@ -18,6 +18,8 @@ import { SkeletonText } from '../../components/ui/Skeleton';
 import { ImageWithFallback } from '../../components/ui/ImageWithFallback';
 import { Textarea } from '../../components/ui/FormControls';
 import { ProductCard } from '../../components/product/ProductCard';
+import { formatInr } from '../../lib/format';
+import { MetaTags, truncate } from '../../components/seo/MetaTags';
 
 type Tab = 'description' | 'specifications' | 'features' | 'reviews';
 
@@ -103,8 +105,33 @@ export default function ProductDetail() {
     { key: 'reviews', label: 'Reviews', count: reviews?.length || 0 }
   ];
 
+  const productJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: product.name,
+    image: product.images.map((img) => img.url),
+    description: truncate(product.shortDescription || product.description, 300),
+    sku: product.sku,
+    ...(product.brand ? { brand: { '@type': 'Brand', name: product.brand } } : {}),
+    ...(product.ratingCount > 0 ? { aggregateRating: { '@type': 'AggregateRating', ratingValue: product.ratingAverage, reviewCount: product.ratingCount } } : {}),
+    offers: {
+      '@type': 'Offer',
+      priceCurrency: 'INR',
+      price: product.discountPrice ?? product.price,
+      availability: product.stock > 0 || product.allowBackorder ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
+      url: `${window.location.origin}${window.location.pathname}`
+    }
+  };
+
   return (
     <div className="container-page py-8">
+      <MetaTags
+        title={product.name}
+        description={truncate(product.shortDescription || product.description) || `Buy ${product.name} online.`}
+        image={product.images[0]?.url}
+        type="product"
+        jsonLd={productJsonLd}
+      />
       <div className="grid grid-cols-1 gap-10 lg:grid-cols-2">
         {/* Gallery */}
         <div>
@@ -130,7 +157,7 @@ export default function ProductDetail() {
           {product.images.length > 1 && (
             <div className="mt-3 flex gap-2">
               {product.images.map((img, i) => (
-                <button key={i} onClick={() => setActiveImage(i)} className={clsx('h-16 w-16 overflow-hidden rounded-btn border-2', i === activeImage ? 'border-ink' : 'border-line')}>
+                <button key={`${img.url}-${i}`} onClick={() => setActiveImage(i)} className={clsx('h-16 w-16 overflow-hidden rounded-btn border-2', i === activeImage ? 'border-ink' : 'border-line')}>
                   <ImageWithFallback src={img.url} alt="" imgClassName="object-cover" fallbackLabel="" />
                 </button>
               ))}
@@ -173,8 +200,8 @@ export default function ProductDetail() {
           )}
 
           <div className="mt-4 flex items-baseline gap-3">
-            <span className="heading text-3xl font-semibold text-ink">₹{price.toLocaleString('en-IN')}</span>
-            {product.discountPrice && <span className="text-base text-slate-400 line-through">₹{product.price.toLocaleString('en-IN')}</span>}
+            <span className="heading text-3xl font-semibold text-ink">{formatInr(price)}</span>
+            {product.discountPrice && <span className="text-base text-slate-400 line-through">{formatInr(product.price)}</span>}
           </div>
           <p className="mt-0.5 text-xs text-slateink">Inclusive of {product.gstPercentage}% GST</p>
 
@@ -186,9 +213,9 @@ export default function ProductDetail() {
 
           <div className="mt-6 flex items-center gap-4">
             <div className="flex items-center rounded-btn border border-line">
-              <button onClick={() => setQuantity((q) => Math.max(min, q - 1))} className="p-2.5 text-slateink hover:bg-paper"><Minus className="h-3.5 w-3.5" /></button>
+              <button aria-label="Decrease quantity" onClick={() => setQuantity((q) => Math.max(min, q - 1))} className="p-2.5 text-slateink hover:bg-paper"><Minus className="h-3.5 w-3.5" /></button>
               <span className="w-10 text-center text-sm font-medium">{quantity}</span>
-              <button onClick={() => setQuantity((q) => q + 1)} className="p-2.5 text-slateink hover:bg-paper"><Plus className="h-3.5 w-3.5" /></button>
+              <button aria-label="Increase quantity" onClick={() => setQuantity((q) => q + 1)} className="p-2.5 text-slateink hover:bg-paper"><Plus className="h-3.5 w-3.5" /></button>
             </div>
             {min > 1 && <span className="text-xs text-slateink">Min. order: {min}</span>}
           </div>
@@ -263,7 +290,7 @@ export default function ProductDetail() {
             product.specifications.length > 0 ? (
               <div className="max-w-2xl overflow-hidden rounded-card border border-line">
                 {product.specifications.map((spec, i) => (
-                  <div key={i} className={clsx('flex justify-between px-4 py-3 text-sm', i % 2 === 1 && 'bg-slate-50')}>
+                  <div key={`${spec.key}-${i}`} className={clsx('flex justify-between px-4 py-3 text-sm', i % 2 === 1 && 'bg-slate-50')}>
                     <span className="text-slateink">{spec.key}</span><span className="font-medium text-ink">{spec.value}</span>
                   </div>
                 ))}
@@ -275,7 +302,7 @@ export default function ProductDetail() {
             product.features.length > 0 ? (
               <ul className="flex max-w-2xl flex-col gap-3">
                 {product.features.map((f, i) => (
-                  <li key={i} className="flex items-start gap-2 text-sm text-slateink"><span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-safety" /> {f}</li>
+                  <li key={`${f}-${i}`} className="flex items-start gap-2 text-sm text-slateink"><span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-safety" /> {f}</li>
                 ))}
               </ul>
             ) : <p className="text-sm text-slateink">No features listed.</p>
@@ -312,7 +339,7 @@ function ReviewsSection({ productId, reviews }: { productId: string; reviews: Re
       setShowForm(false);
       queryClient.invalidateQueries({ queryKey: ['product-reviews', productId] });
     },
-    onError: (err) => toast.error(apiErrorMessage(err))
+    onError: toastApiError
   });
 
   return (

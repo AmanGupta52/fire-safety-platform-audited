@@ -3,8 +3,7 @@ import { useForm } from 'react-hook-form';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ShieldCheck, Plus, UserCog, CalendarPlus } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { format } from 'date-fns';
-import { api, apiErrorMessage } from '../../lib/apiClient';
+import { api, toastApiError } from '../../lib/apiClient';
 import { AMCContract, AMCStatus, Technician, Customer } from '../../types';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { Card, Badge } from '../../components/ui/Primitives';
@@ -12,6 +11,7 @@ import { DataTable, Column } from '../../components/ui/DataTable';
 import { Select, Input } from '../../components/ui/FormControls';
 import { Modal } from '../../components/ui/Modal';
 import { Button } from '../../components/ui/Button';
+import { formatInr, formatDate } from '../../lib/format';
 
 const STATUS_OPTIONS: AMCStatus[] = ['requested', 'active', 'expiring_soon', 'expired', 'renewed', 'cancelled'];
 
@@ -29,16 +29,16 @@ export default function AmcList() {
   const statusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: AMCStatus }) => api.patch(`/amc/${id}/status`, { status }),
     onSuccess: () => { toast.success('AMC status updated'); queryClient.invalidateQueries({ queryKey: ['amc'] }); },
-    onError: (err) => toast.error(apiErrorMessage(err))
+    onError: toastApiError
   });
 
   const columns: Column<AMCContract>[] = [
     { header: 'Contract #', render: (c) => <span className="font-medium text-ink">{c.contractNumber}</span> },
     { header: 'Customer', render: (c) => typeof c.user === 'object' ? c.user.name : '—' },
     { header: 'Plan', render: (c) => c.planName },
-    { header: 'Start', render: (c) => format(new Date(c.startDate), 'd MMM yyyy') },
-    { header: 'End', render: (c) => format(new Date(c.endDate), 'd MMM yyyy') },
-    { header: 'Amount', render: (c) => `₹${c.amount.toLocaleString('en-IN')}` },
+    { header: 'Start', render: (c) => formatDate(c.startDate) },
+    { header: 'End', render: (c) => formatDate(c.endDate) },
+    { header: 'Amount', render: (c) => formatInr(c.amount, 2) },
     { header: 'Visits', render: (c) => c.visits?.length || 0 },
     {
       header: 'Status',
@@ -93,13 +93,13 @@ function AmcDetailModal({ contract, onClose }: { contract: AMCContract; onClose:
   const assignMutation = useMutation({
     mutationFn: async (technicianId: string) => api.patch(`/amc/${contract._id}/assign-technician`, { technicianId }),
     onSuccess: () => { toast.success('Technician assigned'); invalidate(); },
-    onError: (err) => toast.error(apiErrorMessage(err))
+    onError: toastApiError
   });
 
   const visitMutation = useMutation({
     mutationFn: async () => api.post(`/amc/${contract._id}/visits`, { scheduledDate: visitDate, notes: visitNotes || undefined }),
     onSuccess: () => { toast.success('Visit scheduled'); setVisitDate(''); setVisitNotes(''); invalidate(); },
-    onError: (err) => toast.error(apiErrorMessage(err))
+    onError: toastApiError
   });
 
   return (
@@ -113,8 +113,8 @@ function AmcDetailModal({ contract, onClose }: { contract: AMCContract; onClose:
           </div>
           <div>
             <p className="text-xs font-medium text-slateink">Plan</p>
-            <p className="text-ink">{contract.planName} · ₹{contract.amount.toLocaleString('en-IN')}</p>
-            <p className="text-xs text-slateink">{format(new Date(contract.startDate), 'd MMM yyyy')} – {format(new Date(contract.endDate), 'd MMM yyyy')}</p>
+            <p className="text-ink">{contract.planName} · {formatInr(contract.amount, 2)}</p>
+            <p className="text-xs text-slateink">{formatDate(contract.startDate)} – {formatDate(contract.endDate)}</p>
           </div>
         </div>
 
@@ -135,8 +135,8 @@ function AmcDetailModal({ contract, onClose }: { contract: AMCContract; onClose:
           ) : (
             <div className="rounded border border-line">
               {contract.visits.map((v, i) => (
-                <div key={i} className={`flex items-center justify-between px-3 py-2 text-sm ${i > 0 ? 'border-t border-line' : ''}`}>
-                  <span className="text-ink">{format(new Date(v.scheduledDate), 'd MMM yyyy')}</span>
+                <div key={`${v.scheduledDate}-${i}`} className={`flex items-center justify-between px-3 py-2 text-sm ${i > 0 ? 'border-t border-line' : ''}`}>
+                  <span className="text-ink">{formatDate(v.scheduledDate)}</span>
                   <span className="text-xs text-slateink">{v.notes || '—'}</span>
                   <Badge tone={v.status === 'completed' ? 'success' : v.status === 'missed' ? 'danger' : 'info'}>{v.status}</Badge>
                 </div>
@@ -172,7 +172,7 @@ function CreateAmcModal({ onClose }: { onClose: () => void }) {
   const mutation = useMutation({
     mutationFn: async (values: CreateFormValues) => api.post('/amc', values),
     onSuccess: () => { toast.success('AMC contract created'); queryClient.invalidateQueries({ queryKey: ['amc'] }); onClose(); },
-    onError: (err) => toast.error(apiErrorMessage(err))
+    onError: toastApiError
   });
 
   return (

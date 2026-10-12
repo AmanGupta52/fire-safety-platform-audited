@@ -7,17 +7,19 @@ import toast from 'react-hot-toast';
 import { useState } from 'react';
 import clsx from 'clsx';
 import { ShieldCheck } from 'lucide-react';
-import { api, apiErrorMessage } from '../../lib/apiClient';
+import { api, toastApiError } from '../../lib/apiClient';
 import { Input, PasswordInput } from '../../components/ui/FormControls';
 import { Button } from '../../components/ui/Button';
+import { MetaTags } from '../../components/seo/MetaTags';
+import { GSTIN_REGEX, MAX_TEXT_LENGTH, MESSAGES, PHONE_REGEX } from '../../lib/validators';
 
 const schema = z.object({
-  name: z.string().min(2, 'Enter your full name'),
-  email: z.string().email('Enter a valid email'),
-  phone: z.string().min(10, 'Enter a valid phone number'),
+  name: z.string().trim().min(2, 'Enter your full name').max(MAX_TEXT_LENGTH, MESSAGES.tooLong),
+  email: z.string().trim().email('Enter a valid email'),
+  phone: z.string().trim().regex(PHONE_REGEX, MESSAGES.phone),
   password: z.string().min(8, 'At least 8 characters'),
-  companyName: z.string().optional(),
-  gstNumber: z.string().optional()
+  companyName: z.string().trim().max(MAX_TEXT_LENGTH, MESSAGES.tooLong).optional(),
+  gstNumber: z.string().trim().toUpperCase().refine((v) => v === '' || GSTIN_REGEX.test(v), MESSAGES.gstin).optional()
 });
 type FormValues = z.infer<typeof schema>;
 
@@ -35,11 +37,12 @@ export default function Register() {
       toast.success('Check your email for a verification code');
       navigate('/verify-email', { state: { email: data.email } });
     },
-    onError: (err) => toast.error(apiErrorMessage(err))
+    onError: toastApiError
   });
 
   return (
     <div className="container-page flex min-h-[80vh] items-center justify-center py-12">
+      <MetaTags title="Create your account" noindex />
       <div className="w-full max-w-md">
         <h1 className="heading text-center text-xl text-ink">Create your account</h1>
         <p className="mt-1 text-center text-sm text-slateink">Shop fire safety products and manage your services in one place.</p>
@@ -59,12 +62,12 @@ export default function Register() {
           <Input label="Full name" required error={errors.name?.message} {...register('name')} />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input label="Email" type="email" required error={errors.email?.message} {...register('email')} />
-            <Input label="Phone" required error={errors.phone?.message} {...register('phone')} />
+            <Input label="Phone" required type="tel" inputMode="tel" autoComplete="tel" placeholder="98765 43210" error={errors.phone?.message} {...register('phone')} />
           </div>
           {customerType === 'b2b' && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Input label="Company name" {...register('companyName')} />
-              <Input label="GSTIN" {...register('gstNumber')} />
+              <Input label="GSTIN" maxLength={15} error={errors.gstNumber?.message} {...register('gstNumber')} />
             </div>
           )}
           <PasswordInput label="Password" required hint="At least 8 characters" error={errors.password?.message} {...register('password')} />

@@ -6,13 +6,13 @@ import { ServiceBooking } from '../models/ServiceBooking';
 import { AMCContract } from '../models/AMCContract';
 import { CustomerEquipment } from '../models/CustomerEquipment';
 import { asyncHandler } from '../utils/asyncHandler';
+import { parsePagination } from '../utils/pagination';
 import { ApiError } from '../utils/ApiError';
 import { ok, paginationMeta } from '../utils/apiResponse';
 import { escapeRegex } from '../utils/escapeRegex';
 
 export const adminListCustomers = asyncHandler(async (req: Request, res: Response) => {
-  const page = Math.max(1, Number(req.query.page) || 1);
-  const limit = Math.min(100, Number(req.query.limit) || 20);
+  const { page, limit, skip } = parsePagination(req, { defaultLimit: 20, maxLimit: 100 });
   const filter: Record<string, unknown> = { role: 'customer' };
   if (req.query.customerType) filter.customerType = req.query.customerType;
   if (req.query.q) {
@@ -24,7 +24,7 @@ export const adminListCustomers = asyncHandler(async (req: Request, res: Respons
   }
 
   const [users, total] = await Promise.all([
-    User.find(filter).select('-password').sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit),
+    User.find(filter).select('-password').sort({ createdAt: -1 }).skip(skip).limit(limit),
     User.countDocuments(filter)
   ]);
   return ok(res, users, 'Customers fetched', paginationMeta(page, limit, total));
@@ -34,15 +34,21 @@ export const adminGetCustomerProfile = asyncHandler(async (req: Request, res: Re
   const user = await User.findOne({ _id: req.params.id, role: 'customer' }).select('-password');
   if (!user) throw ApiError.notFound('Customer not found');
 
-  const [orders, quotes, services, amc, equipment] = await Promise.all([
-    Order.find({ user: user._id }).sort({ createdAt: -1 }),
-    Quote.find({ user: user._id }).sort({ createdAt: -1 }),
-    ServiceBooking.find({ user: user._id }).sort({ createdAt: -1 }),
-    AMCContract.find({ user: user._id }),
-    CustomerEquipment.find({ user: user._id })
+  // Each list is capped to the latest 50 so one very active customer can't produce a huge response.
+  const [orders, quotes, services, amc, equipment, revenueAgg] = await Promise.all([
+    Order.find({ user: user._id }).sort({ createdAt: -1 }).limit(50),
+    Quote.find({ user: user._id }).sort({ createdAt: -1 }).limit(50),
+    ServiceBooking.find({ user: user._id }).sort({ createdAt: -1 }).limit(50),
+    AMCContract.find({ user: user._id }).sort({ createdAt: -1 }).limit(50),
+    CustomerEquipment.find({ user: user._id }).sort({ createdAt: -1 }).limit(50),
+    // Revenue still covers ALL of the customer's paid orders, not just the 50 shown above.
+    Order.aggregate([
+      { $match: { user: user._id, paymentStatus: 'paid' } },
+      { $group: { _id: null, total: { $sum: '$totalAmount' } } }
+    ])
   ]);
 
-  const revenue = orders.filter((o) => o.paymentStatus === 'paid').reduce((sum, o) => sum + o.totalAmount, 0);
+  const revenue: number = revenueAgg[0]?.total || 0;
 
   return ok(res, { user, orders, quotes, services, amc, equipment, revenue });
 });

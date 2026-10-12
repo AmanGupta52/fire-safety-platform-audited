@@ -2,8 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ShoppingCart } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { format } from 'date-fns';
-import { api, apiErrorMessage } from '../../lib/apiClient';
+import { api, toastApiError } from '../../lib/apiClient';
 import { Order, OrderStatus } from '../../types';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { Card, Badge } from '../../components/ui/Primitives';
@@ -13,6 +12,7 @@ import { Select } from '../../components/ui/FormControls';
 import { Modal } from '../../components/ui/Modal';
 import { Button } from '../../components/ui/Button';
 import { useAuthStore } from '../../store/authStore';
+import { formatInr, formatDate, formatDateTime } from '../../lib/format';
 
 const STATUS_OPTIONS: OrderStatus[] = ['pending', 'confirmed', 'processing', 'packed', 'dispatched', 'delivered', 'cancelled', 'refunded'];
 
@@ -20,10 +20,6 @@ const statusTone: Record<OrderStatus, 'neutral' | 'success' | 'warning' | 'dange
   pending: 'warning', confirmed: 'info', processing: 'info', packed: 'info',
   dispatched: 'info', delivered: 'success', cancelled: 'danger', refunded: 'danger'
 };
-
-function formatInr(n: number) {
-  return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n);
-}
 
 export default function OrdersList() {
   const [page, setPage] = useState(1);
@@ -46,7 +42,7 @@ export default function OrdersList() {
     { header: 'Total', render: (o) => formatInr(o.totalAmount) },
     { header: 'Payment', render: (o) => <Badge tone={o.paymentStatus === 'paid' ? 'success' : o.paymentStatus === 'failed' ? 'danger' : 'neutral'}>{o.paymentStatus}</Badge> },
     { header: 'Status', render: (o) => <Badge tone={statusTone[o.status]}>{o.status}</Badge> },
-    { header: 'Date', render: (o) => format(new Date(o.createdAt), 'd MMM yyyy') }
+    { header: 'Date', render: (o) => formatDate(o.createdAt) }
   ];
 
   return (
@@ -92,7 +88,7 @@ function OrderDetailModal({ order, canUpdate, onClose }: { order: Order; canUpda
       queryClient.invalidateQueries({ queryKey: ['orders'] });
       onClose();
     },
-    onError: (err) => toast.error(apiErrorMessage(err))
+    onError: toastApiError
   });
 
   const customer = typeof order.user === 'object' ? order.user : null;
@@ -108,7 +104,7 @@ function OrderDetailModal({ order, canUpdate, onClose }: { order: Order; canUpda
           </div>
           <div>
             <p className="text-xs font-medium text-slateink">Placed on</p>
-            <p className="text-ink">{format(new Date(order.createdAt), 'd MMM yyyy, h:mm a')}</p>
+            <p className="text-ink">{formatDateTime(order.createdAt)}</p>
           </div>
         </div>
 
@@ -116,7 +112,7 @@ function OrderDetailModal({ order, canUpdate, onClose }: { order: Order; canUpda
           <p className="mb-2 text-xs font-medium text-slateink">Items</p>
           <div className="rounded border border-line">
             {order.items.map((item, i) => (
-              <div key={i} className={`flex items-center justify-between px-3 py-2 text-sm ${i > 0 ? 'border-t border-line' : ''}`}>
+              <div key={item.product || item.sku} className={`flex items-center justify-between px-3 py-2 text-sm ${i > 0 ? 'border-t border-line' : ''}`}>
                 <div>
                   <p className="text-ink">{item.name}</p>
                   <p className="text-xs text-slateink">SKU {item.sku} · Qty {item.quantity}</p>

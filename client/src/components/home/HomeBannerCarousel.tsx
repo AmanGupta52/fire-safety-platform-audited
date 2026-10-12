@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Banner } from '../../types';
 
@@ -23,30 +23,24 @@ function isExternalUrl(url: string) {
 export function HomeBannerCarousel({ banners, loading, intervalMs = DEFAULT_ROTATE_MS }: { banners?: Banner[]; loading?: boolean; intervalMs?: number }) {
   const navigate = useNavigate();
   const [active, setActive] = useState(0);
-  const timerRef = useRef<number | undefined>(undefined);
+  // Bumped when the visitor picks a slide by hand, which restarts the auto-advance countdown for that slide.
+  const [restartTick, setRestartTick] = useState(0);
 
   const slides = (banners || []).filter((b) => b.image);
+  const slideCount = slides.length;
 
-  const startTimer = () => {
-    window.clearInterval(timerRef.current);
-    if (slides.length > 1) {
-      timerRef.current = window.setInterval(() => {
-        setActive((prev) => (prev + 1) % slides.length);
-      }, intervalMs);
-    }
-  };
-
+  // Auto-advance. The interval only depends on primitives, so it is created once and is NOT recreated on every
+  // render; the functional state update means it never reads a stale `active`; cleanup stops it on unmount.
   useEffect(() => {
-    startTimer();
-    return () => window.clearInterval(timerRef.current);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [slides.length, intervalMs]);
+    if (slideCount <= 1) return;
+    const id = window.setInterval(() => setActive((prev) => (prev + 1) % slideCount), intervalMs);
+    return () => window.clearInterval(id);
+  }, [slideCount, intervalMs, restartTick]);
 
   // Reset to the first slide if the active index falls out of range (e.g. banner count shrinks).
   useEffect(() => {
-    if (active >= slides.length) setActive(0);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [slides.length]);
+    setActive((prev) => (prev >= slideCount ? 0 : prev));
+  }, [slideCount]);
 
   if (loading || slides.length === 0) return null;
 
@@ -66,7 +60,7 @@ export function HomeBannerCarousel({ banners, loading, intervalMs = DEFAULT_ROTA
   function goTo(index: number, e: React.MouseEvent) {
     e.stopPropagation();
     setActive(index);
-    startTimer();
+    setRestartTick((t) => t + 1);
   }
 
   return (

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Heart, ShoppingCart, FlameKindling, Check } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -8,11 +8,15 @@ import { StarRating, Badge } from '../ui/Primitives';
 import { ImageWithFallback } from '../ui/ImageWithFallback';
 import { useCart } from '../../hooks/useCart';
 import { useWishlist } from '../../hooks/useWishlist';
+import { formatInr } from '../../lib/format';
 
 export function ProductCard({ product }: { product: Product }) {
   const { addToCart, isAdding } = useCart();
   const { isWishlisted, toggleWishlist } = useWishlist();
   const [justAdded, setJustAdded] = useState(false);
+  const justAddedTimer = useRef<number | undefined>(undefined);
+  // Don't leave a timer running (and then set state) if the card unmounts during the 1.5 s "added" flash.
+  useEffect(() => () => window.clearTimeout(justAddedTimer.current), []);
 
   const price = product.discountPrice ?? product.price;
   const hasDiscount = Boolean(product.discountPrice && product.discountPrice < product.price);
@@ -26,7 +30,8 @@ export function ProductCard({ product }: { product: Product }) {
     if (outOfStock || isAdding) return;
     addToCart({ productId: product._id, quantity: product.minimumOrderQuantity });
     setJustAdded(true);
-    window.setTimeout(() => setJustAdded(false), 1500);
+    window.clearTimeout(justAddedTimer.current);
+    justAddedTimer.current = window.setTimeout(() => setJustAdded(false), 1500);
   }
 
   return (
@@ -71,8 +76,8 @@ export function ProductCard({ product }: { product: Product }) {
             <div className="mt-1.5"><StarRating rating={product.ratingAverage} count={product.ratingCount} /></div>
           )}
           <div className="mt-2 flex items-baseline gap-2">
-            <span className="heading text-base font-semibold text-ink">₹{price.toLocaleString('en-IN')}</span>
-            {hasDiscount && <span className="text-sm text-slate-400 line-through">₹{product.price.toLocaleString('en-IN')}</span>}
+            <span className="heading text-base font-semibold text-ink">{formatInr(price)}</span>
+            {hasDiscount && <span className="text-sm text-slate-400 line-through">{formatInr(product.price)}</span>}
           </div>
           <p className={clsx('mt-0.5 text-xs', outOfStock ? 'text-safety' : lowStock ? 'text-safety' : 'text-forest')}>
             {outOfStock ? 'Out of stock' : lowStock ? `Only ${product.stock} left` : 'In stock'}

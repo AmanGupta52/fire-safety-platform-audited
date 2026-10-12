@@ -1,15 +1,15 @@
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { format } from 'date-fns';
 import { ArrowLeft } from 'lucide-react';
 import axios from 'axios';
-import { api, apiErrorMessage } from '../../lib/apiClient';
+import { api, toastApiError } from '../../lib/apiClient';
 import { NotFound404 } from '../errors/StatusPages';
 import { Order } from '../../types';
 import { Card, ErrorState } from '../../components/ui/Primitives';
 import { Button } from '../../components/ui/Button';
 import { TrackingTimeline } from '../../components/tracking/TrackingTimeline';
+import { formatInr, formatDateTime } from '../../lib/format';
 
 const STATUS_STEPS = ['pending', 'confirmed', 'processing', 'packed', 'dispatched', 'delivered'];
 
@@ -69,7 +69,7 @@ export default function OrderDetail() {
   const cancelMutation = useMutation({
     mutationFn: async () => api.post(`/orders/my/${id}/cancel`, { reason: 'Cancelled by customer' }),
     onSuccess: () => { toast.success('Order cancelled'); queryClient.invalidateQueries({ queryKey: ['my-order-detail', id] }); },
-    onError: (err) => toast.error(apiErrorMessage(err))
+    onError: toastApiError
   });
 
   if (isLoading) return <OrderDetailSkeleton />;
@@ -92,7 +92,7 @@ export default function OrderDetail() {
       <div className="flex items-start justify-between">
         <div>
           <h1 className="heading text-xl text-ink">{order.orderNumber}</h1>
-          <p className="mt-1 text-sm text-slateink">Placed on {format(new Date(order.createdAt), 'd MMM yyyy, h:mm a')}</p>
+          <p className="mt-1 text-sm text-slateink">Placed on {formatDateTime(order.createdAt)}</p>
         </div>
         {canCancel && <Button variant="danger" size="sm" loading={cancelMutation.isPending} onClick={() => { if (confirm('Cancel this order?')) cancelMutation.mutate(); }}>Cancel order</Button>}
       </div>
@@ -126,19 +126,19 @@ export default function OrderDetail() {
       <Card className="mt-5 p-5">
         <p className="heading text-sm text-ink">Items</p>
         <div className="mt-3 divide-y divide-line">
-          {order.items.map((item, i) => (
-            <div key={i} className="flex items-center justify-between py-2.5 text-sm">
+          {order.items.map((item) => (
+            <div key={item.product || item.sku} className="flex items-center justify-between py-2.5 text-sm">
               <div><p className="text-ink">{item.name}</p><p className="text-xs text-slateink">Qty {item.quantity}</p></div>
-              <p className="font-medium text-ink">₹{item.lineTotal.toLocaleString('en-IN')}</p>
+              <p className="font-medium text-ink">{formatInr(item.lineTotal)}</p>
             </div>
           ))}
         </div>
         <div className="mt-4 flex flex-col gap-1.5 border-t border-line pt-4 text-sm">
-          <div className="flex justify-between text-slateink"><span>Subtotal</span><span>₹{order.subtotal.toLocaleString('en-IN')}</span></div>
-          {order.discount > 0 && <div className="flex justify-between text-forest"><span>Discount</span><span>-₹{order.discount.toLocaleString('en-IN')}</span></div>}
-          <div className="flex justify-between text-slateink"><span>GST</span><span>₹{order.gstAmount.toLocaleString('en-IN')}</span></div>
+          <div className="flex justify-between text-slateink"><span>Subtotal</span><span>{formatInr(order.subtotal)}</span></div>
+          {order.discount > 0 && <div className="flex justify-between text-forest"><span>Discount</span><span>-{formatInr(order.discount)}</span></div>}
+          <div className="flex justify-between text-slateink"><span>GST</span><span>{formatInr(order.gstAmount)}</span></div>
           <div className="flex justify-between text-slateink"><span>Shipping</span><span>{order.shippingFee === 0 ? 'Free' : `₹${order.shippingFee}`}</span></div>
-          <div className="flex justify-between font-medium text-ink"><span>Total</span><span>₹{order.totalAmount.toLocaleString('en-IN')}</span></div>
+          <div className="flex justify-between font-medium text-ink"><span>Total</span><span>{formatInr(order.totalAmount)}</span></div>
         </div>
       </Card>
 

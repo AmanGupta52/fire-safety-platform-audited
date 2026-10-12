@@ -1,4 +1,4 @@
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { Permission, Role } from '../types';
 import { Forbidden403 } from '../pages/errors/StatusPages';
@@ -9,8 +9,10 @@ export function ProtectedRoute({
   const accessToken = useAuthStore((s) => s.accessToken);
   const hasPermission = useAuthStore((s) => s.hasPermission);
   const user = useAuthStore((s) => s.user);
+  const location = useLocation();
 
-  if (!accessToken) return <Navigate to="/login" replace />;
+  // Remember where they were headed so signing in can take them back there (Login reads state.from).
+  if (!accessToken) return <Navigate to="/login" replace state={{ from: location }} />;
 
   // `permission` checks the signed-in user's effective permissions (role defaults plus any
   // per-user overrides granted in Staff & Roles) — this is what every route should use, since

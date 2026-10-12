@@ -1,10 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
 import { FileBadge, Download } from 'lucide-react';
-import { format } from 'date-fns';
 import { api } from '../../lib/apiClient';
 import { Invoice } from '../../types';
 import { Card, EmptyState, ErrorState } from '../../components/ui/Primitives';
 import { SkeletonList } from '../../components/ui/Skeleton';
+import { formatInr, formatDate } from '../../lib/format';
 
 export default function MyInvoices() {
   const { data, isLoading, isError, refetch } = useQuery({
@@ -28,10 +28,10 @@ export default function MyInvoices() {
             <Card key={inv._id} className="flex items-center justify-between p-4">
               <div>
                 <p className="text-sm font-medium text-ink">{inv.invoiceNumber}</p>
-                <p className="text-xs text-slateink">{format(new Date(inv.createdAt), 'd MMM yyyy')}</p>
+                <p className="text-xs text-slateink">{formatDate(inv.createdAt)}</p>
               </div>
               <div className="flex items-center gap-4">
-                <p className="text-sm font-medium text-ink">₹{inv.grandTotal.toLocaleString('en-IN')}</p>
+                <p className="text-sm font-medium text-ink">{formatInr(inv.grandTotal)}</p>
                 {inv.pdfUrl && (
                   <a href={inv.pdfUrl} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-sm font-medium text-safety hover:underline">
                     <Download className="h-3.5 w-3.5" /> PDF

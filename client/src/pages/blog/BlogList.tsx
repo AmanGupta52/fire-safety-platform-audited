@@ -2,12 +2,14 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Newspaper } from 'lucide-react';
-import { format } from 'date-fns';
+
 import { api } from '../../lib/apiClient';
 import { BlogPost } from '../../types';
 import { Card, EmptyState, ErrorState, Skeleton, SkeletonGroup } from '../../components/ui/Primitives';
 import { ImageWithFallback } from '../../components/ui/ImageWithFallback';
 import { Pagination } from '../../components/ui/Modal';
+import { formatDate } from '../../lib/format';
+import { MetaTags } from '../../components/seo/MetaTags';
 
 function BlogCardSkeleton() {
   return (
@@ -32,6 +34,7 @@ export default function BlogList() {
 
   return (
     <div className="container-page py-10">
+      <MetaTags title="Fire Safety Resources" description="Guides and articles on fire safety, extinguisher maintenance and compliance." />
       <h1 className="heading text-2xl text-ink">Fire safety resources</h1>
       <p className="mt-1 text-sm text-slateink">Guides, checklists and updates from our fire safety team.</p>
 
@@ -54,7 +57,7 @@ export default function BlogList() {
                     {post.category && <p className="text-xs font-medium text-safety">{post.category}</p>}
                     <p className="heading mt-1.5 text-base text-ink">{post.title}</p>
                     {post.excerpt && <p className="mt-2 line-clamp-2 text-sm text-slateink">{post.excerpt}</p>}
-                    {post.publishedAt && <p className="mt-3 text-xs text-slateink">{format(new Date(post.publishedAt), 'd MMM yyyy')}</p>}
+                    {post.publishedAt && <p className="mt-3 text-xs text-slateink">{formatDate(post.publishedAt)}</p>}
                   </div>
                 </Card>
               </Link>

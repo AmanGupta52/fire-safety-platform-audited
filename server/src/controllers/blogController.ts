@@ -2,23 +2,25 @@ import { Request, Response } from 'express';
 import slugify from 'slugify';
 import { BlogPost } from '../models/BlogPost';
 import { asyncHandler } from '../utils/asyncHandler';
+import { publicCache, setPublicCacheHeader } from '../utils/ttlCache';
+import { parsePagination } from '../utils/pagination';
 import { ApiError } from '../utils/ApiError';
 import { ok, created, paginationMeta } from '../utils/apiResponse';
 import { mirrorGalleryImages, removeMirroredGalleryImages } from '../services/galleryMirrorService';
 import { escapeRegex } from '../utils/escapeRegex';
 
 export const listPublishedPosts = asyncHandler(async (req: Request, res: Response) => {
-  const page = Math.max(1, Number(req.query.page) || 1);
-  const limit = Math.min(50, Number(req.query.limit) || 10);
+  const { page, limit, skip } = parsePagination(req, { defaultLimit: 10, maxLimit: 50 });
   const filter: Record<string, unknown> = { isPublished: true };
   if (req.query.category) filter.category = req.query.category;
   if (req.query.q) filter.title = { $regex: escapeRegex(String(req.query.q).slice(0, 80)), $options: 'i' };
 
   const [items, total] = await Promise.all([
-    BlogPost.find(filter).sort({ publishedAt: -1 }).skip((page - 1) * limit).limit(limit)
-      .select('-content'),
+    BlogPost.find(filter).sort({ publishedAt: -1 }).skip(skip).limit(limit)
+      .select('-content').lean(),
     BlogPost.countDocuments(filter)
   ]);
+  setPublicCacheHeader(res);
   return ok(res, items, 'Posts fetched', paginationMeta(page, limit, total));
 });
 
@@ -36,7 +38,7 @@ export const getPostBySlug = asyncHandler(async (req: Request, res: Response) =>
 // ---------- Admin ----------
 
 export const adminListPosts = asyncHandler(async (req: Request, res: Response) => {
-  const posts = await BlogPost.find().sort({ createdAt: -1 });
+  const posts = await BlogPost.find().sort({ createdAt: -1 }).limit(200);
   return ok(res, posts);
 });
 
@@ -50,6 +52,7 @@ export const adminCreatePost = asyncHandler(async (req: Request, res: Response) 
     publishedAt: req.body.isPublished ? new Date() : undefined
   });
   void mirrorGalleryImages({ images: [post.featuredImage], sourceType: 'blog', sourceId: post._id, sourceLabel: post.title });
+  publicCache.deleteByPrefix('sitemap:');
   return created(res, post);
 });
 
@@ -66,6 +69,7 @@ export const adminUpdatePost = asyncHandler(async (req: Request, res: Response) 
   Object.assign(post, req.body);
   await post.save();
   void mirrorGalleryImages({ images: [post.featuredImage], sourceType: 'blog', sourceId: post._id, sourceLabel: post.title });
+  publicCache.deleteByPrefix('sitemap:');
   return ok(res, post, 'Post updated');
 });
 
@@ -73,5 +77,6 @@ export const adminDeletePost = asyncHandler(async (req: Request, res: Response) 
   const post = await BlogPost.findByIdAndDelete(req.params.id);
   if (!post) throw ApiError.notFound('Post not found');
   void removeMirroredGalleryImages('blog', post._id);
+  publicCache.deleteByPrefix('sitemap:');
   return ok(res, {}, 'Post deleted');
 });

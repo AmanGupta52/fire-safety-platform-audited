@@ -7,10 +7,8 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/FormControls';
 import { Card, EmptyState } from '../../components/ui/Primitives';
 import { useAuthStore } from '../../store/authStore';
-
-function formatInr(n: number) {
-  return `₹${n.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
-}
+import { formatInr } from '../../lib/format';
+import { MetaTags } from '../../components/seo/MetaTags';
 
 export default function CartPage() {
   const accessToken = useAuthStore((s) => s.accessToken);
@@ -42,6 +40,7 @@ export default function CartPage() {
 
   return (
     <div className="container-page py-8">
+      <MetaTags title="Your cart" noindex />
       <h1 className="heading text-2xl text-ink">Your cart</h1>
 
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[1fr_340px] lg:items-start">
@@ -49,16 +48,16 @@ export default function CartPage() {
           {cart.items.map((item, i) => (
             <div key={item.product._id} className={clsx('flex items-center gap-4 py-4', i !== cart.items.length - 1 && 'border-b border-line')}>
               <Link to={`/product/${item.product.slug}`} className="h-16 w-16 shrink-0 overflow-hidden rounded-card bg-paper">
-                {item.product.images?.[0]?.url && <img src={item.product.images[0].url} alt="" className="h-full w-full object-cover" />}
+                {item.product.images?.[0]?.url && <img loading="lazy" decoding="async" src={item.product.images[0].url} alt="" className="h-full w-full object-cover" />}
               </Link>
               <div className="min-w-0 flex-1">
                 <Link to={`/product/${item.product.slug}`} className="line-clamp-1 text-sm font-medium text-ink hover:underline">{item.product.name}</Link>
-                <p className="mt-0.5 text-xs text-slateink">₹{(item.product.discountPrice ?? item.product.price).toLocaleString('en-IN')} each</p>
+                <p className="mt-0.5 text-xs text-slateink">{formatInr((item.product.discountPrice ?? item.product.price))} each</p>
               </div>
               <div className="flex items-center rounded-btn border border-line">
-                <button onClick={() => updateQuantity({ productId: item.product._id, quantity: Math.max(item.product.minimumOrderQuantity, item.quantity - 1) })} className="p-2 text-slateink hover:bg-paper"><Minus className="h-3.5 w-3.5" /></button>
+                <button aria-label="Decrease quantity" onClick={() => updateQuantity({ productId: item.product._id, quantity: Math.max(item.product.minimumOrderQuantity, item.quantity - 1) })} className="p-2 text-slateink hover:bg-paper"><Minus className="h-3.5 w-3.5" /></button>
                 <span className="w-8 text-center text-sm">{item.quantity}</span>
-                <button onClick={() => updateQuantity({ productId: item.product._id, quantity: item.quantity + 1 })} className="p-2 text-slateink hover:bg-paper"><Plus className="h-3.5 w-3.5" /></button>
+                <button aria-label="Increase quantity" onClick={() => updateQuantity({ productId: item.product._id, quantity: item.quantity + 1 })} className="p-2 text-slateink hover:bg-paper"><Plus className="h-3.5 w-3.5" /></button>
               </div>
               <p className="w-20 shrink-0 text-right text-sm font-medium text-ink">{formatInr((item.product.discountPrice ?? item.product.price) * item.quantity)}</p>
               <button onClick={() => removeItem(item.product._id)} className="rounded-btn p-2 text-slateink transition-colors hover:text-safety" aria-label="Remove"><Trash2 className="h-4 w-4" /></button>

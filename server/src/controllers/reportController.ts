@@ -9,9 +9,12 @@ import { Technician } from '../models/Technician';
 import { asyncHandler } from '../utils/asyncHandler';
 import { ok } from '../utils/apiResponse';
 import { escapeRegex } from '../utils/escapeRegex';
+import { intParam } from '../utils/pagination';
+import { reportCache, cacheKey, REPORT_TTL_MS } from '../utils/ttlCache';
+import { IST_TIMEZONE, istDayWindow, istStartOfMonth } from '../utils/istTime';
 
-function startOfDay(d = new Date()) { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; }
-function startOfMonth(d = new Date()) { return new Date(d.getFullYear(), d.getMonth(), 1); }
+// "Today" and "this month" mean the Indian calendar day/month (the business runs on IST), not the server's
+// local time, which is UTC on Render.
 
 // SECURITY: CSV/formula injection guard. A customer's name (or any other free-text field) is
 // attacker-controlled and ends up in a CSV that staff open in Excel/Sheets. If a cell's content
@@ -23,101 +26,131 @@ function csvSafe(value: unknown): string {
   return /^[=+\-@\t\r]/.test(str) ? `'${str}` : str;
 }
 
-export const dashboardSummary = asyncHandler(async (_req: Request, res: Response) => {
-  const [
-    totalRevenueAgg, todayRevenueAgg, monthRevenueAgg,
-    totalOrders, pendingOrders, pendingQuotes, activeCustomers,
-    amcDue, servicesToday, lowStockCount
-  ] = await Promise.all([
-    Order.aggregate([{ $match: { paymentStatus: 'paid' } }, { $group: { _id: null, total: { $sum: '$totalAmount' } } }]),
-    Order.aggregate([{ $match: { paymentStatus: 'paid', createdAt: { $gte: startOfDay() } } }, { $group: { _id: null, total: { $sum: '$totalAmount' } } }]),
-    Order.aggregate([{ $match: { paymentStatus: 'paid', createdAt: { $gte: startOfMonth() } } }, { $group: { _id: null, total: { $sum: '$totalAmount' } } }]),
-    Order.countDocuments(),
-    Order.countDocuments({ status: 'pending' }),
-    Quote.countDocuments({ status: { $in: ['requested', 'reviewing'] } }),
-    User.countDocuments({ role: 'customer', isActive: true }),
-    AMCContract.countDocuments({ endDate: { $lte: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) }, status: { $in: ['active', 'expiring_soon'] } }),
-    ServiceBooking.countDocuments({ preferredDate: { $gte: startOfDay(), $lt: new Date(startOfDay().getTime() + 86400000) } }),
-    Product.countDocuments({ isActive: true, stock: { $lte: 5 } })
-  ]);
+export const dashboardSummary = asyncHandler(async (req: Request, res: Response) => {
+  // Same numbers for every report reader, so a short server-side cache is safe (key includes the query string).
+  const data = await reportCache.wrap(cacheKey('dashboardSummary', req), REPORT_TTL_MS, async () => {
+    const today = istDayWindow();
+    const monthStart = istStartOfMonth();
+    const [
+      totalRevenueAgg, todayRevenueAgg, monthRevenueAgg,
+      totalOrders, pendingOrders, pendingQuotes, activeCustomers,
+      amcDue, servicesToday, lowStockCount
+    ] = await Promise.all([
+      Order.aggregate([{ $match: { paymentStatus: 'paid' } }, { $group: { _id: null, total: { $sum: '$totalAmount' } } }]),
+      Order.aggregate([{ $match: { paymentStatus: 'paid', createdAt: { $gte: today.start } } }, { $group: { _id: null, total: { $sum: '$totalAmount' } } }]),
+      Order.aggregate([{ $match: { paymentStatus: 'paid', createdAt: { $gte: monthStart } } }, { $group: { _id: null, total: { $sum: '$totalAmount' } } }]),
+      Order.countDocuments(),
+      Order.countDocuments({ status: 'pending' }),
+      Quote.countDocuments({ status: { $in: ['requested', 'reviewing'] } }),
+      User.countDocuments({ role: 'customer', isActive: true }),
+      AMCContract.countDocuments({ endDate: { $lte: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) }, status: { $in: ['active', 'expiring_soon'] } }),
+      ServiceBooking.countDocuments({ preferredDate: { $gte: today.start, $lt: today.end } }),
+      Product.countDocuments({ isActive: true, stock: { $lte: 5 } })
+    ]);
 
-  return ok(res, {
-    totalRevenue: totalRevenueAgg[0]?.total || 0,
-    todayRevenue: todayRevenueAgg[0]?.total || 0,
-    monthlyRevenue: monthRevenueAgg[0]?.total || 0,
-    totalOrders, pendingOrders, pendingQuotes, activeCustomers,
-    amcDue, servicesToday, lowStockProducts: lowStockCount
+    return {
+      totalRevenue: totalRevenueAgg[0]?.total || 0,
+      todayRevenue: todayRevenueAgg[0]?.total || 0,
+      monthlyRevenue: monthRevenueAgg[0]?.total || 0,
+      totalOrders, pendingOrders, pendingQuotes, activeCustomers,
+      amcDue, servicesToday, lowStockProducts: lowStockCount
+    };
   });
-});
-
-export const revenueChart = asyncHandler(async (req: Request, res: Response) => {
-  const days = Number(req.query.days) || 30;
-  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
-
-  const data = await Order.aggregate([
-    { $match: { paymentStatus: 'paid', createdAt: { $gte: since } } },
-    { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } }, revenue: { $sum: '$totalAmount' }, orders: { $sum: 1 } } },
-    { $sort: { _id: 1 } }
-  ]);
   return ok(res, data);
 });
 
-export const salesByCategory = asyncHandler(async (_req: Request, res: Response) => {
-  const data = await Order.aggregate([
-    { $match: { paymentStatus: 'paid' } },
-    { $unwind: '$items' },
-    { $lookup: { from: 'products', localField: 'items.product', foreignField: '_id', as: 'product' } },
-    { $unwind: '$product' },
-    { $lookup: { from: 'categories', localField: 'product.category', foreignField: '_id', as: 'category' } },
-    { $unwind: '$category' },
-    { $group: { _id: '$category.name', revenue: { $sum: '$items.lineTotal' }, unitsSold: { $sum: '$items.quantity' } } },
-    { $sort: { revenue: -1 } }
-  ]);
+export const revenueChart = asyncHandler(async (req: Request, res: Response) => {
+  // Same numbers for every report reader, so a short server-side cache is safe (key includes the query string).
+  const data = await reportCache.wrap(cacheKey('revenueChart', req), REPORT_TTL_MS, async () => {
+    const days = intParam(req.query.days, { def: 30, max: 365 });
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+    const data = await Order.aggregate([
+      { $match: { paymentStatus: 'paid', createdAt: { $gte: since } } },
+      { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt', timezone: IST_TIMEZONE } }, revenue: { $sum: '$totalAmount' }, orders: { $sum: 1 } } },
+      { $sort: { _id: 1 } }
+    ]);
+    return data;
+  });
+  return ok(res, data);
+});
+
+export const salesByCategory = asyncHandler(async (req: Request, res: Response) => {
+  // Same numbers for every report reader, so a short server-side cache is safe (key includes the query string).
+  const data = await reportCache.wrap(cacheKey('salesByCategory', req), REPORT_TTL_MS, async () => {
+    const data = await Order.aggregate([
+      { $match: { paymentStatus: 'paid' } },
+      { $unwind: '$items' },
+      { $lookup: { from: 'products', localField: 'items.product', foreignField: '_id', as: 'product' } },
+      { $unwind: '$product' },
+      { $lookup: { from: 'categories', localField: 'product.category', foreignField: '_id', as: 'category' } },
+      { $unwind: '$category' },
+      { $group: { _id: '$category.name', revenue: { $sum: '$items.lineTotal' }, unitsSold: { $sum: '$items.quantity' } } },
+      { $sort: { revenue: -1 } }
+    ]);
+    return data;
+  });
   return ok(res, data);
 });
 
 export const topProducts = asyncHandler(async (req: Request, res: Response) => {
-  const limit = Number(req.query.limit) || 10;
-  const data = await Order.aggregate([
-    { $match: { paymentStatus: 'paid' } },
-    { $unwind: '$items' },
-    { $group: { _id: '$items.product', name: { $first: '$items.name' }, revenue: { $sum: '$items.lineTotal' }, unitsSold: { $sum: '$items.quantity' } } },
-    { $sort: { revenue: -1 } },
-    { $limit: limit }
-  ]);
+  // Same numbers for every report reader, so a short server-side cache is safe (key includes the query string).
+  const data = await reportCache.wrap(cacheKey('topProducts', req), REPORT_TTL_MS, async () => {
+    const limit = intParam(req.query.limit, { def: 10, max: 100 });
+    const data = await Order.aggregate([
+      { $match: { paymentStatus: 'paid' } },
+      { $unwind: '$items' },
+      { $group: { _id: '$items.product', name: { $first: '$items.name' }, revenue: { $sum: '$items.lineTotal' }, unitsSold: { $sum: '$items.quantity' } } },
+      { $sort: { revenue: -1 } },
+      { $limit: limit }
+    ]);
+    return data;
+  });
   return ok(res, data);
 });
 
 export const topCustomers = asyncHandler(async (req: Request, res: Response) => {
-  const limit = Number(req.query.limit) || 10;
-  const data = await Order.aggregate([
-    { $match: { paymentStatus: 'paid' } },
-    { $group: { _id: '$user', totalSpent: { $sum: '$totalAmount' }, orderCount: { $sum: 1 } } },
-    { $sort: { totalSpent: -1 } },
-    { $limit: limit },
-    { $lookup: { from: 'users', localField: '_id', foreignField: '_id', as: 'user' } },
-    { $unwind: '$user' },
-    { $project: { name: '$user.name', email: '$user.email', totalSpent: 1, orderCount: 1 } }
-  ]);
+  // Same numbers for every report reader, so a short server-side cache is safe (key includes the query string).
+  const data = await reportCache.wrap(cacheKey('topCustomers', req), REPORT_TTL_MS, async () => {
+    const limit = intParam(req.query.limit, { def: 10, max: 100 });
+    const data = await Order.aggregate([
+      { $match: { paymentStatus: 'paid' } },
+      { $group: { _id: '$user', totalSpent: { $sum: '$totalAmount' }, orderCount: { $sum: 1 } } },
+      { $sort: { totalSpent: -1 } },
+      { $limit: limit },
+      { $lookup: { from: 'users', localField: '_id', foreignField: '_id', as: 'user' } },
+      { $unwind: '$user' },
+      { $project: { name: '$user.name', email: '$user.email', totalSpent: 1, orderCount: 1 } }
+    ]);
+    return data;
+  });
   return ok(res, data);
 });
 
-export const amcRenewalRate = asyncHandler(async (_req: Request, res: Response) => {
-  const [expired, renewed] = await Promise.all([
-    AMCContract.countDocuments({ status: 'expired' }),
-    AMCContract.countDocuments({ status: 'renewed' })
-  ]);
-  const total = expired + renewed;
-  return ok(res, { expired, renewed, renewalRate: total ? Math.round((renewed / total) * 100) : 0 });
+export const amcRenewalRate = asyncHandler(async (req: Request, res: Response) => {
+  // Same numbers for every report reader, so a short server-side cache is safe (key includes the query string).
+  const data = await reportCache.wrap(cacheKey('amcRenewalRate', req), REPORT_TTL_MS, async () => {
+    const [expired, renewed] = await Promise.all([
+      AMCContract.countDocuments({ status: 'expired' }),
+      AMCContract.countDocuments({ status: 'renewed' })
+    ]);
+    const total = expired + renewed;
+    return { expired, renewed, renewalRate: total ? Math.round((renewed / total) * 100) : 0 };
+  });
+  return ok(res, data);
 });
 
-export const serviceCompletionRate = asyncHandler(async (_req: Request, res: Response) => {
-  const [total, completed, pending] = await Promise.all([
-    ServiceBooking.countDocuments(),
-    ServiceBooking.countDocuments({ status: 'completed' }),
-    ServiceBooking.countDocuments({ status: { $nin: ['completed', 'cancelled'] } })
-  ]);
-  return ok(res, { total, completed, pending, completionRate: total ? Math.round((completed / total) * 100) : 0 });
+export const serviceCompletionRate = asyncHandler(async (req: Request, res: Response) => {
+  // Same numbers for every report reader, so a short server-side cache is safe (key includes the query string).
+  const data = await reportCache.wrap(cacheKey('serviceCompletionRate', req), REPORT_TTL_MS, async () => {
+    const [total, completed, pending] = await Promise.all([
+      ServiceBooking.countDocuments(),
+      ServiceBooking.countDocuments({ status: 'completed' }),
+      ServiceBooking.countDocuments({ status: { $nin: ['completed', 'cancelled'] } })
+    ]);
+    return { total, completed, pending, completionRate: total ? Math.round((completed / total) * 100) : 0 };
+  });
+  return ok(res, data);
 });
 
 // CSV export helper: simple, dependency-light CSV builder (no xlsx needed server-side for exports).
@@ -148,119 +181,127 @@ export const dashboardV2 = asyncHandler(async (req: Request, res: Response) => {
   // reports.read still sees the name and plan.
   const canSeeCustomerContacts =
     req.user!.role === 'super_admin' || (req.user!.permissions as string[]).includes('customers.read');
-  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-  const nextThirtyDays = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+  // The response depends on the caller's permission (customer contact details), so that level is part of the cache
+  // key: a reader without customers.read can never be served the version that includes phone numbers and emails.
+  const key = `${cacheKey('dashboardV2', req)}|contacts=${canSeeCustomerContacts}`;
+  const data = await reportCache.wrap(key, REPORT_TTL_MS, async () => {
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const nextThirtyDays = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
-  const [
-    revenueTrend,
-    jobsByStatusAgg,
-    amcRenewalsDue,
-    lowStockItems,
-    technicians,
-    activeJobsCount,
-    completedJobsCount
-  ] = await Promise.all([
-    // 1. Revenue trend over last 30 days
-    Order.aggregate([
-      { $match: { paymentStatus: 'paid', createdAt: { $gte: thirtyDaysAgo } } },
-      {
-        $group: {
-          _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
-          revenue: { $sum: '$totalAmount' },
-          orders: { $sum: 1 }
-        }
-      },
-      { $sort: { _id: 1 } }
-    ]),
-
-    // 2. Jobs by status
-    ServiceBooking.aggregate([
-      { $group: { _id: '$status', count: { $sum: 1 } } }
-    ]),
-
-    // 3. AMC renewals due in 30 days
-    AMCContract.find({
-      endDate: { $gte: new Date(), $lte: nextThirtyDays },
-      status: { $in: ['active', 'expiring_soon'] }
-    })
-      .populate('user', canSeeCustomerContacts ? 'name email phone' : 'name')
-      .select('planName endDate status user')
-      .sort({ endDate: 1 })
-      .limit(10),
-
-    // 4. Low stock inventory
-    Product.find({ isActive: true, stock: { $lte: 5 } })
-      .populate('category', 'name')
-      .select('name sku stock price category')
-      .sort({ stock: 1 })
-      .limit(10),
-
-    // 5. Active technicians for utilisation tracking
-    Technician.find({ status: 'active' }).select('name phone email skills'),
-
-    // Total active jobs
-    ServiceBooking.countDocuments({ status: { $in: ['assigned', 'technician_on_the_way', 'in_progress'] } }),
-
-    // Total completed jobs this month
-    ServiceBooking.countDocuments({ status: 'completed', completedAt: { $gte: thirtyDaysAgo } })
-  ]);
-
-  // Format jobs by status dictionary
-  const jobsByStatus: Record<string, number> = {
-    requested: 0,
-    confirmed: 0,
-    assigned: 0,
-    technician_on_the_way: 0,
-    in_progress: 0,
-    completed: 0,
-    cancelled: 0,
-    rejected: 0
-  };
-  jobsByStatusAgg.forEach((item) => {
-    if (item._id) jobsByStatus[item._id] = item.count;
-  });
-
-  // Calculate technician utilisation metrics
-  const technicianUtilisation = await Promise.all(
-    technicians.map(async (t) => {
-      const [currentAssigned, completedRecent] = await Promise.all([
-        ServiceBooking.countDocuments({
-          assignedTechnician: t._id,
-          status: { $in: ['assigned', 'technician_on_the_way', 'in_progress'] }
-        }),
-        ServiceBooking.countDocuments({
-          assignedTechnician: t._id,
-          status: 'completed',
-          completedAt: { $gte: thirtyDaysAgo }
-        })
-      ]);
-      // The Technician model has no per-person capacity field, so one shared setting is used for everyone.
-      const maxLoad = TECHNICIAN_MAX_CONCURRENT_JOBS;
-      const loadPercentage = Math.min(100, Math.round((currentAssigned / maxLoad) * 100));
-      return {
-        id: t._id,
-        name: t.name,
-        phone: t.phone,
-        skills: t.skills || [],
-        currentAssigned,
-        completedRecent,
-        maxLoad,
-        loadPercentage
-      };
-    })
-  );
-
-  return ok(res, {
-    revenueTrend,
-    jobsByStatus,
-    amcRenewalsDue,
-    lowStockItems,
-    technicianUtilisation,
-    summary: {
+    const [
+      revenueTrend,
+      jobsByStatusAgg,
+      amcRenewalsDue,
+      lowStockItems,
+      technicians,
       activeJobsCount,
       completedJobsCount
-    }
+    ] = await Promise.all([
+      // 1. Revenue trend over last 30 days
+      Order.aggregate([
+        { $match: { paymentStatus: 'paid', createdAt: { $gte: thirtyDaysAgo } } },
+        {
+          $group: {
+            _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt', timezone: IST_TIMEZONE } },
+            revenue: { $sum: '$totalAmount' },
+            orders: { $sum: 1 }
+          }
+        },
+        { $sort: { _id: 1 } }
+      ]),
+
+      // 2. Jobs by status
+      ServiceBooking.aggregate([
+        { $group: { _id: '$status', count: { $sum: 1 } } }
+      ]),
+
+      // 3. AMC renewals due in 30 days
+      AMCContract.find({
+        endDate: { $gte: new Date(), $lte: nextThirtyDays },
+        status: { $in: ['active', 'expiring_soon'] }
+      })
+        .populate('user', canSeeCustomerContacts ? 'name email phone' : 'name')
+        .select('planName endDate status user')
+        .sort({ endDate: 1 })
+        .limit(10)
+        .lean(),
+
+      // 4. Low stock inventory
+      Product.find({ isActive: true, stock: { $lte: 5 } })
+        .populate('category', 'name')
+        .select('name sku stock price category')
+        .sort({ stock: 1 })
+        .limit(10)
+        .lean(),
+
+      // 5. Active technicians for utilisation tracking
+      Technician.find({ status: 'active' }).select('name phone email skills').lean(),
+
+      // Total active jobs
+      ServiceBooking.countDocuments({ status: { $in: ['assigned', 'technician_on_the_way', 'in_progress'] } }),
+
+      // Total completed jobs this month
+      ServiceBooking.countDocuments({ status: 'completed', completedAt: { $gte: thirtyDaysAgo } })
+    ]);
+
+    // Format jobs by status dictionary
+    const jobsByStatus: Record<string, number> = {
+      requested: 0,
+      confirmed: 0,
+      assigned: 0,
+      technician_on_the_way: 0,
+      in_progress: 0,
+      completed: 0,
+      cancelled: 0,
+      rejected: 0
+    };
+    jobsByStatusAgg.forEach((item) => {
+      if (item._id) jobsByStatus[item._id] = item.count;
+    });
+
+    // Calculate technician utilisation metrics
+    const technicianUtilisation = await Promise.all(
+      technicians.map(async (t) => {
+        const [currentAssigned, completedRecent] = await Promise.all([
+          ServiceBooking.countDocuments({
+            assignedTechnician: t._id,
+            status: { $in: ['assigned', 'technician_on_the_way', 'in_progress'] }
+          }),
+          ServiceBooking.countDocuments({
+            assignedTechnician: t._id,
+            status: 'completed',
+            completedAt: { $gte: thirtyDaysAgo }
+          })
+        ]);
+        // The Technician model has no per-person capacity field, so one shared setting is used for everyone.
+        const maxLoad = TECHNICIAN_MAX_CONCURRENT_JOBS;
+        const loadPercentage = Math.min(100, Math.round((currentAssigned / maxLoad) * 100));
+        return {
+          id: t._id,
+          name: t.name,
+          phone: t.phone,
+          skills: t.skills || [],
+          currentAssigned,
+          completedRecent,
+          maxLoad,
+          loadPercentage
+        };
+      })
+    );
+
+    return {
+      revenueTrend,
+      jobsByStatus,
+      amcRenewalsDue,
+      lowStockItems,
+      technicianUtilisation,
+      summary: {
+        activeJobsCount,
+        completedJobsCount
+      }
+    };
   });
+  return ok(res, data);
 });
 
 // ============================================================================

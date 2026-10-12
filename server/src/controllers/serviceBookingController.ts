@@ -7,6 +7,7 @@ import { CustomerEquipment } from '../models/CustomerEquipment';
 import { Setting } from '../models/AuditLog';
 import { Service } from '../models/Service';
 import { asyncHandler } from '../utils/asyncHandler';
+import { parsePagination } from '../utils/pagination';
 import { ApiError } from '../utils/ApiError';
 import { escapeRegex } from '../utils/escapeRegex';
 import { ok, created, paginationMeta } from '../utils/apiResponse';
@@ -308,8 +309,7 @@ export const getAvailableSlots = asyncHandler(async (req: Request, res: Response
 // ------------------------------------------------------------------------------------------------
 
 export const adminListServiceBookings = asyncHandler(async (req: Request, res: Response) => {
-  const page = Math.max(1, Number(req.query.page) || 1);
-  const limit = Math.min(100, Number(req.query.limit) || 20);
+  const { page, limit, skip } = parsePagination(req, { defaultLimit: 20, maxLimit: 100 });
   const filter: Record<string, unknown> = {};
 
   // Technicians see only their own assigned jobs, never the whole customer list.
@@ -335,7 +335,7 @@ export const adminListServiceBookings = asyncHandler(async (req: Request, res: R
       .populate('assignedTechnician', 'name phone')
       .populate('service', 'name slug startingPrice priceUnit')
       .sort({ preferredDate: 1 })
-      .skip((page - 1) * limit)
+      .skip(skip)
       .limit(limit),
     ServiceBooking.countDocuments(filter)
   ]);

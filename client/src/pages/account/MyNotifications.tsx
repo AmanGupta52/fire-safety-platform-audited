@@ -1,11 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Bell } from 'lucide-react';
-import { format } from 'date-fns';
+
 import clsx from 'clsx';
 import { api } from '../../lib/apiClient';
 import { AppNotification } from '../../types';
 import { Card, EmptyState, ErrorState, Skeleton, SkeletonGroup } from '../../components/ui/Primitives';
 import { Button } from '../../components/ui/Button';
+import { formatDateTime } from '../../lib/format';
 
 export default function MyNotifications() {
   const queryClient = useQueryClient();
@@ -31,7 +32,7 @@ export default function MyNotifications() {
     <div>
       <div className="flex items-center justify-between">
         <h1 className="heading text-xl text-ink">Notifications</h1>
-        {Boolean(data?.unreadCount) && <Button variant="secondary" size="sm" onClick={() => markAllMutation.mutate()}>Mark all as read</Button>}
+        {Boolean(data?.unreadCount) && <Button loading={markAllMutation.isPending} variant="secondary" size="sm" onClick={() => markAllMutation.mutate()}>Mark all as read</Button>}
       </div>
 
       {isLoading ? (
@@ -54,7 +55,7 @@ export default function MyNotifications() {
             <Card key={n._id} className={clsx('cursor-pointer p-4', !n.isRead && 'border-l-4 border-l-safety')} onClick={() => !n.isRead && markOneMutation.mutate(n._id)}>
               <p className="text-sm font-medium text-ink">{n.title}</p>
               <p className="mt-0.5 text-sm text-slateink">{n.message}</p>
-              <p className="mt-1.5 text-xs text-slateink">{format(new Date(n.createdAt), 'd MMM yyyy, h:mm a')}</p>
+              <p className="mt-1.5 text-xs text-slateink">{formatDateTime(n.createdAt)}</p>
             </Card>
           ))}
         </div>

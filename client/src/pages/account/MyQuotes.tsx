@@ -1,12 +1,13 @@
 import { useQuery } from '@tanstack/react-query';
 import { FileText } from 'lucide-react';
-import { format } from 'date-fns';
+
 import { api } from '../../lib/apiClient';
 import { Quote } from '../../types';
 import { Card, Badge, EmptyState, ErrorState } from '../../components/ui/Primitives';
 import { SkeletonList } from '../../components/ui/Skeleton';
 import { Link } from 'react-router-dom';
 import { Button } from '../../components/ui/Button';
+import { formatDate } from '../../lib/format';
 
 const statusTone: Record<string, 'neutral' | 'success' | 'warning' | 'danger' | 'info'> = {
   requested: 'warning', reviewing: 'info', sent: 'info', approved: 'success', rejected: 'danger', converted: 'success'
@@ -37,7 +38,7 @@ export default function MyQuotes() {
             <Card key={q._id} className="flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-sm font-medium text-ink">{q.quoteNumber}</p>
-                <p className="text-xs text-slateink">{format(new Date(q.createdAt), 'd MMM yyyy')} · {q.items.length} item{q.items.length !== 1 ? 's' : ''}</p>
+                <p className="text-xs text-slateink">{formatDate(q.createdAt)} · {q.items.length} item{q.items.length !== 1 ? 's' : ''}</p>
               </div>
               <div className="flex items-center gap-3">
                 <Badge tone={statusTone[q.status]}>{q.status}</Badge>

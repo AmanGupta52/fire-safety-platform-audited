@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { Image as ImageIcon, Plus, Pencil, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { api, apiErrorMessage } from '../../lib/apiClient';
+import { api, toastApiError } from '../../lib/apiClient';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/FormControls';
@@ -44,11 +44,11 @@ export default function BannersList() {
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => api.delete(`/banners/${id}`),
     onSuccess: () => { toast.success('Banner deleted'); queryClient.invalidateQueries({ queryKey: ['banners-admin'] }); },
-    onError: (err) => toast.error(apiErrorMessage(err))
+    onError: toastApiError
   });
 
   const columns: Column<Banner>[] = [
-    { header: '', render: (b) => <img src={b.image} alt={b.title} className="h-10 w-16 rounded object-cover" /> },
+    { header: '', render: (b) => <img loading="lazy" decoding="async" src={b.image} alt={b.title} className="h-10 w-16 rounded object-cover" /> },
     { header: 'Title', render: (b) => <span className="font-medium text-ink">{b.title}</span> },
     { header: 'Link', render: (b) => b.linkUrl || '—' },
     { header: 'Sort order', render: (b) => b.sortOrder },
@@ -57,8 +57,8 @@ export default function BannersList() {
       header: '', className: 'text-right',
       render: (b) => (
         <div className="flex justify-end gap-1">
-          <button onClick={() => setEditing(b)} className="rounded p-1.5 text-slateink hover:bg-paper"><Pencil className="h-3.5 w-3.5" /></button>
-          <button onClick={() => { if (confirm('Delete this banner?')) deleteMutation.mutate(b._id); }} className="rounded p-1.5 text-brand hover:bg-brand-light"><Trash2 className="h-3.5 w-3.5" /></button>
+          <button aria-label="Edit" onClick={() => setEditing(b)} className="rounded p-1.5 text-slateink hover:bg-paper"><Pencil className="h-3.5 w-3.5" /></button>
+          <button aria-label="Delete" disabled={deleteMutation.isPending} onClick={() => { if (confirm('Delete this banner?')) deleteMutation.mutate(b._id); }} className="rounded p-1.5 text-brand hover:bg-brand-light"><Trash2 className="h-3.5 w-3.5" /></button>
         </div>
       )
     }
@@ -94,7 +94,7 @@ function BannerForm({ banner, onClose }: { banner: Banner | null; onClose: () =>
       return isEdit && banner ? api.put(`/banners/${banner._id}`, payload) : api.post('/banners', payload);
     },
     onSuccess: () => { toast.success(isEdit ? 'Banner updated' : 'Banner added'); queryClient.invalidateQueries({ queryKey: ['banners-admin'] }); onClose(); },
-    onError: (err) => toast.error(apiErrorMessage(err))
+    onError: toastApiError
   });
 
   return (

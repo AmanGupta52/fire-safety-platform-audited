@@ -1,35 +1,13 @@
 import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
-import { useEffect } from 'react';
+import { Suspense, useEffect } from 'react';
 import { AppLayout } from './components/layout/AppLayout';
 import { ProtectedRoute } from './routes/ProtectedRoute';
 import { setNavigate } from './lib/navigation';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { Login, ResetPassword, Dashboard, ProductsList, CategoriesList, OrdersList, InvoicesList, QuotesList, ServicesList, BookingsList, TechniciansList, EquipmentList, MyJobs, AmcList, CustomersList, ReviewsList, CouponsList, BlogList, BannersList, GalleryList, FaqList, StaffList, SettingsPage, AuditLogPage, ReportsPage } from './routes/lazyPages';
+import { PageLoader } from './components/ui/Primitives';
+import { ServerWakingBanner } from './components/ui/ServerWakingBanner';
 
-import Login from './pages/auth/Login';
-import ResetPassword from './pages/auth/ResetPassword';
-import Dashboard from './pages/dashboard/Dashboard';
-import ProductsList from './pages/products/ProductsList';
-import CategoriesList from './pages/categories/CategoriesList';
-import OrdersList from './pages/orders/OrdersList';
-import InvoicesList from './pages/invoices/InvoicesList';
-import QuotesList from './pages/quotes/QuotesList';
-import ServicesList from './pages/services/ServicesList';
-import BookingsList from './pages/bookings/BookingsList';
-import TechniciansList from './pages/technicians/TechniciansList';
-import EquipmentList from './pages/equipment/EquipmentList';
-import MyJobs from './pages/my-jobs/MyJobs';
-import AmcList from './pages/amc/AmcList';
-import CustomersList from './pages/customers/CustomersList';
-import ReviewsList from './pages/reviews/ReviewsList';
-import CouponsList from './pages/coupons/CouponsList';
-import BlogList from './pages/blog/BlogList';
-import BannersList from './pages/content/BannersList';
-import GalleryList from './pages/content/GalleryList';
-import FaqList from './pages/content/FaqList';
-import StaffList from './pages/staff/StaffList';
-import SettingsPage from './pages/settings/Settings';
-import AuditLogPage from './pages/audit/AuditLogPage';
-import ReportsPage from './pages/reports/ReportsPage';
 import { Unauthorized401, Forbidden403, NotFound404, ServerError500, ServiceUnavailable503 } from './pages/errors/StatusPages';
 
 // Registers the router's navigate() function for apiClient.ts to use when a 401/403/500/503
@@ -44,7 +22,9 @@ export default function App() {
   return (
     <BrowserRouter>
       <NavigateRegistrar />
+      <ServerWakingBanner />
       <ErrorBoundary>
+        <Suspense fallback={<PageLoader />}>
         <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/reset-password" element={<ResetPassword />} />
@@ -90,6 +70,7 @@ export default function App() {
           <Route path="*" element={<NotFound404 />} />
         </Route>
         </Routes>
+        </Suspense>
       </ErrorBoundary>
     </BrowserRouter>
   );

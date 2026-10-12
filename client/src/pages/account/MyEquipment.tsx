@@ -3,13 +3,14 @@ import { useForm } from 'react-hook-form';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { FlameKindling, Plus, QrCode } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { format } from 'date-fns';
-import { api, apiErrorMessage } from '../../lib/apiClient';
+
+import { api, toastApiError } from '../../lib/apiClient';
 import { CustomerEquipment, EquipmentStatus } from '../../types';
 import { Card, Badge, EmptyState, ErrorState, Skeleton, SkeletonGroup } from '../../components/ui/Primitives';
 import { Button } from '../../components/ui/Button';
 import { Input, Textarea } from '../../components/ui/FormControls';
 import { Modal } from '../../components/ui/Modal';
+import { formatDate } from '../../lib/format';
 
 const statusTone: Record<EquipmentStatus, 'neutral' | 'success' | 'warning' | 'danger'> = {
   healthy: 'success', inspection_due_soon: 'warning', refill_due_soon: 'warning', overdue: 'danger'
@@ -42,7 +43,7 @@ export default function MyEquipment() {
       reset();
       setShowForm(false);
     },
-    onError: (err) => toast.error(apiErrorMessage(err))
+    onError: toastApiError
   });
 
   return (
@@ -89,8 +90,8 @@ export default function MyEquipment() {
               </div>
               {e.installationLocation && <p className="mt-2 text-xs text-slateink">Location: {e.installationLocation}</p>}
               <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-                {e.nextInspectionDate && <div><p className="text-slateink">Next inspection</p><p className="text-ink">{format(new Date(e.nextInspectionDate), 'd MMM yyyy')}</p></div>}
-                {e.nextRefillDate && <div><p className="text-slateink">Next refill</p><p className="text-ink">{format(new Date(e.nextRefillDate), 'd MMM yyyy')}</p></div>}
+                {e.nextInspectionDate && <div><p className="text-slateink">Next inspection</p><p className="text-ink">{formatDate(e.nextInspectionDate)}</p></div>}
+                {e.nextRefillDate && <div><p className="text-slateink">Next refill</p><p className="text-ink">{formatDate(e.nextRefillDate)}</p></div>}
               </div>
               <div className="mt-4 pt-3 border-t border-line flex items-center justify-between">
                 <span className="text-[11px] text-slateink uppercase tracking-wider font-semibold">Digital Passport</span>

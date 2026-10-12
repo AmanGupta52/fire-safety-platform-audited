@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Wrench, Plus, Search, Pencil, Trash2, RotateCcw, ArrowUp, ArrowDown, Star } from 'lucide-react';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
-import { api, apiErrorMessage } from '../../lib/apiClient';
+import { api, toastApiError } from '../../lib/apiClient';
 import { Service, ServiceImage } from '../../types';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { Card, Badge } from '../../components/ui/Primitives';
@@ -12,6 +12,7 @@ import { Select, Input } from '../../components/ui/FormControls';
 import { Button } from '../../components/ui/Button';
 import { useAuthStore } from '../../store/authStore';
 import ServiceFormModal from './ServiceFormModal';
+import { formatInr } from '../../lib/format';
 
 const CATEGORY_OPTIONS = [
   { label: 'All Categories', value: '' },
@@ -58,7 +59,7 @@ export default function ServicesList() {
       toast.success('Service status updated');
       queryClient.invalidateQueries({ queryKey: ['admin-services'] });
     },
-    onError: (err) => toast.error(apiErrorMessage(err))
+    onError: toastApiError
   });
 
   const publishMutation = useMutation({
@@ -68,7 +69,7 @@ export default function ServicesList() {
       toast.success('Publish status updated');
       queryClient.invalidateQueries({ queryKey: ['admin-services'] });
     },
-    onError: (err) => toast.error(apiErrorMessage(err))
+    onError: toastApiError
   });
 
   const featureMutation = useMutation({
@@ -78,7 +79,7 @@ export default function ServicesList() {
       toast.success('Featured status updated');
       queryClient.invalidateQueries({ queryKey: ['admin-services'] });
     },
-    onError: (err) => toast.error(apiErrorMessage(err))
+    onError: toastApiError
   });
 
   const deleteMutation = useMutation({
@@ -87,7 +88,7 @@ export default function ServicesList() {
       toast.success('Service soft-deleted');
       queryClient.invalidateQueries({ queryKey: ['admin-services'] });
     },
-    onError: (err) => toast.error(apiErrorMessage(err))
+    onError: toastApiError
   });
 
   const restoreMutation = useMutation({
@@ -96,7 +97,7 @@ export default function ServicesList() {
       toast.success('Service restored');
       queryClient.invalidateQueries({ queryKey: ['admin-services'] });
     },
-    onError: (err) => toast.error(apiErrorMessage(err))
+    onError: toastApiError
   });
 
   const reorderMutation = useMutation({
@@ -106,7 +107,7 @@ export default function ServicesList() {
       toast.success('Order saved');
       queryClient.invalidateQueries({ queryKey: ['admin-services'] });
     },
-    onError: (err) => toast.error(apiErrorMessage(err))
+    onError: toastApiError
   });
 
   function handleMove(index: number, direction: 'up' | 'down') {
@@ -133,7 +134,7 @@ export default function ServicesList() {
         return (
           <div className="flex items-center gap-3">
             {imgUrl ? (
-              <img src={imgUrl} alt={s.name} className="h-10 w-10 rounded border border-line object-cover" />
+              <img loading="lazy" decoding="async" src={imgUrl} alt={s.name} className="h-10 w-10 rounded border border-line object-cover" />
             ) : (
               <div className="flex h-10 w-10 items-center justify-center rounded bg-paper text-slateink">
                 <Wrench className="h-5 w-5" />
@@ -155,7 +156,7 @@ export default function ServicesList() {
       header: 'Starting Price',
       render: (s) => (
         <span className="font-medium text-ink">
-          ₹{s.startingPrice?.toLocaleString('en-IN')} <span className="text-xs text-slateink font-normal">{s.priceUnit}</span>
+          {s.startingPrice != null ? formatInr(s.startingPrice, 2) : '—'} <span className="text-xs text-slateink font-normal">{s.priceUnit}</span>
         </span>
       )
     },
@@ -233,6 +234,8 @@ export default function ServicesList() {
           onClick={() => featureMutation.mutate({ id: s._id, isFeatured: !s.isFeatured })}
           className="rounded p-1 text-slateink hover:bg-paper focus:outline-none"
           title={s.isFeatured ? 'Featured (Click to unfeature)' : 'Not featured (Click to feature)'}
+          aria-label={s.isFeatured ? 'Unfeature service' : 'Feature service'}
+          aria-pressed={s.isFeatured}
         >
           <Star className={clsx('h-4 w-4', s.isFeatured ? 'fill-amber text-amber' : 'text-slate-300 dark:text-slate-600')} />
         </button>
@@ -264,7 +267,7 @@ export default function ServicesList() {
           )}
           {canManage && (
             s.isDeleted ? (
-              <button
+              <button disabled={restoreMutation.isPending}
                 onClick={() => restoreMutation.mutate(s._id)}
                 className="rounded p-1.5 text-forest hover:bg-forest-light"
                 aria-label="Restore"
@@ -273,7 +276,7 @@ export default function ServicesList() {
                 <RotateCcw className="h-3.5 w-3.5" />
               </button>
             ) : (
-              <button
+              <button disabled={deleteMutation.isPending}
                 onClick={() => {
                   if (confirm(`Are you sure you want to deactivate and remove "${s.name}" from public listing?`)) {
                     deleteMutation.mutate(s._id);

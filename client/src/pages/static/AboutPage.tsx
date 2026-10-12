@@ -1,11 +1,13 @@
 import { ShieldCheck, Users, Award, Clock } from 'lucide-react';
 import { Card } from '../../components/ui/Primitives';
 import { usePublicSettings } from '../../hooks/usePublicSettings';
+import { MetaTags } from '../../components/seo/MetaTags';
 
 export default function AboutPage() {
   const { company } = usePublicSettings();
   return (
     <div>
+      <MetaTags title="About us" description="Learn about our certified fire protection equipment, services and the team behind them." />
       <section className="bg-inverse py-16 text-white">
         <div className="container-page max-w-2xl">
           <h1 className="heading text-3xl">About {company.companyName}</h1>

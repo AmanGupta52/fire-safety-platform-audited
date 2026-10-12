@@ -5,12 +5,14 @@ import { Button } from '../../components/ui/Button';
 import { SkeletonList } from '../../components/ui/Skeleton';
 import { useServices } from '../../hooks/useServices';
 import { getServiceIcon, formatServicePrice } from '../../utils/serviceUtils';
+import { MetaTags } from '../../components/seo/MetaTags';
 
 export default function ServicesOverview() {
   const { data: services, isLoading, isError, refetch } = useServices();
 
   return (
     <div>
+      <MetaTags title="Fire Safety Services" description="Fire extinguisher refilling, safety audits, AMC plans and certified installation. Book a service or request a quote online." />
       <section className="bg-inverse py-16 text-white">
         <div className="container-page">
           <h1 className="heading text-3xl">Fire safety services</h1>

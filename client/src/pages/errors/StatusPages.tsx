@@ -2,6 +2,7 @@ import { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LucideIcon, ShieldAlert, LockKeyhole, SearchX, ServerCrash, CloudOff } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
+import { MetaTags } from '../../components/seo/MetaTags';
 
 /**
  * Shared layout for every full-page HTTP-status screen (401/403/404/500/503), so the five
@@ -21,6 +22,7 @@ function StatusScreen({
 }) {
   return (
     <div className="container-page flex min-h-[70vh] flex-col items-center justify-center gap-4 py-16 text-center">
+      <MetaTags title={title} noindex />
       <div className="flex h-14 w-14 items-center justify-center rounded-full bg-safety-light">
         <Icon className="h-6 w-6 text-safety" />
       </div>

@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { api, apiErrorMessage } from '../lib/apiClient';
+import { api, toastApiError } from '../lib/apiClient';
 import { useAuthStore } from '../store/authStore';
 import { CartSummary } from '../types';
 
@@ -29,25 +29,25 @@ export function useCart() {
   const addMutation = useMutation({
     mutationFn: async (vars: { productId: string; quantity: number }) => api.post('/cart/items', vars),
     onSuccess: () => { toast.success('Added to cart'); queryClient.invalidateQueries({ queryKey: ['cart'] }); },
-    onError: (err) => toast.error(apiErrorMessage(err))
+    onError: toastApiError
   });
 
   const updateMutation = useMutation({
     mutationFn: async (vars: { productId: string; quantity: number }) => api.put(`/cart/items/${vars.productId}`, { quantity: vars.quantity }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['cart'] }),
-    onError: (err) => toast.error(apiErrorMessage(err))
+    onError: toastApiError
   });
 
   const removeMutation = useMutation({
     mutationFn: async (productId: string) => api.delete(`/cart/items/${productId}`),
     onSuccess: () => { toast.success('Removed from cart'); queryClient.invalidateQueries({ queryKey: ['cart'] }); },
-    onError: (err) => toast.error(apiErrorMessage(err))
+    onError: toastApiError
   });
 
   const applyCouponMutation = useMutation({
     mutationFn: async (code: string) => api.post('/cart/coupon', { code }),
     onSuccess: () => { toast.success('Coupon applied'); queryClient.invalidateQueries({ queryKey: ['cart'] }); },
-    onError: (err) => toast.error(apiErrorMessage(err))
+    onError: toastApiError
   });
 
   return {

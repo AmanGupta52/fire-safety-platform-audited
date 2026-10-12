@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { CheckCircle2, Wrench, ShieldCheck, ArrowRight, ArrowLeft } from 'lucide-react';
-import { format, addDays } from 'date-fns';
-import { api, apiErrorMessage } from '../../lib/apiClient';
+import { api, toastApiError } from '../../lib/apiClient';
 import { useAuthStore } from '../../store/authStore';
 import { Card, Spinner } from '../../components/ui/Primitives';
 import { Input, Textarea } from '../../components/ui/FormControls';
@@ -13,6 +12,9 @@ import { Button } from '../../components/ui/Button';
 import { useServices } from '../../hooks/useServices';
 import { formatServicePrice } from '../../utils/serviceUtils';
 import { CustomerEquipment } from '../../types';
+import { formatDate, todayIST, addDaysIST } from '../../lib/format';
+import { MESSAGES, isValidPhone, phoneRules } from '../../lib/validators';
+import { MetaTags } from '../../components/seo/MetaTags';
 
 interface BookingSlot {
   slot: string;
@@ -56,7 +58,7 @@ export default function BookService() {
   const [currentStep, setCurrentStep] = useState(1);
   const [submitted, setSubmitted] = useState<string | null>(null);
 
-  const defaultDateStr = format(addDays(new Date(), 1), 'yyyy-MM-dd');
+  const defaultDateStr = addDaysIST(1);
 
   const { register, handleSubmit, setValue, watch } = useForm<FormValues>({
     defaultValues: {
@@ -119,6 +121,7 @@ export default function BookService() {
 
   const selectedEquipment = equipmentList?.find((e) => e._id === selectedEquipmentId);
 
+  const queryClient = useQueryClient();
   const mutation = useMutation({
     mutationFn: async (values: FormValues) => {
       const activeService = services?.find((s) => s._id === values.serviceId);
@@ -139,9 +142,12 @@ export default function BookService() {
     },
     onSuccess: (data) => {
       toast.success('Service booking confirmed!');
+      // My services (and the account overview) should list the new booking straight away.
+      queryClient.invalidateQueries({ queryKey: ['my-services'] });
+      queryClient.invalidateQueries({ queryKey: ['my-services-summary'] });
       setSubmitted(data.bookingNumber);
     },
-    onError: (err) => toast.error(apiErrorMessage(err))
+    onError: toastApiError
   });
 
   if (!accessToken) {
@@ -195,8 +201,8 @@ export default function BookService() {
       }
       setCurrentStep(2);
     } else if (currentStep === 2) {
-      if (!enteredPhone || enteredPhone.trim().length < 10) {
-        toast.error('Please enter a valid 10-digit contact phone number');
+      if (!enteredPhone || !isValidPhone(enteredPhone)) {
+        toast.error(MESSAGES.phone);
         return;
       }
       if (!enteredAddress || enteredAddress.trim().length < 5) {
@@ -225,6 +231,7 @@ export default function BookService() {
 
   return (
     <div className="container-page py-8">
+      <MetaTags title="Book a service" description="Book a fire safety service: refilling, inspection, audit or installation by certified technicians." />
       {/* Header */}
       <div className="max-w-3xl mx-auto mb-8 text-center sm:text-left">
         <h1 className="heading text-2xl sm:text-3xl text-ink">Schedule Fire Safety Service</h1>
@@ -366,7 +373,9 @@ export default function BookService() {
                 <Input
                   label="Contact Phone Number *"
                   placeholder="e.g. 9876543210"
-                  {...register('phone', { required: true, minLength: 10 })}
+                  {...register('phone', phoneRules)}
+                  type="tel"
+                  inputMode="tel"
                 />
 
                 <Input
@@ -393,7 +402,7 @@ export default function BookService() {
                 <label className="mb-1 block text-xs font-semibold text-slateink">Preferred Service Date</label>
                 <input
                   type="date"
-                  min={format(new Date(), 'yyyy-MM-dd')}
+                  min={todayIST()}
                   value={selectedDate}
                   onChange={(e) => setValue('preferredDate', e.target.value)}
                   className="w-full rounded-md border border-line bg-card px-3 py-2 text-sm text-ink focus:border-safety focus:outline-none"
@@ -403,7 +412,7 @@ export default function BookService() {
               {/* Capacity Slots */}
               <div>
                 <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-slateink">
-                  Available Slots for {format(new Date(selectedDate), 'EEEE, d MMMM yyyy')}
+                  Available Slots for {formatDate(selectedDate, 'full')}
                 </label>
 
                 {slotsLoading ? (
@@ -477,7 +486,7 @@ export default function BookService() {
                 <div className="flex items-center justify-between py-2.5">
                   <span className="text-slateink">Date & Slot:</span>
                   <span className="font-semibold text-forest">
-                    {format(new Date(selectedDate), 'd MMM yyyy')} · {selectedTimeSlot}
+                    {formatDate(selectedDate)} · {selectedTimeSlot}
                   </span>
                 </div>
                 <div className="flex items-start justify-between py-2.5">

@@ -89,9 +89,14 @@ userSchema.methods.comparePassword = function (candidate: string) {
   return bcrypt.compare(candidate, this.password);
 };
 
+/** Role permissions plus per-user overrides. Pure, so it also works on lean (plain-object) users. */
+export function effectivePermissionsFor(role: Role, overrides?: Permission[]): Permission[] {
+  const base = ROLE_PERMISSIONS[role] || [];
+  return Array.from(new Set([...base, ...(overrides || [])]));
+}
+
 userSchema.methods.effectivePermissions = function (): Permission[] {
-  const base = ROLE_PERMISSIONS[this.role as Role] || [];
-  return Array.from(new Set([...base, ...(this.permissionOverrides || [])]));
+  return effectivePermissionsFor(this.role as Role, this.permissionOverrides);
 };
 
 export const User = model<IUser>('User', userSchema);

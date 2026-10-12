@@ -2,8 +2,7 @@ import { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Wrench, MapPin, Phone, Paperclip, Navigation, CheckCircle2, ShieldCheck, FileText } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { format } from 'date-fns';
-import { api, apiErrorMessage } from '../../lib/apiClient';
+import { api, apiErrorMessage, toastApiError } from '../../lib/apiClient';
 import { ServiceBooking, ServiceStatus } from '../../types';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { Card, Badge, EmptyState } from '../../components/ui/Primitives';
@@ -11,6 +10,7 @@ import { Select, Input, Textarea } from '../../components/ui/FormControls';
 import { Modal } from '../../components/ui/Modal';
 import { Button } from '../../components/ui/Button';
 import { MultiImageUploader } from '../../components/ui/ImageUploader';
+import { formatDate, formatDateTime } from '../../lib/format';
 
 const statusTone: Record<ServiceStatus, 'neutral' | 'success' | 'warning' | 'danger' | 'info'> = {
   requested: 'warning', confirmed: 'info', assigned: 'info', technician_on_the_way: 'warning',
@@ -180,7 +180,7 @@ function JobSection({ title, jobs, onSelect }: { title: string; jobs: ServiceBoo
                   <p className="mt-1 flex items-center gap-1 text-xs text-slateink"><MapPin className="h-3 w-3" /> {job.address}</p>
                   <p className="flex items-center gap-1 text-xs text-slateink"><Phone className="h-3 w-3" /> {job.phone}</p>
                   <p className="mt-1 text-xs text-slateink">
-                    {format(new Date(job.preferredDate), 'd MMM yyyy')}{job.timeSlot || job.preferredTime ? ` · ${job.timeSlot || job.preferredTime}` : ''}
+                    {formatDate(job.preferredDate)}{job.timeSlot || job.preferredTime ? ` · ${job.timeSlot || job.preferredTime}` : ''}
                   </p>
                   {job.checkInLocation && (
                     <span className="mt-1 inline-flex items-center gap-1 rounded bg-forest/10 px-2 py-0.5 text-[10px] font-semibold text-forest">
@@ -225,7 +225,7 @@ function JobDetailModal({ booking, onClose }: { booking: ServiceBooking; onClose
   const statusMutation = useMutation({
     mutationFn: async () => api.patch(`/bookings/${booking._id}/status`, { status }),
     onSuccess: () => { toast.success('Status updated'); invalidate(); onClose(); },
-    onError: (err) => toast.error(apiErrorMessage(err))
+    onError: toastApiError
   });
 
   // 2. GPS Check-in
@@ -288,7 +288,7 @@ function JobDetailModal({ booking, onClose }: { booking: ServiceBooking; onClose
       }
       onClose();
     },
-    onError: (err) => toast.error(apiErrorMessage(err))
+    onError: toastApiError
   });
 
   return (
@@ -308,7 +308,7 @@ function JobDetailModal({ booking, onClose }: { booking: ServiceBooking; onClose
             <div className="flex flex-col items-start sm:items-end gap-1.5">
               <Badge tone={statusTone[booking.status]}>{booking.status.replace(/_/g, ' ')}</Badge>
               <span className="text-xs font-medium text-slateink">
-                {format(new Date(booking.preferredDate), 'd MMM yyyy')}{booking.timeSlot ? ` (${booking.timeSlot})` : ''}
+                {formatDate(booking.preferredDate)}{booking.timeSlot ? ` (${booking.timeSlot})` : ''}
               </span>
             </div>
           </div>
@@ -323,7 +323,7 @@ function JobDetailModal({ booking, onClose }: { booking: ServiceBooking; onClose
                 <p className="text-xs font-semibold text-ink">Technician On-Site Check-In</p>
                 {booking.checkInLocation ? (
                   <p className="text-[11px] text-forest font-medium">
-                    Verified: Lat {booking.checkInLocation.latitude.toFixed(4)}, Long {booking.checkInLocation.longitude.toFixed(4)} ({format(new Date(booking.checkInLocation.timestamp), 'p')})
+                    Verified: Lat {booking.checkInLocation.latitude.toFixed(4)}, Long {booking.checkInLocation.longitude.toFixed(4)} ({formatDateTime(booking.checkInLocation.timestamp)})
                   </p>
                 ) : (
                   <p className="text-[11px] text-slateink">Capture GPS coordinates upon reaching customer site</p>
@@ -449,7 +449,7 @@ function JobDetailModal({ booking, onClose }: { booking: ServiceBooking; onClose
             <p className="mb-1.5 text-xs font-semibold text-slateink">Customer Digital Signature Sign-Off</p>
             {booking.customerSignature && !customerSignature ? (
               <div className="rounded border border-line bg-paper p-3 text-center">
-                <img src={booking.customerSignature} alt="Signed" className="mx-auto h-16 object-contain" />
+                <img loading="lazy" decoding="async" src={booking.customerSignature} alt="Signed" className="mx-auto h-16 object-contain" />
                 <p className="mt-1 text-[11px] text-slateink">Signature on file</p>
               </div>
             ) : (

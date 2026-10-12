@@ -5,6 +5,7 @@ import { api } from '../../lib/apiClient';
 import { FAQ } from '../../types';
 import { EmptyState, ErrorState, Skeleton, SkeletonGroup } from '../../components/ui/Primitives';
 import { Input } from '../../components/ui/FormControls';
+import { MetaTags } from '../../components/seo/MetaTags';
 
 export default function FaqPage() {
   const [q, setQ] = useState('');
@@ -17,6 +18,7 @@ export default function FaqPage() {
 
   return (
     <div className="container-page max-w-2xl py-10">
+      <MetaTags title="FAQs" description="Answers to common questions about fire extinguishers, refilling, AMC plans and orders." />
       <h1 className="heading text-2xl text-ink">Frequently asked questions</h1>
 
       <div className="relative mt-5">

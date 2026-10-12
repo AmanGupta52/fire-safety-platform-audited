@@ -6,6 +6,7 @@ import { Payment } from '../models/Payment';
 import { Coupon, ICoupon } from '../models/Coupon';
 import { User } from '../models/User';
 import { asyncHandler } from '../utils/asyncHandler';
+import { parsePagination } from '../utils/pagination';
 import { ApiError } from '../utils/ApiError';
 import { ok, created, paginationMeta } from '../utils/apiResponse';
 import { priceOrder, applyDiscount, shippingFor } from '../services/pricingService';
@@ -15,6 +16,7 @@ import { emailTemplates } from '../services/emailService';
 import { tryGenerateInvoiceForOrder } from '../services/invoiceService';
 import { writeAuditLog } from '../services/auditService';
 import { logger } from '../config/logger';
+import { isPaymentMethodAllowed } from '../config/env';
 
 /**
  * Checkout: validate user -> validate cart -> validate stock -> calculate prices/discount/GST
@@ -31,7 +33,12 @@ import { logger } from '../config/logger';
 export const checkout = asyncHandler(async (req: Request, res: Response) => {
   const { billingAddress, shippingAddress, companyName, gstNumber, couponCode, paymentMethod } = req.body;
 
-  const cart = await Cart.findOne({ user: req.user!.id }).populate('items.product');
+  // Second guard (the validator already checks this): a method that is not enabled in this environment —
+  // above all "mock", which marks the order paid without any charge — must never create an order, a payment
+  // record or a stock change, even if the route is ever reached without the validator.
+  if (!isPaymentMethodAllowed(paymentMethod)) throw ApiError.badRequest('Payment method not available');
+
+  const cart = await Cart.findOne({ user: req.user!.id });
   if (!cart || cart.items.length === 0) throw ApiError.badRequest('Your cart is empty');
 
   const orderItems: {
@@ -41,10 +48,11 @@ export const checkout = asyncHandler(async (req: Request, res: Response) => {
   const lines: { quantity: number; unitPrice: number; gstPercentage: number }[] = [];
   const decremented: { productId: string; quantity: number }[] = [];
 
+  // Rolls back in parallel; each give-back is independent, and one failing must not stop the others.
   async function rollbackDecrements() {
-    for (const d of decremented) {
-      await Product.updateOne({ _id: d.productId }, { $inc: { stock: d.quantity } }).catch(() => undefined);
-    }
+    await Promise.all(
+      decremented.map((d) => Product.updateOne({ _id: d.productId }, { $inc: { stock: d.quantity } }).catch(() => undefined))
+    );
   }
 
   let orderCommitted = false;
@@ -52,27 +60,40 @@ export const checkout = asyncHandler(async (req: Request, res: Response) => {
   let appliedCoupon: ICoupon | null = null;
 
   try {
-    for (const item of cart.items) {
-      const product = await Product.findById(item.product);
-      if (!product || !product.isActive) throw ApiError.badRequest('One or more items are no longer available');
+    // One query for every product in the cart (instead of one findById per item).
+    const products = await Product.find({ _id: { $in: cart.items.map((i) => i.product) } });
+    const productById = new Map(products.map((p) => [p._id.toString(), p]));
 
+    // Validate and price every line first: no writes happen until the whole cart is known to be purchasable.
+    const resolved = cart.items.map((item) => {
+      const product = productById.get(String(item.product));
+      if (!product || !product.isActive) throw ApiError.badRequest('One or more items are no longer available');
       const unitPrice = product.discountPrice ?? product.price;
       const lineTotal = Math.round(unitPrice * item.quantity * (1 + product.gstPercentage / 100) * 100) / 100;
+      return { item, product, unitPrice, lineTotal };
+    });
 
-      if (product.allowBackorder) {
-        await Product.updateOne({ _id: product._id }, { $inc: { stock: -item.quantity } });
-      } else {
-        // Atomic, race-safe stock decrement: only succeeds if enough stock is still available at the moment of the write.
-        const result = await Product.updateOne(
-          { _id: product._id, stock: { $gte: item.quantity } },
-          { $inc: { stock: -item.quantity } }
-        );
-        if (result.matchedCount === 0) {
-          throw ApiError.badRequest(`Insufficient stock for ${product.name}`);
+    // Atomic, race-safe stock decrements, all in flight at once. Each one only succeeds if enough stock is still
+    // available at the moment of the write, so concurrent checkouts can never oversell. allSettled (not all) so
+    // that every write has finished before we decide what to roll back.
+    const outcomes = await Promise.allSettled(
+      resolved.map(async ({ item, product }) => {
+        if (product.allowBackorder) {
+          await Product.updateOne({ _id: product._id }, { $inc: { stock: -item.quantity } });
+        } else {
+          const result = await Product.updateOne(
+            { _id: product._id, stock: { $gte: item.quantity } },
+            { $inc: { stock: -item.quantity } }
+          );
+          if (result.matchedCount === 0) throw ApiError.badRequest(`Insufficient stock for ${product.name}`);
         }
-      }
-      decremented.push({ productId: product._id.toString(), quantity: item.quantity });
+        decremented.push({ productId: product._id.toString(), quantity: item.quantity });
+      })
+    );
+    const failed = outcomes.find((o): o is PromiseRejectedResult => o.status === 'rejected');
+    if (failed) throw failed.reason; // the catch below gives back every decrement that did succeed
 
+    for (const { item, product, unitPrice, lineTotal } of resolved) {
       orderItems.push({
         product: product._id, name: product.name, sku: product.sku,
         quantity: item.quantity, unitPrice, gstPercentage: product.gstPercentage, lineTotal
@@ -177,10 +198,9 @@ export const checkout = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const myOrders = asyncHandler(async (req: Request, res: Response) => {
-  const page = Math.max(1, Number(req.query.page) || 1);
-  const limit = Math.min(50, Number(req.query.limit) || 10);
+  const { page, limit, skip } = parsePagination(req, { defaultLimit: 10, maxLimit: 50 });
   const [items, total] = await Promise.all([
-    Order.find({ user: req.user!.id }).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit),
+    Order.find({ user: req.user!.id }).sort({ createdAt: -1 }).skip(skip).limit(limit),
     Order.countDocuments({ user: req.user!.id })
   ]);
   return ok(res, items, 'Orders fetched', paginationMeta(page, limit, total));
@@ -199,8 +219,14 @@ export const getMyOrder = asyncHandler(async (req: Request, res: Response) => {
  * so the two can't drift out of sync with each other again.
  */
 async function reverseOrderCommitments(order: InstanceType<typeof Order>) {
-  for (const item of order.items) {
-    await Product.findByIdAndUpdate(item.product, { $inc: { stock: item.quantity } });
+  if (order.items.length > 0) {
+    // One round trip for the whole order instead of one update per line.
+    await Product.bulkWrite(
+      order.items.map((item) => ({
+        updateOne: { filter: { _id: item.product }, update: { $inc: { stock: item.quantity } } }
+      })),
+      { ordered: false }
+    );
   }
   if (order.couponCode) {
     // Never let this go negative — a coupon that was never actually applied to this order
@@ -231,8 +257,7 @@ export const cancelMyOrder = asyncHandler(async (req: Request, res: Response) =>
 // ---------- Admin ----------
 
 export const adminListOrders = asyncHandler(async (req: Request, res: Response) => {
-  const page = Math.max(1, Number(req.query.page) || 1);
-  const limit = Math.min(100, Number(req.query.limit) || 20);
+  const { page, limit, skip } = parsePagination(req, { defaultLimit: 20, maxLimit: 100 });
   const filter: Record<string, unknown> = {};
   // SECURITY: coerce to String() so a crafted `?status[$ne]=` query-string can't inject a Mongo
   // operator, and escape regex metacharacters in the free-text search so a crafted
@@ -245,7 +270,7 @@ export const adminListOrders = asyncHandler(async (req: Request, res: Response) 
   }
 
   const [items, total] = await Promise.all([
-    Order.find(filter).populate('user', 'name email phone').sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit),
+    Order.find(filter).populate('user', 'name email phone').sort({ createdAt: -1 }).skip(skip).limit(limit),
     Order.countDocuments(filter)
   ]);
   return ok(res, items, 'Orders fetched', paginationMeta(page, limit, total));

@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { HardHat, AlertTriangle } from 'lucide-react';
-import { format } from 'date-fns';
+
 import { api } from '../../lib/apiClient';
 import { CustomerEquipment, EquipmentStatus } from '../../types';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { Card, Badge } from '../../components/ui/Primitives';
 import { DataTable, Column } from '../../components/ui/DataTable';
 import { Select } from '../../components/ui/FormControls';
+import { formatDate } from '../../lib/format';
 
 const statusTone: Record<EquipmentStatus, 'neutral' | 'success' | 'warning' | 'danger' | 'info'> = {
   healthy: 'success', inspection_due_soon: 'warning', refill_due_soon: 'warning', overdue: 'danger'
@@ -34,8 +35,8 @@ export default function EquipmentList() {
     { header: 'Equipment', render: (e) => <span className="font-medium text-ink">{e.productNameSnapshot}</span> },
     { header: 'Serial #', render: (e) => e.serialNumber },
     { header: 'Location', render: (e) => e.installationLocation || '—' },
-    { header: 'Next inspection', render: (e) => e.nextInspectionDate ? format(new Date(e.nextInspectionDate), 'd MMM yyyy') : '—' },
-    { header: 'Next refill', render: (e) => e.nextRefillDate ? format(new Date(e.nextRefillDate), 'd MMM yyyy') : '—' },
+    { header: 'Next inspection', render: (e) => e.nextInspectionDate ? formatDate(e.nextInspectionDate) : '—' },
+    { header: 'Next refill', render: (e) => e.nextRefillDate ? formatDate(e.nextRefillDate) : '—' },
     { header: 'Status', render: (e) => <Badge tone={statusTone[e.status]}>{statusLabel[e.status]}</Badge> }
   ];
 

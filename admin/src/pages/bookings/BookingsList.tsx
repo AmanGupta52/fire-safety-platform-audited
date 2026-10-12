@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Wrench, FileUp, Paperclip } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { format } from 'date-fns';
-import { api, apiErrorMessage } from '../../lib/apiClient';
+
+import { api, toastApiError } from '../../lib/apiClient';
 import { ServiceBooking, ServiceStatus, Technician } from '../../types';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { Card, Badge } from '../../components/ui/Primitives';
@@ -12,6 +12,7 @@ import { Select, Input } from '../../components/ui/FormControls';
 import { Modal } from '../../components/ui/Modal';
 import { Button } from '../../components/ui/Button';
 import { MultiImageUploader } from '../../components/ui/ImageUploader';
+import { formatDate } from '../../lib/format';
 
 const STATUS_OPTIONS: ServiceStatus[] = [
   'requested', 'confirmed', 'assigned', 'technician_on_the_way',
@@ -81,7 +82,7 @@ function BookingsSection() {
         </div>
       )
     },
-    { header: 'Preferred date', render: (b) => format(new Date(b.preferredDate), 'd MMM yyyy') },
+    { header: 'Preferred date', render: (b) => formatDate(b.preferredDate) },
     { header: 'Technician', render: (b) => (b.assignedTechnician && typeof b.assignedTechnician === 'object' ? b.assignedTechnician.name : 'Unassigned') },
     { header: 'Status', render: (b) => <Badge tone={statusTone[b.status] || 'neutral'}>{b.status.replace(/_/g, ' ')}</Badge> }
   ];
@@ -132,13 +133,13 @@ function BookingDetailModal({ booking, onClose }: { booking: ServiceBooking; onC
   const assignMutation = useMutation({
     mutationFn: async () => api.patch(`/bookings/${booking._id}/assign`, { technicianId }),
     onSuccess: () => { toast.success('Technician assigned'); invalidate(); },
-    onError: (err) => toast.error(apiErrorMessage(err))
+    onError: toastApiError
   });
 
   const statusMutation = useMutation({
     mutationFn: async () => api.patch(`/bookings/${booking._id}/status`, { status }),
     onSuccess: () => { toast.success('Status updated'); invalidate(); onClose(); },
-    onError: (err) => toast.error(apiErrorMessage(err))
+    onError: toastApiError
   });
 
   const customer = typeof booking.user === 'object' ? booking.user : null;
@@ -164,7 +165,7 @@ function BookingDetailModal({ booking, onClose }: { booking: ServiceBooking; onC
           </div>
           <div>
             <p className="text-xs font-medium text-slateink">Preferred date</p>
-            <p className="text-ink">{format(new Date(booking.preferredDate), 'd MMM yyyy')} {booking.preferredTime}</p>
+            <p className="text-ink">{formatDate(booking.preferredDate)} {booking.preferredTime}</p>
           </div>
         </div>
 
@@ -222,7 +223,7 @@ function ServiceReportSection({ booking, onSaved }: { booking: ServiceBooking; o
       setNewBeforePhotos([]);
       setNewAfterPhotos([]);
     },
-    onError: (err) => toast.error(apiErrorMessage(err))
+    onError: toastApiError
   });
 
   const hasExistingAttachments = booking.serviceReportUrl || (booking.beforePhotos && booking.beforePhotos.length > 0) || (booking.afterPhotos && booking.afterPhotos.length > 0);
@@ -242,7 +243,7 @@ function ServiceReportSection({ booking, onSaved }: { booking: ServiceBooking; o
             <div>
               <p className="text-[11px] text-slateink">Before photos ({booking.beforePhotos.length})</p>
               <div className="mt-1 flex gap-1.5">
-                {booking.beforePhotos.map((url, i) => <img key={i} src={url} alt="Before" className="h-12 w-12 rounded object-cover" />)}
+                {booking.beforePhotos.map((url, i) => <img loading="lazy" decoding="async" key={`${url}-${i}`} src={url} alt="Before" className="h-12 w-12 rounded object-cover" />)}
               </div>
             </div>
           )}
@@ -250,7 +251,7 @@ function ServiceReportSection({ booking, onSaved }: { booking: ServiceBooking; o
             <div>
               <p className="text-[11px] text-slateink">After photos ({booking.afterPhotos.length})</p>
               <div className="mt-1 flex gap-1.5">
-                {booking.afterPhotos.map((url, i) => <img key={i} src={url} alt="After" className="h-12 w-12 rounded object-cover" />)}
+                {booking.afterPhotos.map((url, i) => <img loading="lazy" decoding="async" key={`${url}-${i}`} src={url} alt="After" className="h-12 w-12 rounded object-cover" />)}
               </div>
             </div>
           )}

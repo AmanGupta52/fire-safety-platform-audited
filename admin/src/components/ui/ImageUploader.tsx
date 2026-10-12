@@ -3,6 +3,7 @@ import { UploadCloud, X, Link2, Loader2, ImagePlus } from 'lucide-react';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
 import { api, apiErrorMessage } from '../../lib/apiClient';
+import { uniqueKeys } from '../../lib/keys';
 
 interface UploadResult { url: string; publicId?: string }
 
@@ -55,7 +56,7 @@ export function SingleImageUploader({ value, onChange, folder }: { value?: strin
     <div className="flex flex-col gap-2">
       {value ? (
         <div className="relative w-40">
-          <img src={value} alt="" className="h-28 w-40 rounded border border-line object-cover" />
+          <img loading="lazy" decoding="async" src={value} alt="" className="h-28 w-40 rounded border border-line object-cover" />
           <button type="button" onClick={() => onChange('')} className="absolute -right-2 -top-2 rounded-full bg-ink p-1 text-on-ink shadow" aria-label="Remove image">
             <X className="h-3 w-3" />
           </button>
@@ -125,17 +126,20 @@ export function MultiImageUploader({ value, onChange, folder }: { value: UploadR
     onChange(value.filter((_, i) => i !== index));
   }
 
+  // Keyed by the image itself (not its position), so removing one thumbnail never re-uses another's DOM node.
+  const imageKeys = uniqueKeys(value.map((img) => img.publicId ?? img.url));
+
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap gap-3">
-        {value.map((img, i) => (
-          <div key={i} className="relative h-20 w-20">
-            <img src={img.url} alt="" className="h-20 w-20 rounded border border-line object-cover" />
+        {imageKeys.map((key, i) => { const img = value[i]; return (
+          <div key={key} className="relative h-20 w-20">
+            <img loading="lazy" decoding="async" src={img.url} alt="" className="h-20 w-20 rounded border border-line object-cover" />
             <button type="button" onClick={() => remove(i)} className="absolute -right-2 -top-2 rounded-full bg-ink p-1 text-on-ink shadow" aria-label="Remove image">
               <X className="h-3 w-3" />
             </button>
           </div>
-        ))}
+        ); })}
         <button
           type="button"
           onClick={() => inputRef.current?.click()}

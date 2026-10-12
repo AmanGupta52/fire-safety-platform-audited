@@ -1,7 +1,7 @@
 import { NextFunction, Request, Response } from 'express';
 import { verifyAccessToken } from '../utils/jwt';
 import { ApiError } from '../utils/ApiError';
-import { User } from '../models/User';
+import { User, effectivePermissionsFor } from '../models/User';
 import { Permission } from '../config/permissions';
 
 declare global {
@@ -17,6 +17,9 @@ declare global {
   }
 }
 
+// The only user fields authentication and permission checks use.
+const AUTH_FIELDS = 'role isActive permissionOverrides passwordChangedAt';
+
 export async function requireAuth(req: Request, _res: Response, next: NextFunction) {
   const header = req.headers.authorization;
   if (!header || !header.startsWith('Bearer ')) {
@@ -26,7 +29,9 @@ export async function requireAuth(req: Request, _res: Response, next: NextFuncti
   const token = header.split(' ')[1];
   try {
     const payload = verifyAccessToken(token);
-    const user = await User.findById(payload.userId);
+    // Read on every authenticated request, so fetch only what the checks below need, as a plain object. There is
+    // deliberately NO cache: a disabled user, a role change or a password change takes effect on the very next request.
+    const user = await User.findById(payload.userId).select(AUTH_FIELDS).lean();
     if (!user || !user.isActive) {
       return next(ApiError.unauthorized('Account not found or disabled'));
     }
@@ -37,7 +42,7 @@ export async function requireAuth(req: Request, _res: Response, next: NextFuncti
     req.user = {
       id: user._id.toString(),
       role: user.role,
-      permissions: user.effectivePermissions()
+      permissions: effectivePermissionsFor(user.role, user.permissionOverrides)
     };
     next();
   } catch {
@@ -51,10 +56,10 @@ export async function attachUserIfPresent(req: Request, _res: Response, next: Ne
   if (!header || !header.startsWith('Bearer ')) return next();
   try {
     const payload = verifyAccessToken(header.split(' ')[1]);
-    const user = await User.findById(payload.userId);
+    const user = await User.findById(payload.userId).select(AUTH_FIELDS).lean();
     const stale = !!(user?.passwordChangedAt && payload.iat && payload.iat < Math.floor(user.passwordChangedAt.getTime() / 1000));
     if (user && user.isActive && !stale) {
-      req.user = { id: user._id.toString(), role: user.role, permissions: user.effectivePermissions() };
+      req.user = { id: user._id.toString(), role: user.role, permissions: effectivePermissionsFor(user.role, user.permissionOverrides) };
     }
   } catch {
     // ignore invalid token in optional-auth contexts

@@ -3,12 +3,13 @@ import { useForm } from 'react-hook-form';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { MapPin, Plus, Pencil, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { api, apiErrorMessage } from '../../lib/apiClient';
+import { api, toastApiError } from '../../lib/apiClient';
 import { Address } from '../../types';
 import { Card, EmptyState, ErrorState, Badge, Skeleton, SkeletonGroup } from '../../components/ui/Primitives';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/FormControls';
 import { Modal } from '../../components/ui/Modal';
+import { optionalTextRules, phoneRules, pincodeRules, requiredTextRules } from '../../lib/validators';
 
 interface FormValues {
   label: string; contactName: string; phone: string; line1: string; line2?: string;
@@ -27,7 +28,7 @@ export default function MyAddresses() {
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => api.delete(`/addresses/${id}`),
     onSuccess: () => { toast.success('Address removed'); queryClient.invalidateQueries({ queryKey: ['addresses'] }); },
-    onError: (err) => toast.error(apiErrorMessage(err))
+    onError: toastApiError
   });
 
   return (
@@ -64,8 +65,8 @@ export default function MyAddresses() {
                   {addr.isDefault && <Badge tone="success">Default</Badge>}
                 </div>
                 <div className="flex gap-1">
-                  <button onClick={() => setEditing(addr)} className="rounded p-1.5 text-slateink hover:bg-paper"><Pencil className="h-3.5 w-3.5" /></button>
-                  <button onClick={() => { if (confirm('Delete this address?')) deleteMutation.mutate(addr._id); }} className="rounded p-1.5 text-safety hover:bg-safety-light"><Trash2 className="h-3.5 w-3.5" /></button>
+                  <button aria-label="Edit address" onClick={() => setEditing(addr)} className="rounded p-1.5 text-slateink hover:bg-paper"><Pencil className="h-3.5 w-3.5" /></button>
+                  <button aria-label="Delete address" disabled={deleteMutation.isPending} onClick={() => { if (confirm('Delete this address?')) deleteMutation.mutate(addr._id); }} className="rounded p-1.5 text-safety hover:bg-safety-light"><Trash2 className="h-3.5 w-3.5" /></button>
                 </div>
               </div>
               <p className="mt-2 text-sm text-slateink">
@@ -85,28 +86,28 @@ export default function MyAddresses() {
 function AddressForm({ address, onClose }: { address: Address | null; onClose: () => void }) {
   const queryClient = useQueryClient();
   const isEdit = Boolean(address);
-  const { register, handleSubmit } = useForm<FormValues>({ defaultValues: address ? { ...address } : { label: 'Home' } });
+  const { register, handleSubmit, formState: { errors } } = useForm<FormValues>({ defaultValues: address ? { ...address } : { label: 'Home' } });
 
   const mutation = useMutation({
     mutationFn: async (values: FormValues) => (isEdit && address ? api.put(`/addresses/${address._id}`, values) : api.post('/addresses', values)),
     onSuccess: () => { toast.success(isEdit ? 'Address updated' : 'Address added'); queryClient.invalidateQueries({ queryKey: ['addresses'] }); onClose(); },
-    onError: (err) => toast.error(apiErrorMessage(err))
+    onError: toastApiError
   });
 
   return (
     <Modal open onClose={onClose} title={isEdit ? 'Edit address' : 'Add address'} width="lg">
       <form className="flex flex-col gap-4" onSubmit={handleSubmit((v) => mutation.mutate(v))}>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Input label="Label" placeholder="Home, Office..." required {...register('label', { required: true })} />
-          <Input label="Contact name" required {...register('contactName', { required: true })} />
+          <Input label="Label" placeholder="Home, Office..." required error={errors.label?.message} {...register('label', requiredTextRules)} />
+          <Input label="Contact name" required autoComplete="name" error={errors.contactName?.message} {...register('contactName', requiredTextRules)} />
         </div>
-        <Input label="Phone" required {...register('phone', { required: true })} />
-        <Input label="Address line 1" required {...register('line1', { required: true })} />
-        <Input label="Address line 2" {...register('line2')} />
+        <Input label="Phone" required type="tel" inputMode="tel" autoComplete="tel" placeholder="98765 43210" error={errors.phone?.message} {...register('phone', phoneRules)} />
+        <Input label="Address line 1" required autoComplete="address-line1" error={errors.line1?.message} {...register('line1', requiredTextRules)} />
+        <Input label="Address line 2" autoComplete="address-line2" error={errors.line2?.message} {...register('line2', optionalTextRules)} />
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <Input label="City" required {...register('city', { required: true })} />
-          <Input label="State" required {...register('state', { required: true })} />
-          <Input label="Pincode" required {...register('pincode', { required: true })} />
+          <Input label="City" required autoComplete="address-level2" error={errors.city?.message} {...register('city', requiredTextRules)} />
+          <Input label="State" required autoComplete="address-level1" error={errors.state?.message} {...register('state', requiredTextRules)} />
+          <Input label="Pincode" required inputMode="numeric" maxLength={6} autoComplete="postal-code" error={errors.pincode?.message} {...register('pincode', pincodeRules)} />
         </div>
         <label className="flex items-center gap-2 text-sm text-ink">
           <input type="checkbox" {...register('isDefault')} /> Set as default address

@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { Image, Plus, Trash2, ExternalLink } from 'lucide-react';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
-import { api, apiErrorMessage } from '../../lib/apiClient';
+import { api, toastApiError } from '../../lib/apiClient';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/FormControls';
@@ -87,7 +87,7 @@ export default function GalleryList() {
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => api.delete(`/gallery/${id}`),
     onSuccess: () => { toast.success('Removed'); queryClient.invalidateQueries({ queryKey: ['gallery'] }); },
-    onError: (err) => toast.error(apiErrorMessage(err))
+    onError: toastApiError
   });
 
   function openSource(item: GalleryItem) {
@@ -125,7 +125,7 @@ export default function GalleryList() {
           {filtered.map((item) => (
             <Card key={item._id} className="overflow-hidden">
               <div className="relative">
-                <img src={item.image} alt={item.title} className="h-36 w-full object-cover" />
+                <img loading="lazy" decoding="async" src={item.image} alt={item.title} className="h-36 w-full object-cover" />
                 {item.sourceType !== 'manual' && item.sourceId && (
                   <button
                     onClick={() => openSource(item)}
@@ -140,7 +140,7 @@ export default function GalleryList() {
                 <p className="truncate text-sm font-medium text-ink">{item.sourceLabel || item.title}</p>
                 <div className="mt-1.5 flex items-center justify-between gap-2">
                   <Badge tone={SOURCE_TONE[item.sourceType]}>{SOURCE_LABEL[item.sourceType]}</Badge>
-                  <button onClick={() => { if (confirm('Remove this photo?')) deleteMutation.mutate(item._id); }} className="rounded p-1 text-brand hover:bg-brand-light">
+                  <button aria-label="Remove photo" disabled={deleteMutation.isPending} onClick={() => { if (confirm('Remove this photo?')) deleteMutation.mutate(item._id); }} className="rounded p-1 text-brand hover:bg-brand-light">
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
                 </div>
@@ -166,7 +166,7 @@ function GalleryForm({ onClose }: { onClose: () => void }) {
       return api.post('/gallery', { ...values, image });
     },
     onSuccess: () => { toast.success('Photo added'); queryClient.invalidateQueries({ queryKey: ['gallery'] }); onClose(); },
-    onError: (err) => toast.error(apiErrorMessage(err))
+    onError: toastApiError
   });
 
   return (

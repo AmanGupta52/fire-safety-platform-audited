@@ -11,6 +11,7 @@ import { Button } from '../../components/ui/Button';
 import { EmptyState, ErrorState, SkeletonGroup } from '../../components/ui/Primitives';
 import { SkeletonCardGrid } from '../../components/ui/Skeleton';
 import { Pagination } from '../../components/ui/Modal';
+import { MetaTags, truncate } from '../../components/seo/MetaTags';
 
 const SORT_OPTIONS = [
   { label: 'Featured', value: 'featured' },
@@ -125,6 +126,10 @@ export default function ProductsList() {
 
   return (
     <div className="container-page py-8">
+      <MetaTags
+        title={activeCategory ? activeCategory.name : q ? `Search results for '${q}'` : 'Products'}
+        description={activeCategory ? truncate(`Shop ${activeCategory.name}: ${activeCategory.description || 'certified fire safety equipment with fast delivery.'}`) : q ? `Fire safety products matching '${q}'.` : 'Browse certified fire extinguishers, alarms, hydrants and accessories.'}
+      />
       <p className="text-sm text-slate-600">Home / Products</p>
       <div className="mb-6 mt-1 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>

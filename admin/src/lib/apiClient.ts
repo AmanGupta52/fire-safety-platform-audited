@@ -1,11 +1,39 @@
 import axios, { AxiosError } from 'axios';
+import toast from 'react-hot-toast';
 import { useAuthStore } from '../store/authStore';
+import { useServerStatusStore } from '../store/serverStatusStore';
 import { redirectTo } from './navigation';
 
-export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+// localhost is only a convenience for `npm run dev`. A production build with no VITE_API_URL must NOT quietly call
+// the visitor's own machine: it ends up empty here, `vite build` refuses to run without it (see vite.config.ts),
+// and main.tsx shows a clear "misconfigured" screen if a build somehow ships without it.
+export const API_BASE_URL: string = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:5000/api' : '');
+
+/** Per-request flags used by this client's interceptors. */
+declare module 'axios' {
+  // The generic parameter must match axios' own declaration exactly (including `any`) for the merge to compile.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  interface AxiosRequestConfig<D = any> {
+    /** Marks background polling so it never triggers the "server is waking up" banner. */
+    silentWake?: boolean;
+    _retry?: boolean;
+    _statusId?: number;
+  }
+}
+
+/** Shape of the error JSON the API sends back. */
+export interface ApiErrorBody {
+  message?: string;
+}
+
+// Render's free tier needs ~50 s to wake from sleep, so a request may legitimately take most of a minute.
+export const REQUEST_TIMEOUT_MS = 60_000;
+// After this long without an answer we tell the person the server is probably waking up.
+const WAKE_NOTICE_AFTER_MS = 4_000;
 
 export const api = axios.create({
-  baseURL: API_BASE_URL
+  baseURL: API_BASE_URL,
+  timeout: REQUEST_TIMEOUT_MS
   // Deliberately no default Content-Type header here. Axios sets 'application/json'
   // automatically for plain object payloads (see its transformRequest), but only when this
   // instance doesn't already carry a fixed Content-Type — a fixed one make it treat every
@@ -15,9 +43,33 @@ export const api = axios.create({
   // "No file provided", regardless of the image itself.
 });
 
+// ---- "server is waking up" tracking: a request still pending after a few seconds adds its id to the status store ----
+let nextRequestId = 1;
+const wakeTimers = new Map<number, ReturnType<typeof setTimeout>>();
+
+function trackRequestStart(config: { silentWake?: boolean; _statusId?: number }) {
+  if (config.silentWake) return;
+  const id = nextRequestId++;
+  config._statusId = id;
+  wakeTimers.set(id, setTimeout(() => {
+    wakeTimers.delete(id);
+    useServerStatusStore.getState().addSlow(id);
+  }, WAKE_NOTICE_AFTER_MS));
+}
+
+function trackRequestEnd(config?: { _statusId?: number }) {
+  const id = config?._statusId;
+  if (!config || id === undefined) return;
+  clearTimeout(wakeTimers.get(id));
+  wakeTimers.delete(id);
+  useServerStatusStore.getState().removeSlow(id);
+  config._statusId = undefined;
+}
+
 api.interceptors.request.use((config) => {
   const token = useAuthStore.getState().accessToken;
   if (token) config.headers.Authorization = `Bearer ${token}`;
+  trackRequestStart(config);
   return config;
 });
 
@@ -47,7 +99,7 @@ async function refreshAccessToken(failedAccessToken?: string | null): Promise<st
   if (!refreshToken) return null;
 
   try {
-    const res = await axios.post(`${API_BASE_URL}/auth/refresh`, { refreshToken });
+    const res = await axios.post(`${API_BASE_URL}/auth/refresh`, { refreshToken }, { timeout: REQUEST_TIMEOUT_MS });
     const { accessToken, refreshToken: newRefreshToken } = res.data.data;
     useAuthStore.getState().setTokens(accessToken, newRefreshToken);
     return accessToken;
@@ -78,9 +130,13 @@ async function refreshAccessToken(failedAccessToken?: string | null): Promise<st
 }
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    trackRequestEnd(response.config);
+    return response;
+  },
   async (error: AxiosError) => {
-    const original = error.config as (typeof error.config) & { _retry?: boolean };
+    trackRequestEnd(error.config);
+    const original = error.config;
     if (error.response?.status === 401 && original && !original._retry) {
       original._retry = true;
       if (!refreshPromise) {
@@ -89,8 +145,7 @@ api.interceptors.response.use(
       }
       const newToken = await refreshPromise;
       if (newToken) {
-        original.headers = original.headers || {};
-        (original.headers as any).Authorization = `Bearer ${newToken}`;
+        original.headers.Authorization = `Bearer ${newToken}`;
         return api(original);
       }
       return Promise.reject(error);
@@ -105,7 +160,8 @@ api.interceptors.response.use(
         redirectTo('/403');
       } else if (!error.response) {
         // Request never got a response at all — the API is unreachable (down, network offline,
-        // CORS misconfiguration, timeout), which reads to the person as "the site is broken"
+        // CORS misconfiguration) or the 60 s timeout ran out (axios reports that as ECONNABORTED with no
+        // response, so it takes this same path), which reads to the person as "the site is broken"
         // rather than "this one page failed to load".
         redirectTo('/503');
       } else if (error.response.status >= 500) {
@@ -117,18 +173,32 @@ api.interceptors.response.use(
   }
 );
 
-export interface ApiResponse<T> {
-  success: boolean;
-  message: string;
-  data: T;
-  meta?: { page: number; limit: number; total: number; totalPages: number };
+/** True when the request got no answer at all: the 60 s timeout ran out, the network dropped, or the API is down. */
+export function isNetworkError(err: unknown): boolean {
+  return axios.isAxiosError(err) && !err.response;
+}
+
+/** True when we gave up waiting (as opposed to the connection failing outright). */
+export function isTimeoutError(err: unknown): boolean {
+  return axios.isAxiosError(err) && (err.code === 'ECONNABORTED' || err.code === 'ETIMEDOUT');
 }
 
 export function apiErrorMessage(err: unknown): string {
-  if (axios.isAxiosError(err)) {
-    return (err.response?.data as any)?.message || err.message || 'Something went wrong';
+  if (axios.isAxiosError<ApiErrorBody>(err)) {
+    if (isTimeoutError(err)) return 'The server took too long to respond. Please try again.';
+    if (!err.response) return "Can't reach the server. Check your connection and try again.";
+    return err.response.data?.message || err.message || 'Something went wrong';
   }
   return 'Something went wrong';
+}
+
+/**
+ * Error toast for failed mutations. Timeouts and network failures are skipped here on purpose: the global handler
+ * in main.tsx shows those with a Retry button, and showing both would stack two toasts for one failure.
+ */
+export function toastApiError(err: unknown): void {
+  if (isNetworkError(err)) return;
+  toast.error(apiErrorMessage(err));
 }
 
 /**

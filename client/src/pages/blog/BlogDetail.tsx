@@ -1,6 +1,6 @@
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { format } from 'date-fns';
+
 import { ArrowLeft } from 'lucide-react';
 import axios from 'axios';
 import { api } from '../../lib/apiClient';
@@ -9,6 +9,8 @@ import { BlogPost } from '../../types';
 import { Badge, ErrorState } from '../../components/ui/Primitives';
 import { SkeletonText } from '../../components/ui/Skeleton';
 import { ImageWithFallback } from '../../components/ui/ImageWithFallback';
+import { formatDate } from '../../lib/format';
+import { MetaTags, truncate } from '../../components/seo/MetaTags';
 
 // Mirrors the article layout (back link, category/title/date, featured image, body text)
 // so the page doesn't reflow once the post loads.
@@ -47,11 +49,12 @@ export default function BlogDetail() {
 
   return (
     <div className="container-page max-w-3xl py-10">
+      <MetaTags title={post.title} description={truncate(post.excerpt || post.content.replace(/<[^>]+>/g, ' '))} image={post.featuredImage} type="article" />
       <Link to="/blog" className="inline-flex items-center gap-1.5 text-sm text-slateink hover:text-ink"><ArrowLeft className="h-3.5 w-3.5" /> Back to resources</Link>
 
       {post.category && <div className="mt-5"><Badge tone="info">{post.category}</Badge></div>}
       <h1 className="heading mt-3 text-3xl text-ink">{post.title}</h1>
-      {post.publishedAt && <p className="mt-2 text-sm text-slateink">{format(new Date(post.publishedAt), 'd MMM yyyy')}</p>}
+      {post.publishedAt && <p className="mt-2 text-sm text-slateink">{formatDate(post.publishedAt)}</p>}
 
       {post.featuredImage && (
         <ImageWithFallback src={post.featuredImage} alt={post.title} ratio="aspect-video" className="mt-6 rounded-lg" imgClassName="object-cover" />

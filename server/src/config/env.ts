@@ -101,3 +101,24 @@ export const env = {
     adminPassword: process.env.SEED_ADMIN_PASSWORD || 'ChangeMe123!'
   }
 };
+
+export type PaymentMethod = 'mock' | 'cod' | 'razorpay';
+
+/**
+ * Payment methods a customer may pick at checkout RIGHT NOW. Evaluated on every call (not cached at boot)
+ * so a mis-set environment can never be "remembered" and tests can switch modes.
+ *  - cod:      always allowed.
+ *  - mock:     only when PAYMENT_MODE=mock AND NODE_ENV is not production. "mock" marks the order paid with
+ *              no real charge, so it must never be reachable on a live deployment.
+ *  - razorpay: only when PAYMENT_MODE=razorpay and both Razorpay keys are configured.
+ */
+export function allowedPaymentMethods(): PaymentMethod[] {
+  const methods: PaymentMethod[] = ['cod'];
+  if (env.payment.mode === 'mock' && env.nodeEnv !== 'production') methods.push('mock');
+  if (env.payment.mode === 'razorpay' && env.payment.razorpayKeyId && env.payment.razorpayKeySecret) methods.push('razorpay');
+  return methods;
+}
+
+export function isPaymentMethodAllowed(method: unknown): method is PaymentMethod {
+  return typeof method === 'string' && (allowedPaymentMethods() as string[]).includes(method);
+}

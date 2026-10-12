@@ -3,14 +3,15 @@ import slugify from 'slugify';
 import { FilterQuery } from 'mongoose';
 import { Product, IProduct } from '../models/Product';
 import { asyncHandler } from '../utils/asyncHandler';
+import { publicCache, setPublicCacheHeader } from '../utils/ttlCache';
+import { parsePagination } from '../utils/pagination';
 import { ApiError } from '../utils/ApiError';
 import { ok, created, paginationMeta } from '../utils/apiResponse';
 import { writeAuditLog } from '../services/auditService';
 import { mirrorGalleryImages } from '../services/galleryMirrorService';
 
 export const listProducts = asyncHandler(async (req: Request, res: Response) => {
-  const page = Math.max(1, Number(req.query.page) || 1);
-  const limit = Math.min(100, Number(req.query.limit) || 20);
+  const { page, limit, skip } = parsePagination(req, { defaultLimit: 20, maxLimit: 100 });
 
   // Public storefront callers only ever see active products. Only a logged-in staff member
   // with permission to manage products can ask for the inactive (deactivated) ones too —
@@ -49,10 +50,13 @@ export const listProducts = asyncHandler(async (req: Request, res: Response) => 
   const sort = sortMap[String(req.query.sort)] || { createdAt: -1 };
 
   const [items, total] = await Promise.all([
-    Product.find(filter).populate('category', 'name slug').sort(sort).skip((page - 1) * limit).limit(limit),
+    Product.find(filter).populate('category', 'name slug').sort(sort).skip(skip).limit(limit).lean(),
     Product.countDocuments(filter)
   ]);
 
+  // Only the public (active-products-only) variant may be cached by browsers/CDNs; the staff view that includes
+  // inactive products must not be.
+  if (!includeInactive) setPublicCacheHeader(res);
   return ok(res, items, 'Products fetched', paginationMeta(page, limit, total));
 });
 
@@ -67,12 +71,14 @@ export const searchSuggestions = asyncHandler(async (req: Request, res: Response
 });
 
 export const getProductBySlug = asyncHandler(async (req: Request, res: Response) => {
-  const product = await Product.findOne({ slug: req.params.slug, isActive: true }).populate('category', 'name slug');
+  const product = await Product.findOne({ slug: req.params.slug, isActive: true }).populate('category', 'name slug').lean();
   if (!product) throw ApiError.notFound('Product not found');
 
+  // `category` is populated, so with lean() it is a plain { _id, name, slug } object; filter by its id.
+  const categoryId = (product.category as unknown as { _id?: unknown })?._id ?? product.category;
   const related = await Product.find({
-    category: product.category, _id: { $ne: product._id }, isActive: true
-  }).limit(4);
+    category: categoryId as never, _id: { $ne: product._id }, isActive: true
+  }).limit(4).lean();
 
   return ok(res, { product, related });
 });
@@ -97,6 +103,7 @@ export const createProduct = asyncHandler(async (req: Request, res: Response) =>
     images: product.images.map((img) => img.url),
     sourceType: 'product', sourceId: product._id, sourceLabel: product.name
   });
+  publicCache.deleteByPrefix('sitemap:');
   return created(res, product);
 });
 
@@ -118,6 +125,7 @@ export const updateProduct = asyncHandler(async (req: Request, res: Response) =>
     images: product.images.map((img) => img.url),
     sourceType: 'product', sourceId: product._id, sourceLabel: product.name
   });
+  publicCache.deleteByPrefix('sitemap:');
   return ok(res, product, 'Product updated');
 });
 
@@ -128,6 +136,7 @@ export const deleteProduct = asyncHandler(async (req: Request, res: Response) =>
   product.isActive = false;
   await product.save();
   await writeAuditLog(req, 'delete', 'products', 'Product', product._id, { isActive: true }, { isActive: false });
+  publicCache.deleteByPrefix('sitemap:');
   return ok(res, {}, 'Product deactivated');
 });
 

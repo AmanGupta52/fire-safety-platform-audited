@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, LayoutGrid } from 'lucide-react';
 import { Category } from '../../types';
@@ -7,7 +7,7 @@ import { Reveal } from '../ui/Reveal';
 
 /**
  * A single scrollable row of circular category avatars with their name underneath — sits
- * below the main CategoryShowcase banner as a quick, all-categories-at-a-glance way to jump
+ * below the main banner carousel as a quick, all-categories-at-a-glance way to jump
  * into the catalog. Scrolls natively (touch/trackpad), with left/right arrow buttons for
  * mouse users; the arrows only render once there's actually more content in that direction,
  * and re-check on every scroll so they disable themselves correctly at either end.
@@ -20,19 +20,21 @@ export function CategoryCircles({ categories }: { categories?: Category[] }) {
 
   const items = categories || [];
 
-  function updateArrows() {
+  // Only touches a ref and state setters, so it never changes and is safe to list as an effect dependency.
+  const updateArrows = useCallback(() => {
     const el = scrollerRef.current;
     if (!el) return;
     setCanScrollLeft(el.scrollLeft > 4);
     setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
-  }
+  }, []);
 
+  // Re-check the arrows when the number of categories changes (content width changed) and on window resize.
+  const itemCount = items.length;
   useEffect(() => {
     updateArrows();
     window.addEventListener('resize', updateArrows);
     return () => window.removeEventListener('resize', updateArrows);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [items.length]);
+  }, [updateArrows, itemCount]);
 
   function scroll(direction: 1 | -1) {
     const el = scrollerRef.current;
