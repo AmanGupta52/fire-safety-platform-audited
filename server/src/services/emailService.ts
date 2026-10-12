@@ -4,41 +4,103 @@ import { logger } from '../config/logger';
 
 let transporter: Transporter | null = null;
 
+const SEND_TIMEOUT_MS = 15000;
+
 function getTransporter() {
   if (transporter) return transporter;
-  if (env.email.mode === 'production' && env.email.host) {
+  if (env.email.host) {
     transporter = nodemailer.createTransport({
       host: env.email.host,
       port: env.email.port,
       secure: env.email.port === 465,
       auth: env.email.user ? { user: env.email.user, pass: env.email.password } : undefined,
-      // Without these, nodemailer waits ~2 minutes for an unreachable SMTP server (e.g. a host that blocks
-      // outbound SMTP ports), which used to hold the whole API request open for that long.
-      connectionTimeout: 10_000,
-      greetingTimeout: 10_000,
-      socketTimeout: 20_000
+      // Without these a blocked port hangs the HTTP request until the platform kills it.
+      connectionTimeout: SEND_TIMEOUT_MS,
+      greetingTimeout: SEND_TIMEOUT_MS,
+      socketTimeout: SEND_TIMEOUT_MS
     });
   }
   return transporter;
 }
 
+/** Splits `"AK Fire Safety <a@b.com>"` (or the un-bracketed `AK Fire Safety a@b.com`) into name + address. */
+export function parseFrom(from: string): { name?: string; email: string } {
+  const match = from.match(/[^\s<>"']+@[^\s<>"']+/);
+  const email = match ? match[0] : from.trim();
+  const name = from.replace(match ? match[0] : '', '').replace(/[<>"]/g, '').trim();
+  return { name: name || undefined, email };
+}
+
+async function postJson(url: string, headers: Record<string, string>, body: unknown) {
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json', ...headers },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(SEND_TIMEOUT_MS)
+  });
+  const text = await res.text();
+  if (!res.ok) throw new Error(`${res.status} ${text}`);
+  return text;
+}
+
+function isConfigured(): boolean {
+  if (env.email.mode !== 'production') return false;
+  if (env.email.provider === 'smtp') return Boolean(env.email.host);
+  if (env.email.provider === 'emailjs') {
+    const j = env.email.emailjs;
+    return Boolean(j.serviceId && j.templateId && j.publicKey && j.privateKey);
+  }
+  return Boolean(env.email.apiKey);
+}
+
 export async function sendEmail(to: string, subject: string, html: string): Promise<{ sent: boolean; info?: unknown }> {
-  if (env.email.mode !== 'production' || !getTransporter()) {
-    logger.info({ to, subject }, `[email:dev] Not sent (dev mode): "${subject}" -> ${to}`);
-    logger.debug({ html }, '[email:dev] body');
+  if (!isConfigured()) {
+    logger.info({ to, subject, html }, '[email:dev] Email not sent (EMAIL_MODE is not "production" or provider not configured); printed instead');
     return { sent: true, info: 'logged-to-console' };
   }
 
   try {
+    const from = parseFrom(env.email.from);
+    if (env.email.provider === 'emailjs') {
+      const j = env.email.emailjs;
+      // The EmailJS template must use {{to_email}}, {{subject}} and {{{message_html}}} (triple braces = raw HTML).
+      const info = await postJson('https://api.emailjs.com/api/v1.0/email/send', {}, {
+        service_id: j.serviceId,
+        template_id: j.templateId,
+        user_id: j.publicKey,
+        accessToken: j.privateKey,
+        template_params: {
+          to_email: to,
+          subject,
+          message_html: html,
+          from_name: from.name || 'Fire Safety Platform',
+          reply_to: from.email
+        }
+      });
+      return { sent: true, info };
+    }
+    if (env.email.provider === 'brevo') {
+      const info = await postJson('https://api.brevo.com/v3/smtp/email', { 'api-key': env.email.apiKey }, {
+        sender: { name: from.name, email: from.email },
+        to: [{ email: to }],
+        subject,
+        htmlContent: html
+      });
+      return { sent: true, info };
+    }
+    if (env.email.provider === 'resend') {
+      const info = await postJson('https://api.resend.com/emails', { Authorization: `Bearer ${env.email.apiKey}` }, {
+        from: from.name ? `${from.name} <${from.email}>` : from.email,
+        to: [to],
+        subject,
+        html
+      });
+      return { sent: true, info };
+    }
     const info = await getTransporter()!.sendMail({ from: env.email.from, to, subject, html });
     return { sent: true, info };
   } catch (err) {
-    const e = err as { message?: string; code?: string };
-    // One readable line instead of a stack trace: a failed send is an expected, recoverable condition.
-    logger.error(
-      { to, subject, code: e.code },
-      `[email] Failed to send "${subject}" to ${to}: ${e.message ?? 'unknown error'}${e.code ? ` (${e.code})` : ''}`
-    );
+    logger.error({ err, to, subject, provider: env.email.provider }, '[email] send failed');
     return { sent: false };
   }
 }

@@ -47,8 +47,9 @@ export const env = {
   // How many reverse proxies sit in front of the API (0 = none, 1 = e.g. nginx / Render / Railway).
   trustProxy: Number(process.env.TRUST_PROXY ?? 1),
 
-  clientUrl: process.env.CLIENT_URL || 'http://localhost:5173',
-  adminUrl: process.env.ADMIN_URL || 'http://localhost:5174',
+  // Strip trailing slashes: CORS compares origins exactly and email links are built as `${url}/path`.
+  clientUrl: (process.env.CLIENT_URL || 'http://localhost:5173').replace(/\/+$/, ''),
+  adminUrl: (process.env.ADMIN_URL || 'http://localhost:5174').replace(/\/+$/, ''),
   // Absolute origin this API is reachable at. Used to turn locally-stored upload paths
   // (the /uploads fallback used when Cloudinary isn't configured) into absolute URLs —
   // without this, an image saved as "/uploads/categories/x.jpg" resolves relative to
@@ -67,6 +68,16 @@ export const env = {
 
   email: {
     mode: (process.env.EMAIL_MODE as 'development' | 'production') || 'development',
+    // 'emailjs' | 'brevo' | 'resend' send over HTTPS (port 443) and work on Render, which BLOCKS outbound
+    // SMTP ports 25/465/587. 'smtp' (Nodemailer) only works where those ports are open (e.g. localhost).
+    provider: (process.env.EMAIL_PROVIDER as 'smtp' | 'brevo' | 'resend' | 'emailjs') || 'smtp',
+    apiKey: process.env.EMAIL_API_KEY || '',
+    emailjs: {
+      serviceId: process.env.EMAILJS_SERVICE_ID || '',
+      templateId: process.env.EMAILJS_TEMPLATE_ID || '',
+      publicKey: process.env.EMAILJS_PUBLIC_KEY || '',
+      privateKey: process.env.EMAILJS_PRIVATE_KEY || ''
+    },
     host: process.env.EMAIL_HOST || '',
     port: Number(process.env.EMAIL_PORT) || 587,
     user: process.env.EMAIL_USER || '',

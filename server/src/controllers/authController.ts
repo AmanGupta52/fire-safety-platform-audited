@@ -18,7 +18,6 @@ import { env } from '../config/env';
 import { writeSystemAuditLog } from '../services/auditService';
 import { clientIp, clientUserAgent } from '../utils/clientIp';
 import { logger } from '../config/logger';
-import { inBackground } from '../utils/background';
 import {
   generateOtp, hashOtp, otpMatches, otpExpiryDate, secondsUntilResendAllowed,
   OTP_EXPIRY_MINUTES, OTP_MAX_ATTEMPTS
@@ -44,9 +43,12 @@ async function issueAndSendOtp(user: InstanceType<typeof User>) {
   user.emailOtpLastSentAt = new Date();
   await user.save();
 
-  inBackground('verification email', () =>
-    sendEmail(user.email, 'Verify your email — Fire Safety Platform', emailTemplates.otpVerification(otp, OTP_EXPIRY_MINUTES))
+  const result = await sendEmail(
+    user.email,
+    'Verify your email — Fire Safety Platform',
+    emailTemplates.otpVerification(otp, OTP_EXPIRY_MINUTES)
   );
+  return result.sent;
 }
 
 /**
@@ -65,12 +67,15 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
     name, email, password, phone, customerType, companyName, gstNumber, role: 'customer', isEmailVerified: false
   });
 
-  await issueAndSendOtp(user);
+  const emailSent = await issueAndSendOtp(user);
 
   return created(res, {
     email: user.email,
-    otpExpiresInMinutes: OTP_EXPIRY_MINUTES
-  }, 'Account created. Enter the verification code sent to your email to activate it.');
+    otpExpiresInMinutes: OTP_EXPIRY_MINUTES,
+    emailSent
+  }, emailSent
+    ? 'Account created. Enter the verification code sent to your email to activate it.'
+    : 'Account created, but we could not send the verification email. Please use "Resend code".');
 });
 
 export const verifyOtp = asyncHandler(async (req: Request, res: Response) => {
@@ -111,7 +116,7 @@ export const verifyOtp = asyncHandler(async (req: Request, res: Response) => {
   user.lastLoginAt = new Date();
   await user.save();
 
-  inBackground('welcome email', () => sendEmail(user.email, 'Welcome to Fire Safety Platform', emailTemplates.welcome(user.name)));
+  await sendEmail(user.email, 'Welcome to Fire Safety Platform', emailTemplates.welcome(user.name));
 
   const tokens = await issueTokens(user, req);
   return ok(res, {
@@ -135,7 +140,8 @@ export const resendOtp = asyncHandler(async (req: Request, res: Response) => {
     throw new ApiError(429, `Please wait ${waitSeconds}s before requesting another code.`, [{ retryAfterSeconds: waitSeconds }]);
   }
 
-  await issueAndSendOtp(user);
+  const emailSent = await issueAndSendOtp(user);
+  if (!emailSent) throw new ApiError(502, 'We could not send the email right now. Please try again in a minute.');
   return ok(res, { email: user.email, otpExpiresInMinutes: OTP_EXPIRY_MINUTES }, 'A new verification code has been sent.');
 });
 
@@ -234,16 +240,16 @@ async function registerFailedLogin(
         userId: String(user._id), email: user.email,
         data: { scope: 'ip_account', reason: `${MAX_FAILS_PER_IP} failed attempts from one address`, minutes: LOCK_MS / 60000 }
       });
-      inBackground('IP-blocked alert email', () => sendEmail(user.email, 'Security alert: repeated failed sign-ins were blocked',
-        emailTemplates.ipBlocked({ name: user.name, ipAddress: ip, minutes: LOCK_MS / 60000 })));
+      await sendEmail(user.email, 'Security alert: repeated failed sign-ins were blocked',
+        emailTemplates.ipBlocked({ name: user.name, ipAddress: ip, minutes: LOCK_MS / 60000 }));
     }
     if (accountLockedNow) {
       await writeSystemAuditLog(req, 'account_locked', 'auth', {
         userId: String(user._id), email: user.email,
         data: { scope: 'account', reason: `${MAX_FAILS_PER_ACCOUNT} failed attempts from many addresses`, minutes: LOCK_MS / 60000 }
       });
-      inBackground('account-locked alert email', () => sendEmail(user.email, 'Security alert: your account was temporarily locked',
-        emailTemplates.accountLocked({ name: user.name, ipAddress: ip, minutes: LOCK_MS / 60000 })));
+      await sendEmail(user.email, 'Security alert: your account was temporarily locked',
+        emailTemplates.accountLocked({ name: user.name, ipAddress: ip, minutes: LOCK_MS / 60000 }));
     }
   } catch (err) {
     logger.error({ err }, '[auth] Failed to record or send a lockout alert');
@@ -296,8 +302,8 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
 
   // Alert on a new device for everyone, and on a new location too for staff (higher-value accounts).
   if (!isFirstLogin && (isNewDevice || (isStaff && isNewLocation))) {
-    inBackground('new-device alert email', () =>
-      sendEmail(
+    try {
+      await sendEmail(
         user.email,
         'Security alert: new sign-in to your account',
         emailTemplates.newDeviceLogin({
@@ -307,8 +313,10 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
           time: new Date().toUTCString(),
           reason: isNewDevice ? 'a device we have not seen before' : 'a new location'
         })
-      )
-    );
+      );
+    } catch (err) {
+      logger.error({ err }, '[auth] Failed to send new-device email');
+    }
   }
 
   const push: Record<string, unknown> = {};
@@ -384,9 +392,7 @@ export const forgotPassword = asyncHandler(async (req: Request, res: Response) =
 
     const baseUrl = user.role !== 'customer' ? env.adminUrl : env.clientUrl;
     const resetLink = `${baseUrl}/reset-password?token=${resetToken}`;
-    // Sent in the background: if the mail server were slow, an existing account would answer noticeably slower
-    // than an unknown one, which would reveal which emails are registered.
-    inBackground('password reset email', () => sendEmail(user.email, 'Reset your password', emailTemplates.passwordReset(resetLink)));
+    await sendEmail(user.email, 'Reset your password', emailTemplates.passwordReset(resetLink));
     await writeSystemAuditLog(req, 'password_reset_requested', 'auth', { userId: String(user._id), email: user.email });
   }
   return ok(res, {}, 'If that email exists, a reset link has been sent');
@@ -413,9 +419,9 @@ export const resetPassword = asyncHandler(async (req: Request, res: Response) =>
   await clearThrottles(sha256(user.email));
 
   if (user.role !== 'customer') {
-    inBackground('staff password-reset alert', () => sendEmail(user.email, 'Security Alert: Staff account password was reset', emailTemplates.staffPasswordReset(user.name)));
+    await sendEmail(user.email, 'Security Alert: Staff account password was reset', emailTemplates.staffPasswordReset(user.name));
   } else {
-    inBackground('password-changed email', () => sendEmail(user.email, 'Your password was changed', emailTemplates.passwordChanged()));
+    await sendEmail(user.email, 'Your password was changed', emailTemplates.passwordChanged());
   }
 
   await writeSystemAuditLog(req, 'password_reset', 'auth', {
