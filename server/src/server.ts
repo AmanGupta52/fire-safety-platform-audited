@@ -8,6 +8,7 @@ import { registerCronJobs } from './jobs';
 import { ensurePdfDirs } from './services/pdfService';
 import { seedServicesIfEmpty, backfillServiceBookings } from './utils/serviceSeed';
 import { createShutdown } from './utils/gracefulShutdown';
+import { emailConfigProblem } from './services/emailService';
 
 // Render's proxy closes idle connections after 60 s. Node must keep sockets open LONGER than that, otherwise
 // the proxy can reuse a socket Node just closed and the client sees a random 502. headersTimeout has to be
@@ -28,6 +29,9 @@ async function bootstrap() {
   ensurePdfDirs();
   await seedServicesIfEmpty();
   await backfillServiceBookings();
+
+  const emailProblem = emailConfigProblem();
+  if (emailProblem) logger.warn(`[email] ${emailProblem}`);
 
   const app = createApp();
 

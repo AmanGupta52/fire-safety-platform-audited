@@ -13,6 +13,7 @@ import {
   revokeRefreshTokenSession,
   revokeAllUserSessions
 } from '../utils/jwt';
+import { inBackground } from '../utils/background';
 import { sendEmail, emailTemplates } from '../services/emailService';
 import { env } from '../config/env';
 import { writeSystemAuditLog } from '../services/auditService';
@@ -116,7 +117,7 @@ export const verifyOtp = asyncHandler(async (req: Request, res: Response) => {
   user.lastLoginAt = new Date();
   await user.save();
 
-  await sendEmail(user.email, 'Welcome to Fire Safety Platform', emailTemplates.welcome(user.name));
+  inBackground('welcome email', () => sendEmail(user.email, 'Welcome to Fire Safety Platform', emailTemplates.welcome(user.name)));
 
   const tokens = await issueTokens(user, req);
   return ok(res, {
@@ -240,16 +241,16 @@ async function registerFailedLogin(
         userId: String(user._id), email: user.email,
         data: { scope: 'ip_account', reason: `${MAX_FAILS_PER_IP} failed attempts from one address`, minutes: LOCK_MS / 60000 }
       });
-      await sendEmail(user.email, 'Security alert: repeated failed sign-ins were blocked',
-        emailTemplates.ipBlocked({ name: user.name, ipAddress: ip, minutes: LOCK_MS / 60000 }));
+      inBackground('IP-blocked alert email', () => sendEmail(user.email, 'Security alert: repeated failed sign-ins were blocked',
+        emailTemplates.ipBlocked({ name: user.name, ipAddress: ip, minutes: LOCK_MS / 60000 })));
     }
     if (accountLockedNow) {
       await writeSystemAuditLog(req, 'account_locked', 'auth', {
         userId: String(user._id), email: user.email,
         data: { scope: 'account', reason: `${MAX_FAILS_PER_ACCOUNT} failed attempts from many addresses`, minutes: LOCK_MS / 60000 }
       });
-      await sendEmail(user.email, 'Security alert: your account was temporarily locked',
-        emailTemplates.accountLocked({ name: user.name, ipAddress: ip, minutes: LOCK_MS / 60000 }));
+      inBackground('account-locked alert email', () => sendEmail(user.email, 'Security alert: your account was temporarily locked',
+        emailTemplates.accountLocked({ name: user.name, ipAddress: ip, minutes: LOCK_MS / 60000 })));
     }
   } catch (err) {
     logger.error({ err }, '[auth] Failed to record or send a lockout alert');
@@ -302,8 +303,8 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
 
   // Alert on a new device for everyone, and on a new location too for staff (higher-value accounts).
   if (!isFirstLogin && (isNewDevice || (isStaff && isNewLocation))) {
-    try {
-      await sendEmail(
+    inBackground('new-device alert email', () =>
+      sendEmail(
         user.email,
         'Security alert: new sign-in to your account',
         emailTemplates.newDeviceLogin({
@@ -313,10 +314,8 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
           time: new Date().toUTCString(),
           reason: isNewDevice ? 'a device we have not seen before' : 'a new location'
         })
-      );
-    } catch (err) {
-      logger.error({ err }, '[auth] Failed to send new-device email');
-    }
+      )
+    );
   }
 
   const push: Record<string, unknown> = {};
@@ -392,7 +391,9 @@ export const forgotPassword = asyncHandler(async (req: Request, res: Response) =
 
     const baseUrl = user.role !== 'customer' ? env.adminUrl : env.clientUrl;
     const resetLink = `${baseUrl}/reset-password?token=${resetToken}`;
-    await sendEmail(user.email, 'Reset your password', emailTemplates.passwordReset(resetLink));
+    // Sent in the background: an awaited send makes an existing account answer noticeably slower than an unknown
+    // one (EmailJS/SMTP take hundreds of ms), which would reveal which emails are registered.
+    inBackground('password reset email', () => sendEmail(user.email, 'Reset your password', emailTemplates.passwordReset(resetLink)));
     await writeSystemAuditLog(req, 'password_reset_requested', 'auth', { userId: String(user._id), email: user.email });
   }
   return ok(res, {}, 'If that email exists, a reset link has been sent');
@@ -419,9 +420,9 @@ export const resetPassword = asyncHandler(async (req: Request, res: Response) =>
   await clearThrottles(sha256(user.email));
 
   if (user.role !== 'customer') {
-    await sendEmail(user.email, 'Security Alert: Staff account password was reset', emailTemplates.staffPasswordReset(user.name));
+    inBackground('staff password-reset alert', () => sendEmail(user.email, 'Security Alert: Staff account password was reset', emailTemplates.staffPasswordReset(user.name)));
   } else {
-    await sendEmail(user.email, 'Your password was changed', emailTemplates.passwordChanged());
+    inBackground('password-changed email', () => sendEmail(user.email, 'Your password was changed', emailTemplates.passwordChanged()));
   }
 
   await writeSystemAuditLog(req, 'password_reset', 'auth', {

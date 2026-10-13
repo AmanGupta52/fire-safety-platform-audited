@@ -127,7 +127,8 @@ export const createStaff = asyncHandler(async (req: Request, res: Response) => {
 /** Emails the one-time set-password link. Returns false (and logs) if the email could not be sent. */
 async function sendInvite(name: string, role: string, email: string, setupToken: string): Promise<boolean> {
   try {
-    await sendEmail(
+    // sendEmail never throws: it reports a failed send as { sent: false }, so that result is what decides the answer.
+    const result = await sendEmail(
       email,
       'Set your password — Fire Safety Platform Staff Account',
       emailTemplates.staffInviteSetPassword({
@@ -137,7 +138,7 @@ async function sendInvite(name: string, role: string, email: string, setupToken:
         expiresInHours: 24
       })
     );
-    return true;
+    return result.sent;
   } catch (err) {
     logger.error({ err, email }, '[staff] Failed to send staff invite email');
     return false;

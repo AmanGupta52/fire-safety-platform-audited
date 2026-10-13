@@ -3,9 +3,9 @@ import { useForm } from 'react-hook-form';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { UserCog, Plus, Pencil, Shield, Lock, ChevronDown, ChevronRight } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { format } from 'date-fns';
+
 import clsx from 'clsx';
-import { api, apiErrorMessage } from '../../lib/apiClient';
+import { api, toastApiError } from '../../lib/apiClient';
 import { StaffMember, Role, Permission } from '../../types';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { Button } from '../../components/ui/Button';
@@ -14,6 +14,7 @@ import { Card, Badge } from '../../components/ui/Primitives';
 import { DataTable, Column } from '../../components/ui/DataTable';
 import { Modal } from '../../components/ui/Modal';
 import { useAuthStore } from '../../store/authStore';
+import { formatDate } from '../../lib/format';
 
 interface RolePermissionsData {
   roles: Role[];
@@ -44,13 +45,13 @@ export default function StaffList() {
       toast.success('Staff status updated');
       queryClient.invalidateQueries({ queryKey: ['staff'] });
     },
-    onError: (err) => toast.error(apiErrorMessage(err))
+    onError: toastApiError
   });
 
   const resendInviteMutation = useMutation({
     mutationFn: async (member: StaffMember) => api.post(`/staff/${member._id}/resend-invite`),
     onSuccess: () => toast.success('A new set-password link was emailed'),
-    onError: (err) => toast.error(apiErrorMessage(err))
+    onError: toastApiError
   });
 
   const columns: Column<StaffMember>[] = [
@@ -91,7 +92,7 @@ export default function StaffList() {
     },
     {
       header: 'Created',
-      render: (s) => <span className="text-xs text-slateink">{format(new Date(s.createdAt), 'd MMM yyyy')}</span>
+      render: (s) => <span className="text-xs text-slateink">{formatDate(s.createdAt)}</span>
     },
     {
       header: '',
@@ -128,7 +129,11 @@ export default function StaffList() {
               <Button
                 variant={s.isActive ? 'danger' : 'secondary'}
                 size="sm"
-                onClick={() => toggleActiveMutation.mutate(s)}
+                onClick={() => {
+                  // Disabling signs the person out of the console; ask first. Enabling again is harmless.
+                  if (s.isActive && !confirm(`Disable ${s.name}? They will no longer be able to sign in.`)) return;
+                  toggleActiveMutation.mutate(s);
+                }}
                 loading={toggleActiveMutation.isPending}
               >
                 {s.isActive ? 'Disable' : 'Enable'}
@@ -283,7 +288,7 @@ function StaffFormModal({
       queryClient.invalidateQueries({ queryKey: ['staff'] });
       onClose();
     },
-    onError: (err) => toast.error(apiErrorMessage(err))
+    onError: toastApiError
   });
 
   return (

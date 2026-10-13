@@ -8,8 +8,10 @@ vi.mock('../src/services/emailService', async (importOriginal) => {
   return {
     ...original,
     sendEmail: vi.fn(async (to: string, subject: string, html: string) => {
-      if (failEmails) throw new Error('SMTP is down');
+      // Same contract as the real sendEmail: a failed send is reported as { sent: false }, it does not throw.
+      if (failEmails) return { sent: false };
       sent.push({ to, subject, html });
+      return { sent: true };
     })
   };
 });

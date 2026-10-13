@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { UserCog, Plus, Ban, Pencil, BarChart3 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { api, apiErrorMessage } from '../../lib/apiClient';
+import { api, toastApiError } from '../../lib/apiClient';
 import { Technician, StaffMember } from '../../types';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { Button } from '../../components/ui/Button';
@@ -32,7 +32,7 @@ export default function TechniciansList() {
   const disableMutation = useMutation({
     mutationFn: async (id: string) => api.patch(`/technicians/${id}/disable`),
     onSuccess: () => { toast.success('Technician disabled'); queryClient.invalidateQueries({ queryKey: ['technicians'] }); },
-    onError: (err) => toast.error(apiErrorMessage(err))
+    onError: toastApiError
   });
 
   const columns: Column<Technician>[] = [
@@ -54,12 +54,12 @@ export default function TechniciansList() {
             <BarChart3 className="h-3.5 w-3.5" />
           </button>
           {hasPermission('technicians.update') && (
-            <button onClick={() => setEditing(t)} title="Edit" className="rounded p-1.5 text-slateink hover:bg-paper">
+            <button aria-label="Edit" onClick={() => setEditing(t)} title="Edit" className="rounded p-1.5 text-slateink hover:bg-paper">
               <Pencil className="h-3.5 w-3.5" />
             </button>
           )}
           {t.status === 'active' && hasPermission('technicians.update') && (
-            <button onClick={() => { if (confirm(`Disable ${t.name}?`)) disableMutation.mutate(t._id); }} className="rounded p-1.5 text-brand hover:bg-brand-light">
+            <button disabled={disableMutation.isPending} onClick={() => { if (confirm(`Disable ${t.name}?`)) disableMutation.mutate(t._id); }} className="rounded p-1.5 text-brand hover:bg-brand-light">
               <Ban className="h-3.5 w-3.5" />
             </button>
           )}
@@ -144,7 +144,7 @@ function TechnicianForm({ technician, onClose }: { technician: Technician | null
       return isEdit && technician ? api.put(`/technicians/${technician._id}`, payload) : api.post('/technicians', payload);
     },
     onSuccess: () => { toast.success(isEdit ? 'Technician updated' : 'Technician added'); queryClient.invalidateQueries({ queryKey: ['technicians'] }); onClose(); },
-    onError: (err) => toast.error(apiErrorMessage(err))
+    onError: toastApiError
   });
 
   return (

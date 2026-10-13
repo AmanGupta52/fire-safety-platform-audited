@@ -9,6 +9,7 @@ vi.mock('../src/services/emailService', async (importOriginal) => {
     ...original,
     sendEmail: vi.fn(async (to: string, subject: string, html: string) => {
       sent.push({ to, subject, html });
+      return { sent: true };
     })
   };
 });

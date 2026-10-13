@@ -3,8 +3,7 @@ import { useForm, useFieldArray } from 'react-hook-form';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { FileText, FileDown, CheckCircle2, XCircle, ArrowRightCircle, Pencil, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { format } from 'date-fns';
-import { api, apiErrorMessage } from '../../lib/apiClient';
+import { api, toastApiError } from '../../lib/apiClient';
 import { Quote, QuoteStatus } from '../../types';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { Card, Badge } from '../../components/ui/Primitives';
@@ -12,6 +11,7 @@ import { DataTable, Column } from '../../components/ui/DataTable';
 import { Select, Input, Textarea } from '../../components/ui/FormControls';
 import { Modal } from '../../components/ui/Modal';
 import { Button } from '../../components/ui/Button';
+import { formatInr, formatDate } from '../../lib/format';
 
 const STATUS_OPTIONS: QuoteStatus[] = ['requested', 'reviewing', 'sent', 'approved', 'rejected', 'converted'];
 const statusTone: Record<QuoteStatus, 'neutral' | 'success' | 'warning' | 'danger' | 'info'> = {
@@ -32,7 +32,7 @@ export default function QuotesList() {
     { header: 'Customer', render: (q) => <div><p className="text-ink">{q.customerName}</p>{q.companyName && <p className="text-xs text-slateink">{q.companyName}</p>}</div> },
     { header: 'Items', render: (q) => `${q.items.length} item${q.items.length !== 1 ? 's' : ''}` },
     { header: 'Status', render: (q) => <Badge tone={statusTone[q.status]}>{q.status}</Badge> },
-    { header: 'Requested', render: (q) => format(new Date(q.createdAt), 'd MMM yyyy') }
+    { header: 'Requested', render: (q) => formatDate(q.createdAt) }
   ];
 
   return (
@@ -71,19 +71,19 @@ function QuoteDetailModal({ quote, onClose }: { quote: Quote; onClose: () => voi
   const statusMutation = useMutation({
     mutationFn: async (status: QuoteStatus) => api.patch(`/quotes/${quote._id}/status`, { status }),
     onSuccess: () => { toast.success('Quote status updated'); invalidate(); onClose(); },
-    onError: (err) => toast.error(apiErrorMessage(err))
+    onError: toastApiError
   });
 
   const pdfMutation = useMutation({
     mutationFn: async () => (await api.post(`/quotes/${quote._id}/pdf`)).data.data as { pdfUrl: string },
     onSuccess: (data) => { toast.success('PDF generated'); window.open(data.pdfUrl, '_blank'); invalidate(); },
-    onError: (err) => toast.error(apiErrorMessage(err))
+    onError: toastApiError
   });
 
   const convertMutation = useMutation({
     mutationFn: async () => api.post(`/quotes/${quote._id}/convert`),
     onSuccess: () => { toast.success('Converted to order'); invalidate(); onClose(); },
-    onError: (err) => toast.error(apiErrorMessage(err))
+    onError: toastApiError
   });
 
   const { register, control, handleSubmit } = useForm<EditFormValues>({
@@ -99,7 +99,7 @@ function QuoteDetailModal({ quote, onClose }: { quote: Quote; onClose: () => voi
   const updateMutation = useMutation({
     mutationFn: async (values: EditFormValues) => api.put(`/quotes/${quote._id}`, values),
     onSuccess: () => { toast.success('Quote updated'); invalidate(); setEditing(false); onClose(); },
-    onError: (err) => toast.error(apiErrorMessage(err))
+    onError: toastApiError
   });
 
   if (editing) {
@@ -119,7 +119,7 @@ function QuoteDetailModal({ quote, onClose }: { quote: Quote; onClose: () => voi
                   <Input label="Qty" type="number" {...register(`items.${i}.quantity`, { valueAsNumber: true })} />
                   <Input label="Unit price (₹)" type="number" step="0.01" {...register(`items.${i}.unitPrice`, { valueAsNumber: true })} />
                   <Input label="GST %" type="number" {...register(`items.${i}.gstPercentage`, { valueAsNumber: true })} />
-                  <button type="button" onClick={() => remove(i)} className="mb-1.5 rounded p-1.5 text-brand hover:bg-brand-light">
+                  <button aria-label="Remove item" type="button" onClick={() => remove(i)} className="mb-1.5 rounded p-1.5 text-brand hover:bg-brand-light">
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
                 </div>
@@ -155,7 +155,7 @@ function QuoteDetailModal({ quote, onClose }: { quote: Quote; onClose: () => voi
           <div>
             <p className="text-xs font-medium text-slateink">Delivery address</p>
             <p className="text-ink">{quote.address || 'Not provided'}</p>
-            {quote.validUntil && <p className="mt-1 text-xs text-slateink">Valid until {format(new Date(quote.validUntil), 'd MMM yyyy')}</p>}
+            {quote.validUntil && <p className="mt-1 text-xs text-slateink">Valid until {formatDate(quote.validUntil)}</p>}
           </div>
         </div>
 
@@ -183,11 +183,11 @@ function QuoteDetailModal({ quote, onClose }: { quote: Quote; onClose: () => voi
           </div>
           <div className="rounded border border-line">
             {quote.items.map((item, i) => (
-              <div key={i} className={`flex items-center justify-between px-3 py-2 text-sm ${i > 0 ? 'border-t border-line' : ''}`}>
+              <div key={item.product || item.name} className={`flex items-center justify-between px-3 py-2 text-sm ${i > 0 ? 'border-t border-line' : ''}`}>
                 <p className="text-ink">{item.name}</p>
                 <div className="flex items-center gap-3 text-slateink">
                   <span>Qty {item.quantity}</span>
-                  {item.unitPrice !== undefined && <span>₹{item.unitPrice.toLocaleString('en-IN')}</span>}
+                  {item.unitPrice !== undefined && <span>{formatInr(item.unitPrice, 2)}</span>}
                 </div>
               </div>
             ))}

@@ -3,8 +3,7 @@ import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Users, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { format } from 'date-fns';
-import { api, apiErrorMessage } from '../../lib/apiClient';
+import { api, toastApiError } from '../../lib/apiClient';
 import { Customer, Order, Quote, ServiceBooking } from '../../types';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { Card, Badge } from '../../components/ui/Primitives';
@@ -13,6 +12,7 @@ import { Input } from '../../components/ui/FormControls';
 import { Pagination } from '../../components/ui/Pagination';
 import { Modal } from '../../components/ui/Modal';
 import { Button } from '../../components/ui/Button';
+import { formatInr, formatDate } from '../../lib/format';
 
 export default function CustomersList() {
   const [page, setPage] = useState(1);
@@ -37,7 +37,7 @@ export default function CustomersList() {
     { header: 'Type', render: (c) => <Badge tone="neutral">{c.customerType.toUpperCase()}</Badge> },
     { header: 'Tags', render: (c) => <div className="flex flex-wrap gap-1">{c.tags.map((t) => <Badge key={t} tone="info">{t}</Badge>)}</div> },
     { header: 'Status', render: (c) => <Badge tone={c.isActive ? 'success' : 'danger'}>{c.isActive ? 'Active' : 'Disabled'}</Badge> },
-    { header: 'Joined', render: (c) => format(new Date(c.createdAt), 'd MMM yyyy') }
+    { header: 'Joined', render: (c) => formatDate(c.createdAt) }
   ];
 
   return (
@@ -76,13 +76,13 @@ function CustomerDetailModal({ customerId, onClose }: { customerId: string; onCl
   const tagMutation = useMutation({
     mutationFn: async (tags: string[]) => api.patch(`/customers/${customerId}/tags`, { tags }),
     onSuccess: () => { toast.success('Tags updated'); queryClient.invalidateQueries({ queryKey: ['customer-detail', customerId] }); },
-    onError: (err) => toast.error(apiErrorMessage(err))
+    onError: toastApiError
   });
 
   const toggleActiveMutation = useMutation({
     mutationFn: async () => api.patch(`/customers/${customerId}/toggle-active`),
     onSuccess: () => { toast.success('Customer updated'); queryClient.invalidateQueries({ queryKey: ['customer-detail', customerId] }); },
-    onError: (err) => toast.error(apiErrorMessage(err))
+    onError: toastApiError
   });
 
   if (isLoading || !data) return <Modal open onClose={onClose} title="Customer"><div className="py-8 text-center text-sm text-slateink">Loading…</div></Modal>;
@@ -95,7 +95,7 @@ function CustomerDetailModal({ customerId, onClose }: { customerId: string; onCl
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
           <div><p className="text-xs font-medium text-slateink">Contact</p><p className="text-ink">{user.email}</p><p className="text-ink">{user.phone}</p></div>
           <div><p className="text-xs font-medium text-slateink">Type</p><p className="text-ink">{user.customerType.toUpperCase()} {user.companyName && `· ${user.companyName}`}</p></div>
-          <div><p className="text-xs font-medium text-slateink">Lifetime revenue</p><p className="stat-number text-ink">₹{revenue.toLocaleString('en-IN')}</p></div>
+          <div><p className="text-xs font-medium text-slateink">Lifetime revenue</p><p className="stat-number text-ink">{formatInr(revenue, 2)}</p></div>
         </div>
 
         <div>
@@ -103,7 +103,7 @@ function CustomerDetailModal({ customerId, onClose }: { customerId: string; onCl
           <div className="flex flex-wrap items-center gap-1.5">
             {user.tags.map((t) => (
               <Badge key={t} tone="info">
-                <button onClick={() => tagMutation.mutate(user.tags.filter((x) => x !== t))} className="mr-1">×</button>{t}
+                <button disabled={tagMutation.isPending} onClick={() => tagMutation.mutate(user.tags.filter((x) => x !== t))} className="mr-1">×</button>{t}
               </Badge>
             ))}
             <input

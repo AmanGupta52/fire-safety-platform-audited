@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { History, ShieldCheck, Eye, Terminal, Lock } from 'lucide-react';
-import { format } from 'date-fns';
 import { api } from '../../lib/apiClient';
 import { AuditLogEntry } from '../../types';
 import { PageHeader } from '../../components/layout/PageHeader';
@@ -11,6 +10,7 @@ import { Pagination } from '../../components/ui/Pagination';
 import { Input } from '../../components/ui/FormControls';
 import { Modal } from '../../components/ui/Modal';
 import { Button } from '../../components/ui/Button';
+import { formatDateTime } from '../../lib/format';
 
 export default function AuditLogPage() {
   const [page, setPage] = useState(1);
@@ -28,7 +28,7 @@ export default function AuditLogPage() {
   const { data: verification } = useQuery({
     queryKey: ['audit-logs-verify'],
     queryFn: async () =>
-      (await api.get('/audit-logs/verify')).data.data as {
+      (await api.get('/audit-logs/verify', { silentWake: true })).data.data as {
         isValid: boolean;
         totalLogs: number;
         reason?: string;
@@ -37,7 +37,7 @@ export default function AuditLogPage() {
   });
 
   const columns: Column<AuditLogEntry>[] = [
-    { header: 'When', render: (l) => <span className="text-xs">{format(new Date(l.createdAt), 'd MMM yyyy, h:mm a')}</span> },
+    { header: 'When', render: (l) => <span className="text-xs">{formatDateTime(l.createdAt)}</span> },
     {
       header: 'Staff member',
       render: (l) =>
@@ -169,7 +169,7 @@ function AuditLogDetailModal({
         <div className="grid grid-cols-2 gap-3 rounded bg-paper p-3 border border-line">
           <div>
             <p className="text-[11px] font-medium text-slateink">Timestamp</p>
-            <p className="font-semibold text-ink">{format(new Date(log.createdAt), 'PPpp')}</p>
+            <p className="font-semibold text-ink">{formatDateTime(log.createdAt)}</p>
           </div>
           <div>
             <p className="text-[11px] font-medium text-slateink">Staff Member</p>

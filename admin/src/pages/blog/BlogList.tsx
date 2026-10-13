@@ -4,8 +4,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { Newspaper, Plus, Pencil, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { format } from 'date-fns';
-import { api, apiErrorMessage } from '../../lib/apiClient';
+
+import { api, toastApiError } from '../../lib/apiClient';
 import { BlogPost } from '../../types';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { Button } from '../../components/ui/Button';
@@ -14,6 +14,7 @@ import { Card, Badge } from '../../components/ui/Primitives';
 import { DataTable, Column } from '../../components/ui/DataTable';
 import { Modal } from '../../components/ui/Modal';
 import { SingleImageUploader } from '../../components/ui/ImageUploader';
+import { formatDate } from '../../lib/format';
 
 interface FormValues { title: string; excerpt?: string; content: string; category?: string; tags?: string; isPublished?: boolean }
 
@@ -40,20 +41,20 @@ export default function BlogList() {
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => api.delete(`/blog/admin/${id}`),
     onSuccess: () => { toast.success('Post deleted'); queryClient.invalidateQueries({ queryKey: ['blog-admin'] }); },
-    onError: (err) => toast.error(apiErrorMessage(err))
+    onError: toastApiError
   });
 
   const columns: Column<BlogPost>[] = [
     { header: 'Title', render: (p) => <span className="font-medium text-ink">{p.title}</span> },
     { header: 'Category', render: (p) => p.category || '—' },
     { header: 'Status', render: (p) => <Badge tone={p.isPublished ? 'success' : 'neutral'}>{p.isPublished ? 'Published' : 'Draft'}</Badge> },
-    { header: 'Updated', render: (p) => format(new Date(p.createdAt), 'd MMM yyyy') },
+    { header: 'Updated', render: (p) => formatDate(p.createdAt) },
     {
       header: '', className: 'text-right',
       render: (p) => (
         <div className="flex justify-end gap-1">
-          <button onClick={() => setEditing(p)} className="rounded p-1.5 text-slateink hover:bg-paper"><Pencil className="h-3.5 w-3.5" /></button>
-          <button onClick={() => { if (confirm(`Delete "${p.title}"?`)) deleteMutation.mutate(p._id); }} className="rounded p-1.5 text-brand hover:bg-brand-light"><Trash2 className="h-3.5 w-3.5" /></button>
+          <button aria-label="Edit" onClick={() => setEditing(p)} className="rounded p-1.5 text-slateink hover:bg-paper"><Pencil className="h-3.5 w-3.5" /></button>
+          <button aria-label="Delete" disabled={deleteMutation.isPending} onClick={() => { if (confirm(`Delete "${p.title}"?`)) deleteMutation.mutate(p._id); }} className="rounded p-1.5 text-brand hover:bg-brand-light"><Trash2 className="h-3.5 w-3.5" /></button>
         </div>
       )
     }
@@ -86,7 +87,7 @@ function BlogForm({ post, onClose }: { post: BlogPost | null; onClose: () => voi
       return isEdit && post ? api.put(`/blog/admin/${post._id}`, payload) : api.post('/blog/admin', payload);
     },
     onSuccess: () => { toast.success(isEdit ? 'Post updated' : 'Post created'); queryClient.invalidateQueries({ queryKey: ['blog-admin'] }); onClose(); },
-    onError: (err) => toast.error(apiErrorMessage(err))
+    onError: toastApiError
   });
 
   return (

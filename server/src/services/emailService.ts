@@ -43,6 +43,29 @@ async function postJson(url: string, headers: Record<string, string>, body: unkn
   return text;
 }
 
+/**
+ * Why real email sending is NOT active, or null when it is. Used at startup so a half-set-up deployment (for example
+ * a misspelled EMAILJS_* variable on Render) is reported in the logs instead of silently printing emails.
+ */
+export function emailConfigProblem(): string | null {
+  const production = env.email.mode === 'production';
+  if (!production) {
+    return env.nodeEnv === 'production'
+      ? 'EMAIL_MODE is not "production", so emails are only printed to the log and never sent'
+      : null;
+  }
+  if (env.email.provider === 'emailjs') {
+    const j = env.email.emailjs;
+    const missing = ([
+      ['EMAILJS_SERVICE_ID', j.serviceId], ['EMAILJS_TEMPLATE_ID', j.templateId],
+      ['EMAILJS_PUBLIC_KEY', j.publicKey], ['EMAILJS_PRIVATE_KEY', j.privateKey]
+    ] as const).filter(([, value]) => !value).map(([name]) => name);
+    return missing.length ? `EMAIL_PROVIDER=emailjs but these are not set: ${missing.join(', ')}` : null;
+  }
+  if (env.email.provider === 'smtp') return env.email.host ? null : 'EMAIL_PROVIDER=smtp but EMAIL_HOST is not set';
+  return env.email.apiKey ? null : `EMAIL_PROVIDER=${env.email.provider} but EMAIL_API_KEY is not set`;
+}
+
 function isConfigured(): boolean {
   if (env.email.mode !== 'production') return false;
   if (env.email.provider === 'smtp') return Boolean(env.email.host);
@@ -51,6 +74,10 @@ function isConfigured(): boolean {
     return Boolean(j.serviceId && j.templateId && j.publicKey && j.privateKey);
   }
   return Boolean(env.email.apiKey);
+}
+
+export function isEmailConfigured(): boolean {
+  return isConfigured();
 }
 
 export async function sendEmail(to: string, subject: string, html: string): Promise<{ sent: boolean; info?: unknown }> {

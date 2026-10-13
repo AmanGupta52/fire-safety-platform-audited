@@ -6,15 +6,12 @@ import { api, apiErrorMessage } from '../../lib/apiClient';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { Card, StatCard } from '../../components/ui/Primitives';
 import { Button } from '../../components/ui/Button';
+import { formatInr } from '../../lib/format';
 
 interface TopProduct { _id: string; name: string; revenue: number; unitsSold: number }
 interface TopCustomer { _id: string; name: string; email: string; totalSpent: number; orderCount: number }
 interface RenewalRate { expired: number; renewed: number; renewalRate: number }
 interface CompletionRate { total: number; completed: number; pending: number; completionRate: number }
-
-function formatInr(n: number) {
-  return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n);
-}
 
 export default function ReportsPage() {
   const [exporting, setExporting] = useState(false);

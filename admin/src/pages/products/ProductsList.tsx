@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams, useLocation } from 'react-router-dom';
 import { Package, Plus, Search, Pencil, Trash2, PackageMinus, X } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { api, apiErrorMessage } from '../../lib/apiClient';
+import { api, apiErrorMessage, toastApiError } from '../../lib/apiClient';
 import { Product, Category } from '../../types';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { Button } from '../../components/ui/Button';
@@ -14,6 +14,7 @@ import { Pagination } from '../../components/ui/Pagination';
 import { Modal } from '../../components/ui/Modal';
 import { useAuthStore } from '../../store/authStore';
 import ProductForm from './ProductForm';
+import { formatInr } from '../../lib/format';
 
 export default function ProductsList() {
   const [page, setPage] = useState(1);
@@ -77,7 +78,7 @@ export default function ProductsList() {
       toast.success('Product deactivated');
       queryClient.invalidateQueries({ queryKey: ['products'] });
     },
-    onError: (err) => toast.error(apiErrorMessage(err))
+    onError: toastApiError
   });
 
   const columns: Column<Product>[] = [
@@ -95,8 +96,8 @@ export default function ProductsList() {
       header: 'Price',
       render: (p) => (
         <div>
-          <p>₹{(p.discountPrice ?? p.price).toLocaleString('en-IN')}</p>
-          {p.discountPrice && <p className="text-xs text-slateink line-through">₹{p.price.toLocaleString('en-IN')}</p>}
+          <p>{formatInr((p.discountPrice ?? p.price), 2)}</p>
+          {p.discountPrice && <p className="text-xs text-slateink line-through">{formatInr(p.price, 2)}</p>}
         </div>
       )
     },
@@ -120,7 +121,7 @@ export default function ProductsList() {
             </button>
           )}
           {hasPermission('products.delete') && (
-            <button
+            <button disabled={deleteMutation.isPending}
               onClick={() => { if (confirm(`Deactivate "${p.name}"?`)) deleteMutation.mutate(p._id); }}
               className="rounded p-1.5 text-brand hover:bg-brand-light"
               aria-label="Deactivate"
@@ -210,7 +211,7 @@ function AdjustStockModal({ product, onClose }: { product: Product; onClose: () 
       queryClient.invalidateQueries({ queryKey: ['products'] });
       onClose();
     },
-    onError: (err) => toast.error(apiErrorMessage(err))
+    onError: toastApiError
   });
 
   return (

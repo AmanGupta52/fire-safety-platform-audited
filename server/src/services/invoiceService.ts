@@ -162,13 +162,14 @@ export async function emailInvoiceToCustomer(invoiceId: string): Promise<boolean
   if (!user?.email) return false;
 
   const orderNum = (invoice.order as unknown as Record<string, unknown>)?.orderNumber as string || 'Direct';
-  await sendEmail(
+  const result = await sendEmail(
     user.email,
     `Tax Invoice #${invoice.invoiceNumber}`,
     emailTemplates.invoiceReady(invoice.invoiceNumber, orderNum, invoice.pdfUrl, invoice.grandTotal)
   );
 
-  return true;
+  // A failed send is reported as { sent: false } (it does not throw), so don't tell the admin it went out.
+  return result.sent;
 }
 
 function formatAddress(addr: unknown): string {

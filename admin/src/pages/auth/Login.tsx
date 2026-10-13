@@ -2,13 +2,15 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useMutation } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { FlameKindling } from 'lucide-react';
-import { api, apiErrorMessage } from '../../lib/apiClient';
+import { api, toastApiError } from '../../lib/apiClient';
 import { useAuthStore } from '../../store/authStore';
 import { Input } from '../../components/ui/FormControls';
 import { Button } from '../../components/ui/Button';
+import { canOpenPath, getHomeRouteFor } from '../../lib/navConfig';
+import { Permission, Role } from '../../types';
 
 const schema = z.object({
   email: z.string().email('Enter a valid email'),
@@ -16,9 +18,27 @@ const schema = z.object({
 });
 type FormValues = z.infer<typeof schema>;
 
+/** Where to send a signed-in user: the page they were trying to open if they may open it, else their role's home page. */
+function destinationFor(
+  user: { role: Role } | null,
+  hasPermission: (perm: Permission) => boolean,
+  from?: { pathname?: string; search?: string }
+): string {
+  const home = getHomeRouteFor(user, hasPermission);
+  const fromPath = from?.pathname;
+  if (fromPath && fromPath !== '/' && fromPath !== '/login' && canOpenPath(fromPath, user, hasPermission)) {
+    return `${fromPath}${from?.search ?? ''}`;
+  }
+  return home;
+}
+
 export default function Login() {
-  const navigate = useNavigate();
+  const location = useLocation();
+  const from = (location.state as { from?: { pathname?: string; search?: string } } | null)?.from;
   const setSession = useAuthStore((s) => s.setSession);
+  const accessToken = useAuthStore((s) => s.accessToken);
+  const signedInUser = useAuthStore((s) => s.user);
+  const hasPermission = useAuthStore((s) => s.hasPermission);
   const { register, handleSubmit, formState: { errors } } = useForm<FormValues>({ resolver: zodResolver(schema) });
 
   const mutation = useMutation({
@@ -30,10 +50,15 @@ export default function Login() {
       }
       setSession(data.user, data.accessToken, data.refreshToken);
       toast.success(`Welcome back, ${data.user.name.split(' ')[0]}`);
-      navigate('/');
+      // No navigate() here: setSession() makes the signed-in redirect below run with the right destination.
     },
-    onError: (err) => toast.error(apiErrorMessage(err))
+    onError: toastApiError
   });
+
+  // Already signed in (or just signed in): go to the right page for this role, never blindly to the dashboard.
+  if (accessToken && signedInUser) {
+    return <Navigate to={destinationFor(signedInUser, hasPermission, from)} replace />;
+  }
 
   return (
     <div className="flex min-h-screen">

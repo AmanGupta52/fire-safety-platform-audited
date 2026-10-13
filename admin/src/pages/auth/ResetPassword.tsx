@@ -4,7 +4,7 @@ import { useMutation } from '@tanstack/react-query';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { KeyRound, FlameKindling } from 'lucide-react';
-import { api, apiErrorMessage } from '../../lib/apiClient';
+import { api, toastApiError } from '../../lib/apiClient';
 import { Input } from '../../components/ui/FormControls';
 import { Button } from '../../components/ui/Button';
 
@@ -28,7 +28,7 @@ export default function ResetPassword() {
       toast.success('Password set successfully — please sign in');
       setTimeout(() => navigate('/login'), 1500);
     },
-    onError: (err) => toast.error(apiErrorMessage(err))
+    onError: toastApiError
   });
 
   if (!token) {

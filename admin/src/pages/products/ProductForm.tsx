@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { Plus, Trash2 } from 'lucide-react';
-import { api, apiErrorMessage } from '../../lib/apiClient';
+import { api, toastApiError } from '../../lib/apiClient';
 import { Product, Category } from '../../types';
 import { Modal } from '../../components/ui/Modal';
 import { Input, Select, Textarea } from '../../components/ui/FormControls';
@@ -31,6 +31,13 @@ const schema = z.object({
 });
 type FormValues = z.infer<typeof schema>;
 
+// Editable rows get a client-side id when they are created (and lose it again before submitting), so React keeps
+// each row's own input state even when a row in the middle is removed.
+let rowSeq = 0;
+const newRowId = () => `row-${++rowSeq}`;
+interface SpecRow { id: string; key: string; value: string }
+interface FeatureRow { id: string; value: string }
+
 export default function ProductForm({
   product, categories, onClose
 }: { product: Product | null; categories: Category[]; onClose: () => void }) {
@@ -40,10 +47,10 @@ export default function ProductForm({
   const [datasheetUrl, setDatasheetUrl] = useState(product?.datasheetUrl || '');
   // Content shown on the storefront product page tabs (Description / Specifications / Features).
   const [description, setDescription] = useState(product?.description || '');
-  const [specs, setSpecs] = useState<{ key: string; value: string }[]>(
-    (product?.specifications || []).map((sp) => ({ key: sp.key, value: sp.value }))
+  const [specs, setSpecs] = useState<SpecRow[]>(
+    (product?.specifications || []).map((sp) => ({ id: newRowId(), key: sp.key, value: sp.value }))
   );
-  const [features, setFeatures] = useState<string[]>(product?.features || []);
+  const [features, setFeatures] = useState<FeatureRow[]>((product?.features || []).map((value) => ({ id: newRowId(), value })));
 
   const { register, handleSubmit, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -68,7 +75,7 @@ export default function ProductForm({
         // Always sent (even when empty) so clearing a field in the form actually clears it.
         description: description.trim(),
         specifications: specs.map((sp) => ({ key: sp.key.trim(), value: sp.value.trim() })).filter((sp) => sp.key && sp.value),
-        features: features.map((f) => f.trim()).filter(Boolean)
+        features: features.map((f) => f.value.trim()).filter(Boolean)
       };
       if (isEdit && product) return api.put(`/products/${product._id}`, payload);
       return api.post('/products', payload);
@@ -78,7 +85,7 @@ export default function ProductForm({
       queryClient.invalidateQueries({ queryKey: ['products'] });
       onClose();
     },
-    onError: (err) => toast.error(apiErrorMessage(err))
+    onError: toastApiError
   });
 
   const submit = (values: FormValues) => {
@@ -120,7 +127,7 @@ export default function ProductForm({
         <div>
           <div className="mb-1.5 flex items-center justify-between">
             <p className="text-xs font-medium text-slateink">Specifications</p>
-            <Button type="button" size="sm" variant="secondary" onClick={() => setSpecs([...specs, { key: '', value: '' }])}>
+            <Button type="button" size="sm" variant="secondary" onClick={() => setSpecs([...specs, { id: newRowId(), key: '', value: '' }])}>
               <Plus className="mr-1 h-3.5 w-3.5" /> Add specification
             </Button>
           </div>
@@ -131,24 +138,24 @@ export default function ProductForm({
           ) : (
             <div className="flex flex-col gap-2">
               {specs.map((sp, i) => (
-                <div key={i} className="flex items-center gap-2">
+                <div key={sp.id} className="flex items-center gap-2">
                   <input
                     aria-label={`Specification ${i + 1} name`}
                     placeholder="Name (e.g. Capacity)"
                     value={sp.key}
-                    onChange={(e) => setSpecs(specs.map((row, idx) => (idx === i ? { ...row, key: e.target.value } : row)))}
+                    onChange={(e) => setSpecs(specs.map((row) => (row.id === sp.id ? { ...row, key: e.target.value } : row)))}
                     className="min-w-0 flex-1 rounded border border-line bg-card px-3 py-2 text-sm text-ink placeholder:text-slateink/60 focus:border-ink focus:outline-none"
                   />
                   <input
                     aria-label={`Specification ${i + 1} value`}
                     placeholder="Value (e.g. 6 kg)"
                     value={sp.value}
-                    onChange={(e) => setSpecs(specs.map((row, idx) => (idx === i ? { ...row, value: e.target.value } : row)))}
+                    onChange={(e) => setSpecs(specs.map((row) => (row.id === sp.id ? { ...row, value: e.target.value } : row)))}
                     className="min-w-0 flex-1 rounded border border-line bg-card px-3 py-2 text-sm text-ink placeholder:text-slateink/60 focus:border-ink focus:outline-none"
                   />
                   <button
                     type="button"
-                    onClick={() => setSpecs(specs.filter((_, idx) => idx !== i))}
+                    onClick={() => setSpecs(specs.filter((row) => row.id !== sp.id))}
                     className="shrink-0 rounded p-2 text-slateink hover:bg-paper hover:text-brand"
                     aria-label={`Remove specification ${i + 1}`}
                   >
@@ -163,7 +170,7 @@ export default function ProductForm({
         <div>
           <div className="mb-1.5 flex items-center justify-between">
             <p className="text-xs font-medium text-slateink">Features</p>
-            <Button type="button" size="sm" variant="secondary" onClick={() => setFeatures([...features, ''])}>
+            <Button type="button" size="sm" variant="secondary" onClick={() => setFeatures([...features, { id: newRowId(), value: '' }])}>
               <Plus className="mr-1 h-3.5 w-3.5" /> Add feature
             </Button>
           </div>
@@ -174,17 +181,17 @@ export default function ProductForm({
           ) : (
             <div className="flex flex-col gap-2">
               {features.map((f, i) => (
-                <div key={i} className="flex items-center gap-2">
+                <div key={f.id} className="flex items-center gap-2">
                   <input
                     aria-label={`Feature ${i + 1}`}
                     placeholder="e.g. ISI marked"
-                    value={f}
-                    onChange={(e) => setFeatures(features.map((row, idx) => (idx === i ? e.target.value : row)))}
+                    value={f.value}
+                    onChange={(e) => setFeatures(features.map((row) => (row.id === f.id ? { ...row, value: e.target.value } : row)))}
                     className="min-w-0 flex-1 rounded border border-line bg-card px-3 py-2 text-sm text-ink placeholder:text-slateink/60 focus:border-ink focus:outline-none"
                   />
                   <button
                     type="button"
-                    onClick={() => setFeatures(features.filter((_, idx) => idx !== i))}
+                    onClick={() => setFeatures(features.filter((row) => row.id !== f.id))}
                     className="shrink-0 rounded p-2 text-slateink hover:bg-paper hover:text-brand"
                     aria-label={`Remove feature ${i + 1}`}
                   >
