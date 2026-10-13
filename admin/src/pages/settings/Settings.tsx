@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ShieldAlert, Building2, Phone, MapPin, CheckCircle2 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { api, apiErrorMessage } from '../../lib/apiClient';
+import { api, toastApiError } from '../../lib/apiClient';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { Card } from '../../components/ui/Primitives';
 import { Input, Textarea } from '../../components/ui/FormControls';
@@ -87,7 +87,7 @@ export default function Settings() {
       queryClient.invalidateQueries({ queryKey: ['setting-company'] });
       queryClient.invalidateQueries({ queryKey: ['public-settings'] });
     },
-    onError: (err) => toast.error(apiErrorMessage(err))
+    onError: toastApiError
   });
 
   if (isLoading) return <Spinner />;
