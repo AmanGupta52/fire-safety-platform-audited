@@ -10,6 +10,7 @@ const router = Router();
 
 // Public
 router.get('/', attachUserIfPresent, productController.listProducts);
+router.get('/search', productController.searchProducts);
 router.get('/search-suggestions', productController.searchSuggestions);
 router.get('/low-stock', requireAuth, requirePermission('products.read'), productController.lowStockProducts);
 router.get('/admin/:id', requireAuth, requirePermission('products.read'), productController.getProductByIdAdmin);

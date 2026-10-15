@@ -10,7 +10,9 @@ async function buildSitemapXml(): Promise<string> {
   const baseUrl = (env.clientUrl || 'http://localhost:5173').replace(/\/$/, '');
 
   const [products, services, blogs] = await Promise.all([
-    Product.find({ isActive: true, isDeleted: false }).select('slug updatedAt').lean(),
+    // Product has no isDeleted field. (With strictQuery on, Mongoose silently dropped it; with strictQuery off, as in
+    // the test setup, it matched nothing and no product ever reached the sitemap.)
+    Product.find({ isActive: true }).select('slug updatedAt').lean(),
     Service.find({ isActive: true, isDeleted: false }).select('slug updatedAt').lean(),
     BlogPost.find({ isPublished: true }).select('slug updatedAt').lean()
   ]);

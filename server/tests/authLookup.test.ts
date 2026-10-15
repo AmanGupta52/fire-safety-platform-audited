@@ -25,7 +25,8 @@ describe('Per-request user lookup is slim, and never stale', () => {
   it('a role change takes effect immediately', async () => {
     const staff = await createTestUser('admin');
     expect((await me(staff.token)).status).toBe(200);
-    await User.updateOne({ _id: staff.user._id }, { $set: { role: 'customer' } });
+    // Test users carry their role's permissions as explicit overrides, so a real demotion clears those as well.
+    await User.updateOne({ _id: staff.user._id }, { $set: { role: 'customer', permissionOverrides: [] } });
     expect((await me(staff.token)).status).toBe(403);
   });
 

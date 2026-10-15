@@ -10,8 +10,9 @@ import { useCart } from '../../hooks/useCart';
 import { useWishlist } from '../../hooks/useWishlist';
 import { usePublicSettings } from '../../hooks/usePublicSettings';
 import { useTheme } from '../../lib/theme';
-import { Category } from '../../types';
+import { Category, ProductSearchHit } from '../../types';
 import { preloadRoute } from '../../routes/lazyPages';
+import { ProductSearchBox } from '../search/ProductSearchBox';
 
 // AMC intentionally has no top-level nav link — it's one of the options on the
 // Services page (and listed under Services in the footer), so it doesn't need its own slot.
@@ -29,7 +30,6 @@ export function Header() {
   const [productsOpen, setProductsOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
   const user = useAuthStore((s) => s.user);
   const navigate = useNavigate();
   const { itemCount } = useCart();
@@ -49,13 +49,18 @@ export function Header() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  function handleSearch(e: React.FormEvent) {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      navigate(`/products?q=${encodeURIComponent(searchQuery.trim())}`);
-      setSearchOpen(false);
-      setMobileOpen(false);
-    }
+  // Enter / "See all results": the full product list, filtered with the same matching as the suggestions.
+  function goToResults(query: string) {
+    navigate(`/products?q=${encodeURIComponent(query)}`);
+    setSearchOpen(false);
+    setMobileOpen(false);
+  }
+
+  // Choosing a suggestion opens that product directly.
+  function goToProduct(product: ProductSearchHit) {
+    navigate(`/product/${product.slug}`);
+    setSearchOpen(false);
+    setMobileOpen(false);
   }
 
   return (
@@ -86,17 +91,16 @@ export function Header() {
           </Link>
 
           {/* Persistent search bar, visible on desktop, mirrors the mobile/overlay search */}
-          <form onSubmit={handleSearch} className="relative hidden min-w-0 max-w-md flex-1 lg:block">
-            <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slateink" />
-            <input
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              type="search"
-              placeholder="Search extinguishers, alarms, AMC plans…"
-              aria-label="Search products"
-              className="w-full rounded-pill border border-line bg-paper py-2.5 pl-10 pr-4 text-sm text-ink outline-none transition focus:border-ink focus:bg-card"
+          <div className="hidden min-w-0 max-w-md flex-1 lg:block">
+            <ProductSearchBox
+              variant="navbar"
+              placeholder="Search extinguishers, alarms, SKU…  ( / )"
+              focusShortcut
+              clearOnSelect
+              onSelect={goToProduct}
+              onSubmitQuery={goToResults}
             />
-          </form>
+          </div>
 
           <nav className="hidden items-center gap-6 lg:flex">
             <div className="relative" onMouseEnter={() => setProductsOpen(true)} onMouseLeave={() => setProductsOpen(false)}>
@@ -216,19 +220,22 @@ export function Header() {
             className="overflow-hidden border-b border-line bg-card shadow-card"
           >
             <div className="container-page py-5">
-              <form onSubmit={handleSearch} className="relative">
-                <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slateink" />
-                <input
-                  autoFocus
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search extinguishers, alarms, AMC plans..."
-                  className="w-full rounded-btn border border-line bg-paper py-3 pl-10 pr-10 text-sm focus:border-ink focus:outline-none"
-                />
-                <button type="button" onClick={() => setSearchOpen(false)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slateink hover:text-ink" aria-label="Close search">
-                  <X className="h-4 w-4" />
+              <div className="flex items-start gap-2">
+                <div className="min-w-0 flex-1">
+                  <ProductSearchBox
+                    variant="navbar"
+                    mode="inline"
+                    autoFocus
+                    clearOnSelect
+                    placeholder="Search extinguishers, alarms, SKU…"
+                    onSelect={goToProduct}
+                    onSubmitQuery={goToResults}
+                  />
+                </div>
+                <button type="button" onClick={() => setSearchOpen(false)} className="rounded-full p-2.5 text-slateink hover:text-ink" aria-label="Close search">
+                  <X className="h-5 w-5" />
                 </button>
-              </form>
+              </div>
             </div>
           </motion.div>
         )}
@@ -249,10 +256,9 @@ export function Header() {
                 <span className="heading text-sm">Menu</span>
                 <button onClick={() => setMobileOpen(false)} aria-label="Close menu"><X className="h-5 w-5" /></button>
               </div>
-              <form onSubmit={handleSearch} className="relative mb-4">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slateink" />
-                <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search..." className="w-full rounded-btn border border-line bg-paper py-2 pl-9 pr-3 text-sm focus:outline-none" />
-              </form>
+              <div className="mb-4">
+                <ProductSearchBox variant="navbar" mode="inline" clearOnSelect placeholder="Search products…" onSelect={goToProduct} onSubmitQuery={goToResults} />
+              </div>
               <div className="flex flex-1 flex-col gap-1 overflow-y-auto">
                 <Link to="/products" onClick={() => setMobileOpen(false)} className="rounded-btn px-2 py-2 text-sm font-medium text-ink hover:bg-paper">Products</Link>
                 {NAV_LINKS.map((link) => (

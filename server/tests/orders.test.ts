@@ -3,6 +3,14 @@ import request from 'supertest';
 
 // The real PDF generator is exercised separately; here it is replaced so these tests can inspect exactly what the
 // invoice would contain (and so no files are written to disk).
+// The production GSTIN test below must place a PAID order, which needs the "mock" payment method, and the real gate
+// (correctly) refuses "mock" in production. This switch lets that one test through; it is off everywhere else.
+const gate = vi.hoisted(() => ({ allowMock: false }));
+vi.mock('../src/config/env', async (importOriginal) => {
+  const original = await importOriginal<typeof import('../src/config/env')>();
+  return { ...original, isPaymentMethodAllowed: (m: unknown) => (gate.allowMock && m === 'mock') || original.isPaymentMethodAllowed(m) };
+});
+
 vi.mock('../src/services/pdfService', async (importOriginal) => {
   const original = await importOriginal<typeof import('../src/services/pdfService')>();
   return { ...original, generateInvoicePdf: vi.fn(async () => ({ url: 'https://files.example.test/invoice.pdf' })) };
@@ -266,12 +274,14 @@ describe('Invoices created at checkout', () => {
     const original = env.nodeEnv;
     try {
       (env as { nodeEnv: string }).nodeEnv = 'production';
+      gate.allowMock = true;
       const res = await placeOrder();
       expect(res.status).toBe(201); // the customer's order is safe
       expect(await Order.countDocuments()).toBe(1);
       expect(await Invoice.countDocuments()).toBe(0); // no invoice with a fake number
       expect(generateInvoicePdf).not.toHaveBeenCalled();
     } finally {
+      gate.allowMock = false;
       (env as { nodeEnv: string }).nodeEnv = original;
     }
   });

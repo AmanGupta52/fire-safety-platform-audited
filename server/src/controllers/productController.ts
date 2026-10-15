@@ -5,6 +5,7 @@ import { Product, IProduct } from '../models/Product';
 import { asyncHandler } from '../utils/asyncHandler';
 import { publicCache, setPublicCacheHeader } from '../utils/ttlCache';
 import { parsePagination } from '../utils/pagination';
+import { buildSearchFilter, parseSearchQuery, relevanceScore } from '../utils/productSearch';
 import { ApiError } from '../utils/ApiError';
 import { ok, created, paginationMeta } from '../utils/apiResponse';
 import { writeAuditLog } from '../services/auditService';
@@ -21,9 +22,9 @@ export const listProducts = asyncHandler(async (req: Request, res: Response) => 
   const includeInactive = req.query.includeInactive === 'true' && Boolean(req.user?.permissions.includes('products.read'));
   const filter: FilterQuery<IProduct> = includeInactive ? {} : { isActive: true };
 
-  if (req.query.q) {
-    filter.$text = { $search: String(req.query.q) };
-  }
+  // Same matching as the typeahead (partial words, SKU, brand), so what the navbar suggests is what the list shows.
+  const { tokens } = parseSearchQuery(req.query.q);
+  if (tokens.length > 0) Object.assign(filter, buildSearchFilter(tokens));
   // SECURITY: coerce every filter value to a plain string before it reaches the Mongo filter
   // object. Express's query parser turns `?category[$ne]=x` into an object, and an
   // unvalidated `filter.category = req.query.category` would pass that object straight
@@ -58,6 +59,39 @@ export const listProducts = asyncHandler(async (req: Request, res: Response) => 
   // inactive products must not be.
   if (!includeInactive) setPublicCacheHeader(res);
   return ok(res, items, 'Products fetched', paginationMeta(page, limit, total));
+});
+
+/**
+ * GET /api/products/search?q=&page=&limit=
+ * Typeahead / picker search: partial words, any case, name + SKU + brand + short text, best match first, paginated.
+ * With no query it returns best sellers and featured products, so a picker has something to show before the person
+ * types. Active products only, and only the few fields a result row needs (so it stays small with thousands of products).
+ */
+export const searchProducts = asyncHandler(async (req: Request, res: Response) => {
+  const { phrase, tokens } = parseSearchQuery(req.query.q);
+  const { page, limit, skip } = parsePagination(req, { defaultLimit: 8, maxLimit: 20 });
+
+  const match: Record<string, unknown> = { isActive: true, ...buildSearchFilter(tokens) };
+  const hasQuery = tokens.length > 0;
+
+  const [items, total] = await Promise.all([
+    Product.aggregate([
+      { $match: match },
+      { $addFields: { score: hasQuery ? relevanceScore(phrase, tokens) : { $add: [{ $cond: ['$isBestSeller', 2, 0] }, { $cond: ['$isFeatured', 1, 0] }] } } },
+      { $sort: { score: -1, name: 1, _id: 1 } },
+      { $skip: skip },
+      { $limit: limit },
+      {
+        $project: {
+          name: 1, slug: 1, sku: 1, brand: 1, price: 1, discountPrice: 1, gstPercentage: 1, stock: 1, allowBackorder: 1,
+          image: { $arrayElemAt: ['$images.url', 0] }
+        }
+      }
+    ]),
+    Product.countDocuments(match)
+  ]);
+
+  return ok(res, items, 'Search results', paginationMeta(page, limit, total));
 });
 
 export const searchSuggestions = asyncHandler(async (req: Request, res: Response) => {

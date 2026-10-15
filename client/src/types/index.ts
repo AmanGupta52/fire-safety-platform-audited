@@ -261,3 +261,18 @@ export interface AppNotification {
   isRead: boolean;
   createdAt: string;
 }
+
+/** One row from GET /products/search: just what a result list needs. */
+export interface ProductSearchHit {
+  _id: string;
+  name: string;
+  slug: string;
+  sku: string;
+  brand?: string;
+  price: number;
+  discountPrice?: number;
+  gstPercentage: number;
+  stock: number;
+  allowBackorder?: boolean;
+  image?: string;
+}
