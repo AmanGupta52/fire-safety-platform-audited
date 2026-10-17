@@ -25,7 +25,7 @@ function OrderDetailSkeleton() {
           <div className="skeleton-shimmer mt-2 h-3 w-56 rounded" />
         </div>
       </div>
-      <div className="mt-5 rounded-card border border-line bg-card p-5 shadow-card">
+      <div className="mt-5 skeuo-card rounded-card p-5">
         <div className="flex items-center justify-between">
           {STATUS_STEPS.map((step) => (
             <div key={step} className="flex flex-1 flex-col items-center gap-2">
@@ -35,7 +35,7 @@ function OrderDetailSkeleton() {
           ))}
         </div>
       </div>
-      <div className="mt-5 rounded-card border border-line bg-card p-5 shadow-card">
+      <div className="mt-5 skeuo-card rounded-card p-5">
         <div className="skeleton-shimmer h-3.5 w-16 rounded" />
         <div className="mt-3 flex flex-col gap-3">
           {Array.from({ length: 2 }).map((_, i) => (
@@ -46,7 +46,7 @@ function OrderDetailSkeleton() {
           ))}
         </div>
       </div>
-      <div className="mt-5 rounded-card border border-line bg-card p-5 shadow-card">
+      <div className="mt-5 skeuo-card rounded-card p-5">
         <div className="skeleton-shimmer h-3.5 w-32 rounded" />
         <div className="skeleton-shimmer mt-3 h-3 w-full rounded" />
         <div className="skeleton-shimmer mt-2 h-3 w-2/3 rounded" />

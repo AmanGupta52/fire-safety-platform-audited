@@ -38,7 +38,7 @@ export default function AccountOverview() {
       )}
 
       {dueEquipment.length > 0 && (
-        <Card className="mt-6 border-amber/30 bg-amber-light p-5">
+        <Card className="skeuo-amber mt-6 border-amber/30 p-5">
           <p className="heading text-sm text-ink">Equipment needing attention</p>
           <div className="mt-3 flex flex-col gap-2">
             {dueEquipment.slice(0, 3).map((e) => (

@@ -114,7 +114,7 @@ export default function RequestQuote() {
                 const unitPrice = product ? (product.discountPrice ?? product.price) : 0;
                 const quantity = Number(items?.[index]?.quantity) || 1;
                 return (
-                  <div key={field.id} className="rounded-card border border-line bg-paper/50 p-3">
+                  <div key={field.id} className="skeuo-card rounded-card p-3">
                     {/* The id is the real form value; it is set by choosing a product from the search. */}
                     <input type="hidden" {...register(`items.${index}.productId` as const, { required: 'Choose a product from the search results, or remove this row' })} />
 
@@ -146,13 +146,13 @@ export default function RequestQuote() {
                     <div className="mt-3 flex items-center justify-between gap-3">
                       <div className="flex items-center gap-1.5">
                         <span className="text-xs text-slateink">Qty</span>
-                        <button type="button" aria-label="Decrease quantity" onClick={() => setQuantity(index, quantity - 1)} disabled={quantity <= 1} className="flex h-9 w-9 items-center justify-center rounded border border-line bg-card text-ink hover:bg-paper disabled:opacity-40"><Minus className="h-3.5 w-3.5" /></button>
+                        <button type="button" aria-label="Decrease quantity" onClick={() => setQuantity(index, quantity - 1)} disabled={quantity <= 1} className="skeuo-btn skeuo-plate flex h-9 w-9 items-center justify-center rounded disabled:opacity-40"><Minus className="h-3.5 w-3.5" /></button>
                         <input
                           type="number" inputMode="numeric" min={1} max={100000} aria-label={`Quantity for product ${index + 1}`}
-                          className="h-9 w-16 rounded border border-line bg-card text-center text-sm text-ink outline-none focus:border-ink"
+                          className="skeuo-inset h-9 w-16 rounded text-center text-sm text-ink outline-none"
                           {...register(`items.${index}.quantity` as const, { valueAsNumber: true, validate: (v) => (Number.isInteger(v) && v >= 1) || 'Enter a whole number, 1 or more' })}
                         />
-                        <button type="button" aria-label="Increase quantity" onClick={() => setQuantity(index, quantity + 1)} className="flex h-9 w-9 items-center justify-center rounded border border-line bg-card text-ink hover:bg-paper"><Plus className="h-3.5 w-3.5" /></button>
+                        <button type="button" aria-label="Increase quantity" onClick={() => setQuantity(index, quantity + 1)} className="skeuo-btn skeuo-plate flex h-9 w-9 items-center justify-center rounded"><Plus className="h-3.5 w-3.5" /></button>
                       </div>
                       <div className="flex items-center gap-3">
                         {product && <span className="text-sm font-semibold text-ink">{formatInr(unitPrice * quantity)}</span>}

@@ -150,7 +150,7 @@ export default function EquipmentPassport() {
       <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
         {/* Left Column: QR Sticker & Asset Identity */}
         <div className="md:col-span-1 space-y-4">
-          <Card className="p-5 text-center bg-card shadow-card border-2 border-line">
+          <Card className="border-2 p-5 text-center">
             <div className="mx-auto flex h-9 w-9 items-center justify-center rounded-full bg-safety-light text-safety mb-2">
               <Flame className="h-5 w-5" />
             </div>

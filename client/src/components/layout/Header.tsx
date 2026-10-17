@@ -64,7 +64,7 @@ export function Header() {
   }
 
   return (
-    <header className="sticky top-0 z-40 bg-card">
+    <header className="sticky top-0 z-40">
       {/* Utility strip */}
       <div className="hidden bg-inverse text-white/80 lg:block">
         <div className="container-page flex items-center justify-between py-1.5 text-xs">
@@ -76,15 +76,13 @@ export function Header() {
         </div>
       </div>
 
-      <div
-        className={clsx(
-          'border-b border-line transition-all duration-200',
-          scrolled ? 'bg-card/95 shadow-card backdrop-blur' : 'bg-card'
-        )}
-      >
+      <div className="relative transition-all duration-200">
+        {/* The frosted-glass bar is its own layer BEHIND the content (not the content's parent), so the menus that
+            open from it can blur the page behind them instead of just the bar. */}
+        <div aria-hidden="true" className={clsx('glass-bar pointer-events-none absolute inset-0 -z-10 transition-shadow duration-200', scrolled && 'shadow-raised')} />
         <div className={clsx('container-page flex items-center gap-2 transition-all duration-200 sm:gap-6', scrolled ? 'py-2.5' : 'py-4')}>
           <Link to="/" className="flex min-w-0 shrink items-center gap-2 lg:shrink-0">
-            <div className={clsx('flex shrink-0 items-center justify-center rounded bg-safety transition-all duration-200', scrolled ? 'h-8 w-8' : 'h-9 w-9')}>
+            <div className={clsx('skeuo-primary flex shrink-0 items-center justify-center rounded bg-safety transition-all duration-200', scrolled ? 'h-8 w-8' : 'h-9 w-9')}>
               <FlameKindling className="h-4 w-4 text-white" />
             </div>
             <span className="heading truncate text-sm text-ink sm:text-base">{company.companyName || 'Fire Safety'}</span>
@@ -111,7 +109,7 @@ export function Header() {
                 {productsOpen && (
                   <motion.div
                     initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 6 }} transition={{ duration: 0.12 }}
-                    className="absolute left-1/2 top-full z-20 mt-2 w-[560px] -translate-x-1/2 rounded-card border border-line bg-card p-5 shadow-raised"
+                    className="glass-strong absolute left-1/2 top-full z-20 mt-2 w-[560px] -translate-x-1/2 rounded-card p-5"
                   >
                     {categoriesLoading ? (
                       <div className="grid grid-cols-3 gap-4">
@@ -185,7 +183,7 @@ export function Header() {
                 {user && <ChevronDown className="h-3 w-3" />}
               </button>
               {accountOpen && (
-                <div className="absolute right-0 top-full z-20 mt-1 w-52 rounded-card border border-line bg-card py-1.5 shadow-raised">
+                <div className="glass-strong absolute right-0 top-full z-20 mt-1 w-52 rounded-card py-1.5">
                   {user ? (
                     <>
                       <div className="border-b border-line px-3.5 py-2"><p className="text-sm font-medium text-ink">{user.name}</p><p className="text-xs text-slateink">{user.email}</p></div>
@@ -217,7 +215,7 @@ export function Header() {
         {searchOpen && (
           <motion.div
             initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.18 }}
-            className="overflow-hidden border-b border-line bg-card shadow-card"
+            className="glass-strong overflow-hidden rounded-b-xl border-t-0"
           >
             <div className="container-page py-5">
               <div className="flex items-start gap-2">
@@ -250,7 +248,7 @@ export function Header() {
           >
             <motion.div
               initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'tween', duration: 0.22 }}
-              className="ml-auto flex h-full w-72 flex-col bg-card p-5" onClick={(e) => e.stopPropagation()}
+              className="glass-strong ml-auto flex h-full w-72 flex-col rounded-l-xl p-5" onClick={(e) => e.stopPropagation()}
             >
               <div className="mb-4 flex items-center justify-between">
                 <span className="heading text-sm">Menu</span>

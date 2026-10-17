@@ -22,6 +22,22 @@
   --color-slate-400: 139 145 152;
   --color-slate-600: 86 92 99;
   --color-slate-700: 59 64 70;
+
+  /* ---- Surface tokens for the glass / tactile look (see the "SURFACES" block below) ---- */
+  --glass-rgb: 255 255 255;      /* tint of frosted glass */
+  --glass-a: 0.58;               /* glass opacity: enough to blur what is behind, still readable */
+  --glass-strong-a: 0.88;        /* for panels with lots of text: modals, menus */
+  --glass-edge-a: 0.75;          /* bright rim of the glass */
+  --sheen-a: 0.55;               /* soft specular highlight in the top-left corner */
+  --hl-alpha: 0.9;               /* 1px top highlight on raised parts */
+  --shade: 26 40 56;             /* colour of every shadow */
+  --plate-top: 255 255 255;      /* raised plate: top and bottom of its gradient */
+  --plate-bottom: 242 245 244;
+  --well-top: 229 234 232;       /* recessed field (inputs): top and bottom */
+  --well-bottom: 247 249 248;
+  --key-top: 66 72 80;           /* the dark "key" button */
+  --key-bottom: 26 29 31;
+  --ambient-a: 0.62;             /* strength of the soft colour glows behind the page */
 }
 
 html.dark {
@@ -44,6 +60,21 @@ html.dark {
   --color-slate-600: 165 173 181;
   --color-slate-700: 195 201 207;
   color-scheme: dark;
+
+  --glass-rgb: 38 45 55;
+  --glass-a: 0.5;
+  --glass-strong-a: 0.86;
+  --glass-edge-a: 0.16;
+  --sheen-a: 0.1;
+  --hl-alpha: 0.11;
+  --shade: 0 0 0;
+  --plate-top: 43 49 58;
+  --plate-bottom: 29 33 39;
+  --well-top: 11 14 17;
+  --well-bottom: 21 25 29;
+  --key-top: 250 252 253;
+  --key-bottom: 207 213 220;
+  --ambient-a: 0.55;
 }
 
 @layer base {
@@ -99,6 +130,287 @@ html.dark {
       theme('colors.amber.DEFAULT') 14px 28px
     );
   }
+}
+
+/* =====================================================================================================
+   SURFACES: "liquid glass" + tactile (skeuomorphic) parts
+
+   Two ideas, used on purpose rather than everywhere:
+   - GLASS (.glass, .glass-strong, .glass-bar, .glass-dark): frosted, translucent panels that float ABOVE the page:
+     the header, menus and pop-ups, modals, toasts, and a few feature panels. A soft colour glow sits behind the
+     page (.ambient-bg) so the blur has something to refract.
+   - TACTILE (.skeuo-*): things you touch look like physical parts: glossy buttons that press in, raised plates for
+     cards, recessed wells for inputs, domed beads for categories.
+
+   Rules that keep it accessible and fast:
+   - Text always sits on a surface with enough opacity (strong glass for text-heavy panels).
+   - Blur is only used on a handful of elements (never on every product card).
+   - It falls back to solid surfaces when the browser has no backdrop-filter, or the person asked for less
+     transparency / more contrast / forced colours.
+   - Utilities (bg-*, border-*) override these classes, so never put bg-card/border-line on an element that uses them.
+   ===================================================================================================== */
+@layer components {
+  /* ---------- frosted glass ---------- */
+  .glass,
+  .glass-strong,
+  .glass-bar {
+    background-image:
+      radial-gradient(120% 90% at 0% 0%, rgb(255 255 255 / var(--sheen-a)) 0%, transparent 55%),
+      linear-gradient(145deg, rgb(var(--glass-rgb) / var(--glass-a)), rgb(var(--glass-rgb) / calc(var(--glass-a) * 0.7)));
+    background-color: transparent;
+    -webkit-backdrop-filter: blur(18px) saturate(170%);
+    backdrop-filter: blur(18px) saturate(170%);
+    border: 1px solid rgb(255 255 255 / var(--glass-edge-a));
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / var(--hl-alpha)),
+      inset 0 -1px 0 rgb(var(--shade) / 0.06),
+      0 12px 32px -10px rgb(var(--shade) / 0.28),
+      0 2px 6px rgb(var(--shade) / 0.06);
+  }
+  .glass-strong {
+    background-image:
+      radial-gradient(120% 90% at 0% 0%, rgb(255 255 255 / calc(var(--sheen-a) * 0.7)) 0%, transparent 55%),
+      linear-gradient(145deg, rgb(var(--glass-rgb) / var(--glass-strong-a)), rgb(var(--glass-rgb) / calc(var(--glass-strong-a) * 0.92)));
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    backdrop-filter: blur(24px) saturate(180%);
+  }
+  /* A full-width bar (the header): glass with only a bottom rim and a lighter shadow. */
+  .glass-bar {
+    border-width: 0 0 1px 0;
+    border-color: rgb(255 255 255 / calc(var(--glass-edge-a) * 0.6));
+    box-shadow: inset 0 -1px 0 rgb(var(--shade) / 0.06), 0 6px 24px -12px rgb(var(--shade) / 0.3);
+  }
+  /* Glass on a DARK background (hero bands): clear, light rim, white text expected. */
+  .glass-dark {
+    background-image:
+      radial-gradient(110% 80% at 0% 0%, rgb(255 255 255 / 0.16) 0%, transparent 55%),
+      linear-gradient(145deg, rgb(255 255 255 / 0.1), rgb(255 255 255 / 0.04));
+    -webkit-backdrop-filter: blur(20px) saturate(160%);
+    backdrop-filter: blur(20px) saturate(160%);
+    border: 1px solid rgb(255 255 255 / 0.2);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.28), 0 16px 40px -12px rgb(0 0 0 / 0.55);
+  }
+  /* A tinted glass: the brand red, for the one call-to-action panel. */
+  .glass-safety {
+    background-image:
+      radial-gradient(120% 90% at 0% 0%, rgb(255 255 255 / var(--sheen-a)) 0%, transparent 55%),
+      linear-gradient(145deg, rgb(211 43 30 / 0.14), rgb(242 169 0 / 0.1)),
+      linear-gradient(145deg, rgb(var(--glass-rgb) / var(--glass-a)), rgb(var(--glass-rgb) / calc(var(--glass-a) * 0.7)));
+  }
+  /* Glass that reacts: lifts and brightens on hover (links/cards made of glass). */
+  .glass-interactive { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+  .glass-interactive:hover {
+    transform: translateY(-2px);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / var(--hl-alpha)),
+      0 18px 36px -12px rgb(var(--shade) / 0.35),
+      0 2px 6px rgb(var(--shade) / 0.08);
+  }
+
+  /* ---------- soft colour glows behind the page, so the glass has something to refract ---------- */
+  .ambient-bg { position: fixed; inset: 0; z-index: -10; pointer-events: none; overflow: hidden; }
+  .ambient-bg::before,
+  .ambient-bg::after {
+    content: '';
+    position: absolute;
+    opacity: var(--ambient-a);
+    will-change: transform;
+  }
+  /* `closest-side` makes every glow fade to nothing INSIDE its box, so there is never a hard circular edge. */
+  .ambient-bg::before {
+    width: 52rem; height: 52rem; left: -16rem; top: 28vh;
+    background: radial-gradient(closest-side, rgb(211 43 30 / 0.75), rgb(211 43 30 / 0));
+    animation: ambient-drift-a 42s ease-in-out infinite alternate;
+  }
+  .ambient-bg::after {
+    width: 56rem; height: 56rem; right: -16rem; top: 2vh;
+    background:
+      radial-gradient(circle closest-side at 62% 38%, rgb(59 130 246 / 0.6), rgb(59 130 246 / 0)),
+      radial-gradient(circle closest-side at 34% 68%, rgb(242 169 0 / 0.55), rgb(242 169 0 / 0));
+    animation: ambient-drift-b 55s ease-in-out infinite alternate;
+  }
+  .ambient-bg {
+    background: radial-gradient(42rem 30rem at 78% 96%, rgb(20 184 166 / calc(var(--ambient-a) * 0.55)), transparent 70%);
+  }
+  @keyframes ambient-drift-a { from { transform: translate3d(0, 0, 0); } to { transform: translate3d(7rem, 5rem, 0); } }
+  @keyframes ambient-drift-b { from { transform: translate3d(0, 0, 0); } to { transform: translate3d(-6rem, -4rem, 0); } }
+
+  /* ---------- tactile buttons ---------- */
+  .skeuo-btn {
+    position: relative;
+    overflow: hidden;
+    transition: filter 0.15s ease, box-shadow 0.15s ease;
+  }
+  /* A band of light that sweeps across a button on hover, like light catching glossy plastic. */
+  .skeuo-btn::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(105deg, transparent 35%, rgb(255 255 255 / 0.32) 50%, transparent 65%);
+    transform: translateX(-120%);
+    pointer-events: none;
+  }
+  .skeuo-btn:hover:not(:disabled)::after { transform: translateX(120%); transition: transform 0.7s ease; }
+
+  .skeuo-primary {
+    color: #fff;
+    text-shadow: 0 -1px 0 rgb(0 0 0 / 0.28);
+    background-image: linear-gradient(180deg, #f2604f 0%, #d32b1e 52%, #b92218 100%);
+    border: 1px solid #9c1d13;
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.4),
+      inset 0 -2px 0 rgb(0 0 0 / 0.14),
+      0 1px 0 rgb(255 255 255 / 0.3),
+      0 8px 16px -8px rgb(211 43 30 / 0.75);
+  }
+  .skeuo-primary:hover:not(:disabled) { filter: brightness(1.06) saturate(1.05); }
+  .skeuo-primary:active:not(:disabled) {
+    filter: brightness(0.95);
+    box-shadow: inset 0 3px 6px rgb(0 0 0 / 0.38), 0 1px 0 rgb(255 255 255 / 0.2);
+  }
+
+  .skeuo-plate {
+    color: rgb(var(--color-ink));
+    background-image: linear-gradient(180deg, rgb(var(--plate-top)), rgb(var(--plate-bottom)));
+    border: 1px solid rgb(var(--color-line));
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / var(--hl-alpha)),
+      0 1px 2px rgb(var(--shade) / 0.14),
+      0 6px 12px -8px rgb(var(--shade) / 0.3);
+  }
+  .skeuo-plate:hover:not(:disabled) { filter: brightness(1.03); }
+  .skeuo-plate:active:not(:disabled) {
+    box-shadow: inset 0 2px 5px rgb(var(--shade) / 0.28), 0 1px 0 rgb(255 255 255 / var(--hl-alpha));
+  }
+
+  .skeuo-key {
+    background-image: linear-gradient(180deg, rgb(var(--key-top)), rgb(var(--key-bottom)));
+    border: 1px solid rgb(var(--shade) / 0.5);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.28),
+      inset 0 -2px 0 rgb(0 0 0 / 0.16),
+      0 8px 14px -8px rgb(var(--shade) / 0.6);
+  }
+  .skeuo-key:hover:not(:disabled) { filter: brightness(1.08); }
+  .skeuo-key:active:not(:disabled) { filter: brightness(0.94); box-shadow: inset 0 3px 6px rgb(0 0 0 / 0.4); }
+
+  /* ---------- raised plate (cards) ---------- */
+  .skeuo-card {
+    background-image: linear-gradient(180deg, rgb(var(--plate-top)), rgb(var(--plate-bottom)));
+    border: 1px solid rgb(var(--color-line));
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / var(--hl-alpha)),
+      0 1px 1px rgb(var(--shade) / 0.06),
+      0 3px 6px rgb(var(--shade) / 0.05),
+      0 14px 28px -16px rgb(var(--shade) / 0.28);
+  }
+  /* A raised plate in the soft amber of a notice. */
+  .skeuo-amber {
+    background-image: linear-gradient(180deg, rgb(var(--color-amber-light)), rgb(var(--color-amber-light) / 0.86));
+  }
+  .skeuo-card-hover { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+  .skeuo-card-hover:hover {
+    transform: translateY(-3px);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / var(--hl-alpha)),
+      0 2px 2px rgb(var(--shade) / 0.06),
+      0 8px 14px rgb(var(--shade) / 0.08),
+      0 24px 40px -18px rgb(var(--shade) / 0.38);
+  }
+
+  /* ---------- recessed well (inputs, image windows, steppers) ---------- */
+  .skeuo-inset {
+    background-image: linear-gradient(180deg, rgb(var(--well-top)), rgb(var(--well-bottom)));
+    border: 1px solid rgb(var(--color-line));
+    box-shadow:
+      inset 0 2px 4px rgb(var(--shade) / 0.16),
+      inset 0 0 0 1px rgb(var(--shade) / 0.03),
+      0 1px 0 rgb(255 255 255 / var(--hl-alpha));
+    transition: box-shadow 0.15s ease, border-color 0.15s ease;
+  }
+  .skeuo-inset:focus,
+  .skeuo-inset:focus-within {
+    border-color: rgb(var(--color-ink));
+    box-shadow:
+      inset 0 2px 4px rgb(var(--shade) / 0.16),
+      0 0 0 3px rgb(211 43 30 / 0.2);
+  }
+
+  /* ---------- glossy pill (badges) ---------- */
+  .skeuo-chip {
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / calc(var(--hl-alpha) * 0.9)), 0 1px 2px rgb(var(--shade) / 0.12);
+  }
+
+  /* ---------- domed bead (category avatars): a lit sphere standing proud of the page ---------- */
+  .skeuo-dome {
+    position: relative;
+    border: 3px solid rgb(var(--plate-top)) !important;
+    box-shadow:
+      inset 0 -8px 12px rgb(var(--shade) / 0.22),
+      inset 0 3px 6px rgb(255 255 255 / 0.5),
+      0 10px 18px -8px rgb(var(--shade) / 0.5);
+  }
+  .skeuo-dome::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 9999px;
+    background: radial-gradient(120% 90% at 30% 8%, rgb(255 255 255 / 0.55), transparent 46%);
+    pointer-events: none;
+  }
+
+
+  /* ---------- picture window (product photos): a recessed white tray, so photos with white backgrounds look intentional ---------- */
+  .skeuo-window {
+    background-color: #fff;
+    border: 1px solid rgb(var(--color-line));
+    box-shadow: inset 0 2px 6px rgb(var(--shade) / 0.18), inset 0 0 0 1px rgb(var(--shade) / 0.04);
+  }
+  /* ---------- bezel (the hero banner): a raised frame around a screen ---------- */
+  .skeuo-bezel {
+    box-shadow:
+      0 0 0 5px rgb(var(--plate-top)),
+      0 0 0 6px rgb(var(--color-line)),
+      0 2px 0 6px rgb(255 255 255 / var(--hl-alpha)),
+      0 28px 48px -22px rgb(var(--shade) / 0.55);
+  }
+
+  /* ---------- brushed metal plate with rivets (the equipment-label look, used sparingly) ---------- */
+  .skeuo-metal {
+    background-image:
+      radial-gradient(circle at 14px 14px, rgb(255 255 255 / 0.95) 0 2px, rgb(0 0 0 / 0.4) 3px, transparent 4.5px),
+      radial-gradient(circle at calc(100% - 14px) 14px, rgb(255 255 255 / 0.95) 0 2px, rgb(0 0 0 / 0.4) 3px, transparent 4.5px),
+      radial-gradient(circle at 14px calc(100% - 14px), rgb(255 255 255 / 0.95) 0 2px, rgb(0 0 0 / 0.4) 3px, transparent 4.5px),
+      radial-gradient(circle at calc(100% - 14px) calc(100% - 14px), rgb(255 255 255 / 0.95) 0 2px, rgb(0 0 0 / 0.4) 3px, transparent 4.5px),
+      repeating-linear-gradient(90deg, rgb(255 255 255 / 0.05) 0 1px, rgb(0 0 0 / 0.05) 1px 2px),
+      linear-gradient(160deg, #4a5059 0%, #2b3037 45%, #3a4047 100%);
+    border: 1px solid #1d2126;
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.25), inset 0 -2px 6px rgb(0 0 0 / 0.5), 0 18px 34px -14px rgb(0 0 0 / 0.7);
+  }
+}
+
+/* ---------- fallbacks: solid surfaces when glass can't or shouldn't be used ---------- */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass, .glass-strong, .glass-bar { background-color: rgb(var(--plate-top)); background-image: none; }
+  .glass-dark { background-color: rgb(26 29 31 / 0.94); background-image: none; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .glass, .glass-strong, .glass-bar { -webkit-backdrop-filter: none; backdrop-filter: none; background-color: rgb(var(--plate-top)); background-image: none; }
+  .glass-dark { -webkit-backdrop-filter: none; backdrop-filter: none; background-color: rgb(26 29 31 / 0.94); background-image: none; }
+  .ambient-bg { display: none; }
+}
+@media (prefers-contrast: more) {
+  .glass, .glass-strong, .glass-bar, .glass-dark { -webkit-backdrop-filter: none; backdrop-filter: none; background-color: rgb(var(--plate-top)); background-image: none; border-color: rgb(var(--color-ink) / 0.5); }
+  .glass-dark { background-color: rgb(26 29 31); }
+}
+@media (forced-colors: active) {
+  .glass, .glass-strong, .glass-bar, .glass-dark, .skeuo-card, .skeuo-inset, .skeuo-plate { -webkit-backdrop-filter: none; backdrop-filter: none; background: Canvas; border: 1px solid CanvasText; box-shadow: none; }
+  .ambient-bg { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ambient-bg::before, .ambient-bg::after { animation: none; }
+  .skeuo-btn:hover:not(:disabled)::after { transform: translateX(-120%); }
+  .glass-interactive:hover, .skeuo-card-hover:hover { transform: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {

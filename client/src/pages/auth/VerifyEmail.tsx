@@ -54,7 +54,7 @@ export default function VerifyEmail() {
   return (
     <div className="container-page flex min-h-[80vh] items-center justify-center py-12">
       <MetaTags title="Verify your email" noindex />
-      <div className="w-full max-w-sm text-center">
+      <div className="glass-strong w-full max-w-sm rounded-2xl p-7 text-center sm:p-8">
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-safety-light">
           <MailCheck className="h-6 w-6 text-safety" />
         </div>

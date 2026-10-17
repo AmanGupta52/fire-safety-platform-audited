@@ -1,6 +1,9 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Receipt, ExternalLink } from 'lucide-react';
-import { api } from '../../lib/apiClient';
+import toast from 'react-hot-toast';
+import { Receipt, Download, Loader2 } from 'lucide-react';
+import { api, apiErrorMessage } from '../../lib/apiClient';
+import { downloadFile } from '../../lib/downloadFile';
 import { Invoice } from '../../types';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { Card } from '../../components/ui/Primitives';
@@ -16,6 +19,19 @@ export default function InvoicesList() {
     queryFn: async () => (await api.get('/invoices')).data.data as Invoice[]
   });
 
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+
+  async function downloadInvoice(inv: Invoice) {
+    setDownloadingId(inv._id);
+    try {
+      await downloadFile(`/invoices/${inv._id}/pdf`, `${inv.invoiceNumber}.pdf`);
+    } catch (err) {
+      toast.error(err instanceof Error && !('isAxiosError' in err) ? err.message : apiErrorMessage(err));
+    } finally {
+      setDownloadingId(null);
+    }
+  }
+
   const columns: Column<Invoice>[] = [
     { header: 'Invoice #', render: (i) => <span className="font-medium text-ink">{i.invoiceNumber}</span> },
     { header: 'Customer', render: (i) => typeof i.user === 'object' ? <div><p className="text-ink">{i.user.name}</p><p className="text-xs text-slateink">{i.user.email}</p></div> : '—' },
@@ -25,10 +41,16 @@ export default function InvoicesList() {
     { header: 'Date', render: (i) => formatDate(i.createdAt) },
     {
       header: '', className: 'text-right',
-      render: (i) => i.pdfUrl && (
-        <a href={i.pdfUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-medium text-brand hover:underline">
-          <ExternalLink className="h-3 w-3" /> PDF
-        </a>
+      render: (i) => (
+        <button
+          type="button"
+          onClick={() => downloadInvoice(i)}
+          disabled={downloadingId === i._id}
+          aria-label={`Download invoice ${i.invoiceNumber} as PDF`}
+          className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-medium text-brand hover:bg-brand-light disabled:opacity-60"
+        >
+          {downloadingId === i._id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />} PDF
+        </button>
       )
     }
   ];

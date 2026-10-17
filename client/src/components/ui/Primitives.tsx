@@ -11,15 +11,31 @@ const badgeTones: Record<BadgeTone, string> = {
   info: 'bg-ink/5 text-ink border-ink/10'
 };
 export function Badge({ tone = 'neutral', children }: { tone?: BadgeTone; children: React.ReactNode }) {
-  return <span className={clsx('inline-flex items-center rounded-sm border px-2 py-0.5 text-xs font-medium', badgeTones[tone])}>{children}</span>;
+  return <span className={clsx('skeuo-chip inline-flex items-center rounded-sm border px-2 py-0.5 text-xs font-medium', badgeTones[tone])}>{children}</span>;
 }
 
 // `transition-shadow` is on every Card by default so the many call sites that add a
 // `hover:shadow-lift`/`hover:shadow-card-hover` className (product cards, order rows, blog
 // cards...) get a smooth animated transition instead of an abrupt shadow swap, without each
 // of them having to remember to add the transition class themselves.
-export function Card({ className, children, onClick }: { className?: string; children: React.ReactNode; onClick?: () => void }) {
-  return <div className={clsx('rounded-card border border-line bg-card shadow-card transition-shadow duration-200', className)} onClick={onClick}>{children}</div>;
+// `variant="raised"` (default) is a physical plate; `variant="glass"` is a frosted panel for cards that sit over
+// the page's soft colour glow (feature panels, summaries). Pass `interactive` for a lift on hover.
+export function Card({
+  className, children, onClick, variant = 'raised', interactive
+}: { className?: string; children: React.ReactNode; onClick?: () => void; variant?: 'raised' | 'glass'; interactive?: boolean }) {
+  return (
+    <div
+      className={clsx(
+        'rounded-card transition-shadow duration-200',
+        variant === 'glass' ? 'glass' : 'skeuo-card',
+        interactive && (variant === 'glass' ? 'glass-interactive' : 'skeuo-card-hover'),
+        className
+      )}
+      onClick={onClick}
+    >
+      {children}
+    </div>
+  );
 }
 
 // Empty state: content loaded successfully, there's just nothing to show. Never paired with

@@ -1,6 +1,9 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { FileBadge, Download } from 'lucide-react';
-import { api } from '../../lib/apiClient';
+import toast from 'react-hot-toast';
+import { FileBadge, Download, Loader2 } from 'lucide-react';
+import { api, apiErrorMessage } from '../../lib/apiClient';
+import { downloadFile } from '../../lib/downloadFile';
 import { Invoice } from '../../types';
 import { Card, EmptyState, ErrorState } from '../../components/ui/Primitives';
 import { SkeletonList } from '../../components/ui/Skeleton';
@@ -11,6 +14,19 @@ export default function MyInvoices() {
     queryKey: ['my-invoices'],
     queryFn: async () => (await api.get('/invoices/my')).data.data as Invoice[]
   });
+
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+
+  async function downloadInvoice(inv: Invoice) {
+    setDownloadingId(inv._id);
+    try {
+      await downloadFile(`/invoices/${inv._id}/pdf`, `${inv.invoiceNumber}.pdf`);
+    } catch (err) {
+      toast.error(err instanceof Error && !('isAxiosError' in err) ? err.message : apiErrorMessage(err));
+    } finally {
+      setDownloadingId(null);
+    }
+  }
 
   return (
     <div>
@@ -32,11 +48,15 @@ export default function MyInvoices() {
               </div>
               <div className="flex items-center gap-4">
                 <p className="text-sm font-medium text-ink">{formatInr(inv.grandTotal)}</p>
-                {inv.pdfUrl && (
-                  <a href={inv.pdfUrl} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-sm font-medium text-safety hover:underline">
-                    <Download className="h-3.5 w-3.5" /> PDF
-                  </a>
-                )}
+                <button
+                  type="button"
+                  onClick={() => downloadInvoice(inv)}
+                  disabled={downloadingId === inv._id}
+                  aria-label={`Download invoice ${inv.invoiceNumber} as PDF`}
+                  className="flex items-center gap-1.5 rounded px-2 py-1.5 text-sm font-medium text-safety hover:bg-safety-light disabled:opacity-60"
+                >
+                  {downloadingId === inv._id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />} PDF
+                </button>
               </div>
             </Card>
           ))}

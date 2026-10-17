@@ -55,6 +55,15 @@ export interface UploadResult {
  * PDFs uploaded as 'image' specially (page rasterization) which isn't needed for documents
  * we only ever want to serve as-is — 'raw' is the correct type for those.
  */
+/**
+ * Cloudinary stores "raw" files (PDFs) under whatever public_id they get, and with none supplied it invents a random
+ * one with NO extension, so the file URL, and the file a person downloads, ends up named like "vyia0znmrxayo42ryonf",
+ * which no computer can open as a PDF. For raw files the extension has to be part of the public_id.
+ */
+export function buildRawPublicId(ext: string): string {
+  return `${Date.now()}-${crypto.randomBytes(6).toString('hex')}.${ext}`;
+}
+
 export async function uploadBuffer(
   buffer: Buffer, folder: string, _filename: string, resourceType: 'image' | 'raw' = 'image'
 ): Promise<UploadResult> {
@@ -90,7 +99,11 @@ export async function uploadBuffer(
   if (env.cloudinary.enabled) {
     return new Promise((resolve, reject) => {
       const stream = cloudinary.uploader.upload_stream(
-        { folder: `fire-safety/${folder}`, resource_type: resourceType },
+        {
+          folder: `fire-safety/${folder}`,
+          resource_type: resourceType,
+          ...(resourceType === 'raw' ? { public_id: buildRawPublicId(detected.ext) } : {})
+        },
         (error, result) => {
           if (error || !result) {
             // Cloudinary's own error (bad/expired credentials, quota, network) is logged in

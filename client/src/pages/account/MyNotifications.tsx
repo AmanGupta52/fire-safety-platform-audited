@@ -38,7 +38,7 @@ export default function MyNotifications() {
       {isLoading ? (
         <SkeletonGroup label="Loading notifications" className="mt-5 flex flex-col gap-2">
           {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="rounded-card border border-line bg-card p-4 shadow-card">
+            <div key={i} className="skeuo-card rounded-card p-4">
               <Skeleton className="h-4 w-40" />
               <Skeleton className="mt-2 h-3 w-full" />
               <Skeleton className="mt-2 h-2.5 w-24" />

@@ -13,7 +13,7 @@ import { MetaTags } from '../../components/seo/MetaTags';
 
 function BlogCardSkeleton() {
   return (
-    <div className="overflow-hidden rounded-card border border-line bg-card shadow-card">
+    <div className="overflow-hidden skeuo-card rounded-card">
       <Skeleton className="aspect-video w-full rounded-none" />
       <div className="p-5">
         <Skeleton className="h-2.5 w-16" />

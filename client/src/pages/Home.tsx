@@ -72,7 +72,7 @@ export default function Home() {
 
       {/* FEATURED PRODUCTS */}
       {bestSellersLoading ? (
-        <section className="border-y border-line bg-card py-16 lg:py-20">
+        <section className="border-y border-line bg-card/60 py-16 lg:py-20">
           <div className="container-page">
             <div className="mb-6 flex items-end justify-between">
               <h2 className="heading text-2xl text-ink">Featured products</h2>
@@ -83,7 +83,7 @@ export default function Home() {
           </div>
         </section>
       ) : bestSellers && bestSellers.length > 0 && (
-        <section className="border-y border-line bg-card py-16 lg:py-20">
+        <section className="border-y border-line bg-card/60 py-16 lg:py-20">
           <div className="container-page">
             <Reveal className="mb-6 flex items-end justify-between">
               <h2 className="heading text-2xl text-ink">Featured products</h2>
@@ -101,7 +101,7 @@ export default function Home() {
       )}
 
       {/* SERVICES */}
-      <section className="border-t border-line bg-card py-16 lg:py-24">
+      <section className="border-t border-line bg-card/60 py-16 lg:py-24">
         <div className="container-page">
           <Reveal className="mx-auto max-w-lg text-center">
             <h2 className="heading text-2xl text-ink">Services that keep you compliant</h2>
@@ -142,17 +142,23 @@ export default function Home() {
       </section>
 
       {/* AMC */}
-      <section className="bg-inverse py-16 text-white lg:py-24">
-        <Reveal className="container-page mx-auto max-w-2xl text-center">
-          <ShieldCheck className="mx-auto h-8 w-8 text-amber" />
-          <h2 className="heading mt-3 text-2xl lg:text-3xl">Never miss a refill or a renewal again</h2>
-          <p className="mt-3 text-slate-400">
-            Register your extinguishers and equipment once — our AMC plans track every refill, inspection
-            and renewal date automatically, with reminders sent before anything lapses.
-          </p>
-          <div className="mt-6 flex flex-wrap justify-center gap-3">
-            <Link to="/services/amc"><Button size="lg">Explore AMC plans</Button></Link>
-            <Link to="/request-quote"><Button size="lg" variant="outlineLight">Request a bulk quote</Button></Link>
+      <section className="relative overflow-hidden bg-inverse py-16 text-white lg:py-24">
+        {/* Two soft coloured glows behind the plate, so the dark band has depth. */}
+        <div aria-hidden="true" className="pointer-events-none absolute -left-24 -top-24 h-80 w-80 rounded-full bg-safety/30 blur-3xl" />
+        <div aria-hidden="true" className="pointer-events-none absolute -bottom-24 -right-16 h-72 w-72 rounded-full bg-amber/20 blur-3xl" />
+        <Reveal className="container-page relative mx-auto max-w-3xl">
+          {/* The equipment-label look: a brushed-metal plate with rivets. */}
+          <div className="skeuo-metal rounded-2xl px-8 py-10 text-center sm:px-14 sm:py-12">
+            <ShieldCheck className="mx-auto h-8 w-8 text-amber" />
+            <h2 className="heading mt-3 text-2xl lg:text-3xl">Never miss a refill or a renewal again</h2>
+            <p className="mt-3 text-white/80">
+              Register your extinguishers and equipment once — our AMC plans track every refill, inspection
+              and renewal date automatically, with reminders sent before anything lapses.
+            </p>
+            <div className="mt-6 flex flex-wrap justify-center gap-3">
+              <Link to="/services/amc"><Button size="lg">Explore AMC plans</Button></Link>
+              <Link to="/request-quote"><Button size="lg" variant="outlineLight">Request a bulk quote</Button></Link>
+            </div>
           </div>
         </Reveal>
       </section>
@@ -169,7 +175,7 @@ export default function Home() {
       </section>
 
       {/* ABOUT */}
-      <section className="border-y border-line bg-paper py-16 lg:py-24">
+      <section className="border-y border-line bg-paper/40 py-16 lg:py-24">
         <div className="container-page grid gap-10 lg:grid-cols-2 lg:items-center">
           <Reveal y={24}>
             <h2 className="heading text-2xl text-ink">A fire safety partner for the long haul</h2>
@@ -217,7 +223,7 @@ export default function Home() {
           </div>
           <SkeletonGroup label="Loading articles" className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="rounded-card border border-line bg-card p-5 shadow-card">
+              <div key={i} className="skeuo-card rounded-card p-5">
                 <Skeleton className="h-2.5 w-16" />
                 <Skeleton className="mt-2.5 h-4 w-full" />
                 <Skeleton className="mt-2 h-3 w-3/4" />
@@ -250,7 +256,7 @@ export default function Home() {
       {/* CONTACT / FINAL CTA */}
       <section className="container-page pb-16 lg:pb-24">
         <Reveal>
-          <Card className="flex flex-col items-center gap-5 bg-safety-light p-10 text-center">
+          <Card variant="glass" className="glass-safety flex flex-col items-center gap-5 p-10 text-center">
             <h2 className="heading text-2xl text-ink">Need a bulk quotation for your building?</h2>
             <p className="max-w-md text-sm text-slateink">
               Tell us about your site — offices, factories, warehouses, schools or hospitals — and we'll send a
@@ -274,7 +280,7 @@ export default function Home() {
 
 function WhyCard({ icon: Icon, value, label }: { icon: typeof Users; value: string; label: string }) {
   return (
-    <div className="rounded-card border border-line border-l-[3px] border-l-safety bg-card p-5 shadow-card">
+    <div className="skeuo-card rounded-card border-l-[3px] border-l-safety p-5">
       <Icon className="h-5 w-5 text-safety" />
       <p className="heading mt-3 text-2xl text-ink">{value}</p>
       <p className="mt-0.5 text-xs text-slateink">{label}</p>
@@ -285,7 +291,7 @@ function WhyCard({ icon: Icon, value, label }: { icon: typeof Users; value: stri
 function ServiceCard({ icon: Icon, title, description, to, price }: { icon: typeof Wrench; title: string; description: string; to: string; price: string }) {
   return (
     <Link to={to} className="group h-full">
-      <div className="h-full rounded-card border border-line border-l-[3px] border-l-ink bg-card p-6 shadow-card transition-all duration-200 group-hover:-translate-y-0.5 group-hover:border-l-safety group-hover:shadow-card-hover">
+      <div className="skeuo-card h-full rounded-card border-l-[3px] border-l-ink p-6 transition-all duration-200 group-hover:-translate-y-0.5 group-hover:border-l-safety group-hover:shadow-card-hover">
         <div className="flex items-start justify-between gap-2">
           <Icon className="h-6 w-6 text-safety" />
           <span className="heading whitespace-nowrap text-xs text-safety">From {price}</span>

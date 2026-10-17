@@ -38,13 +38,13 @@ export function ProductCard({ product }: { product: Product }) {
     <motion.div
       whileHover={{ y: -4 }}
       transition={{ duration: 0.15 }}
-      className="group relative rounded-card border border-line bg-card shadow-card transition-shadow duration-200 hover:shadow-card-hover"
+      className="skeuo-card group relative rounded-card transition-shadow duration-200 hover:shadow-card-hover"
     >
       <button
         onClick={(e) => { e.preventDefault(); toggleWishlist(product._id); }}
         aria-label="Toggle wishlist"
         className={clsx(
-          'absolute right-3 top-3 z-10 rounded-full bg-card/90 p-1.5 shadow-card transition-opacity hover:bg-card',
+          'skeuo-btn skeuo-plate absolute right-3 top-3 z-10 rounded-full p-1.5 transition-opacity',
           'opacity-100 sm:opacity-0 sm:group-hover:opacity-100'
         )}
       >
@@ -54,14 +54,14 @@ export function ProductCard({ product }: { product: Product }) {
       <Link to={`/product/${product.slug}`} className="block">
         <div className="relative">
           {hasDiscount && (
-            <span className="absolute left-3 top-3 z-10 rounded bg-safety px-2 py-1 text-xs font-semibold text-white">
+            <span className="skeuo-primary absolute left-3 top-3 z-10 rounded px-2 py-1 text-xs font-semibold">
               -{discountPercent}%
             </span>
           )}
           <ImageWithFallback
             src={product.images?.[0]?.url}
             alt={product.name}
-            className="rounded-t-card p-6"
+            className="skeuo-window m-3 rounded-lg p-3"
             imgClassName="object-contain transition-transform duration-200 group-hover:scale-105"
             fallbackIcon={FlameKindling}
             fallbackLabel="No image"
@@ -91,7 +91,7 @@ export function ProductCard({ product }: { product: Product }) {
           disabled={outOfStock || isAdding}
           className={clsx(
             'flex w-full items-center justify-center gap-2 rounded-btn py-2 text-xs font-medium transition-colors disabled:opacity-40',
-            justAdded ? 'bg-forest text-white' : 'bg-ink text-on-ink hover:bg-ink-soft'
+            justAdded ? 'skeuo-btn bg-forest text-white' : 'skeuo-btn skeuo-key text-on-ink'
           )}
         >
           {justAdded ? (<><Check className="h-3.5 w-3.5" /> Added</>) : (<><ShoppingCart className="h-3.5 w-3.5" /> Add to cart</>)}

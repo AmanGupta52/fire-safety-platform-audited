@@ -22,7 +22,7 @@ export function AccountLayout() {
     <div className="container-page py-8">
       <MetaTags title="My account" noindex />
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[220px_1fr]">
-        <aside className="flex gap-1 overflow-x-auto lg:flex-col lg:overflow-visible">
+        <aside className="glass flex h-fit gap-1 overflow-x-auto rounded-card p-2 lg:sticky lg:top-24 lg:flex-col lg:overflow-visible">
           {links.map((link) => (
             <NavLink
               key={link.to}
@@ -31,7 +31,7 @@ export function AccountLayout() {
               className={({ isActive }) =>
                 clsx(
                   'flex shrink-0 items-center gap-2.5 whitespace-nowrap rounded px-3 py-2 text-sm font-medium transition-colors',
-                  isActive ? 'bg-ink text-on-ink' : 'text-slateink hover:bg-card'
+                  isActive ? 'skeuo-key text-on-ink' : 'text-slateink hover:bg-ink/10 hover:text-ink'
                 )
               }
             >

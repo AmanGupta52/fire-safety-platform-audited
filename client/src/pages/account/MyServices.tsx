@@ -300,7 +300,7 @@ function RescheduleModal({
             min={todayIST()}
             value={newDate}
             onChange={(e) => setNewDate(e.target.value)}
-            className="w-full rounded-md border border-line bg-card px-3 py-2 text-sm text-ink focus:border-safety focus:outline-none"
+            className="skeuo-inset w-full rounded-md px-3 py-2 text-sm text-ink focus:outline-none"
           />
         </div>
 

@@ -45,7 +45,7 @@ export function SkeletonImage({ className, ratio = 'aspect-square' }: { classNam
  */
 export function SkeletonCard({ className }: { className?: string }) {
   return (
-    <div className={clsx('overflow-hidden rounded-card border border-line bg-card shadow-card', className)}>
+    <div className={clsx('overflow-hidden skeuo-card rounded-card', className)}>
       <SkeletonImage className="rounded-none rounded-t-card" />
       <div className="p-4">
         <Skeleton className="h-2.5 w-16" />
@@ -76,7 +76,7 @@ export function SkeletonCardGrid({ count = 8, className }: { count?: number; cla
  */
 export function SkeletonRow({ className, withTrailing = true }: { className?: string; withTrailing?: boolean }) {
   return (
-    <div className={clsx('flex flex-col gap-3 rounded-card border border-line bg-card p-4 shadow-card sm:flex-row sm:items-center sm:justify-between', className)}>
+    <div className={clsx('flex flex-col gap-3 skeuo-card rounded-card p-4 sm:flex-row sm:items-center sm:justify-between', className)}>
       <div className="flex flex-col gap-1.5">
         <Skeleton className="h-4 w-36" />
         <Skeleton className="h-3 w-48" />
@@ -102,7 +102,7 @@ export function SkeletonList({ count = 4, rowClassName, withTrailing = true }: {
 /** Matches the small stat blocks on AccountOverview / dashboards: an icon, a big number, a label. */
 export function SkeletonStat({ className }: { className?: string }) {
   return (
-    <div className={clsx('rounded-card border border-line bg-card p-4 shadow-card', className)}>
+    <div className={clsx('skeuo-card rounded-card p-4', className)}>
       <Skeleton className="h-4 w-4 rounded-sm" />
       <Skeleton className="mt-3 h-6 w-12" />
       <Skeleton className="mt-1.5 h-3 w-20" />

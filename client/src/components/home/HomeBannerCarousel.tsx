@@ -70,7 +70,7 @@ export function HomeBannerCarousel({ banners, loading, intervalMs = DEFAULT_ROTA
       onClick={clickable ? handleActivate : undefined}
       onKeyDown={clickable ? (e) => (e.key === 'Enter' || e.key === ' ') && handleActivate() : undefined}
       aria-label={clickable ? `Open ${current.title}` : current.title}
-      className={`group relative h-64 w-full overflow-hidden rounded-card border border-line shadow-card outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-safety sm:h-80 lg:h-96 ${clickable ? 'cursor-pointer' : ''}`}
+      className={`skeuo-bezel group relative h-64 w-full overflow-hidden rounded-xl outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-safety sm:h-80 lg:h-96 ${clickable ? 'cursor-pointer' : ''}`}
     >
       {slides.map((banner, index) => (
         <div
@@ -98,13 +98,13 @@ export function HomeBannerCarousel({ banners, loading, intervalMs = DEFAULT_ROTA
 
           {/* Legibility gradient + caption */}
           <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-inverse/85 via-inverse/15 to-transparent px-6 pb-5 pt-16">
-            <p className="heading text-xl text-white sm:text-2xl">{banner.title}</p>
+            <p className="glass-dark heading inline-block max-w-full rounded-xl px-4 py-2 text-xl text-white sm:text-2xl">{banner.title}</p>
           </div>
         </div>
       ))}
 
       {slides.length > 1 && (
-        <div className="absolute right-4 top-4 z-10 flex gap-1.5">
+        <div className="glass-dark absolute right-4 top-4 z-10 flex gap-1.5 rounded-full px-2.5 py-2">
           {slides.map((banner, index) => (
             <button
               key={banner._id}

@@ -43,11 +43,11 @@ export default function Register() {
   return (
     <div className="container-page flex min-h-[80vh] items-center justify-center py-12">
       <MetaTags title="Create your account" noindex />
-      <div className="w-full max-w-md">
+      <div className="glass-strong w-full max-w-md rounded-2xl p-7 sm:p-8">
         <h1 className="heading text-center text-xl text-ink">Create your account</h1>
         <p className="mt-1 text-center text-sm text-slateink">Shop fire safety products and manage your services in one place.</p>
 
-        <div className="mt-5 flex rounded-full border border-line bg-card p-1">
+        <div className="skeuo-inset mt-5 flex rounded-full p-1">
           {(['b2c', 'b2b'] as const).map((t) => (
             <button
               key={t} type="button" onClick={() => setCustomerType(t)}

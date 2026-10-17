@@ -40,7 +40,7 @@ function controlProps(id: string, error?: string, hint?: string) {
 }
 
 const baseInputStyles =
-  'w-full rounded border border-line bg-card px-3.5 py-2.5 text-sm text-ink placeholder:text-slateink/60 focus:border-ink focus:outline-none transition-colors';
+  'skeuo-inset w-full rounded px-3.5 py-2.5 text-sm text-ink placeholder:text-slateink/60 focus:outline-none';
 
 interface InputProps extends InputHTMLAttributes<HTMLInputElement>, FieldWrapProps {}
 export const Input = forwardRef<HTMLInputElement, InputProps>(
@@ -115,7 +115,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
     const id = idProp ?? generatedId;
     return (
       <FieldChrome label={label} error={error} hint={hint} required={required} controlId={id}>
-        <select ref={ref} className={clsx(baseInputStyles, 'bg-card', error && 'border-safety', className)} {...controlProps(id, error, hint)} {...props}>
+        <select ref={ref} className={clsx(baseInputStyles, error && 'border-safety', className)} {...controlProps(id, error, hint)} {...props}>
           {placeholder && <option value="">{placeholder}</option>}
           {options.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
         </select>

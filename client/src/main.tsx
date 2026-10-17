@@ -50,7 +50,22 @@ ReactDOM.createRoot(rootElement).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
       <App />
-      <Toaster position="top-right" toastOptions={{ style: { fontSize: '13px' } }} />
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          // Frosted-glass toasts that follow the light/dark theme (the colours are the CSS variables from index.css).
+          style: {
+            fontSize: '13px',
+            color: 'rgb(var(--color-ink))',
+            background: 'linear-gradient(145deg, rgb(var(--glass-rgb) / 0.9), rgb(var(--glass-rgb) / 0.78))',
+            backdropFilter: 'blur(20px) saturate(170%)',
+            WebkitBackdropFilter: 'blur(20px) saturate(170%)',
+            border: '1px solid rgb(255 255 255 / var(--glass-edge-a))',
+            boxShadow: 'inset 0 1px 0 rgb(255 255 255 / var(--hl-alpha)), 0 12px 28px -10px rgb(var(--shade) / 0.35)',
+            borderRadius: '10px'
+          }
+        }}
+      />
     </QueryClientProvider>
   </React.StrictMode>
 );

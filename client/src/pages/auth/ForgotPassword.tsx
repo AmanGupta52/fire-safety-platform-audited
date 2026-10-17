@@ -31,7 +31,7 @@ export default function ForgotPassword() {
   if (sentTo) {
     return (
       <div className="container-page flex min-h-[80vh] items-center justify-center py-12">
-        <div className="w-full max-w-sm text-center">
+        <div className="glass-strong w-full max-w-sm rounded-2xl p-7 text-center sm:p-8">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-safety-light">
             <MailCheck className="h-6 w-6 text-safety" />
           </div>
@@ -51,7 +51,7 @@ export default function ForgotPassword() {
   return (
     <div className="container-page flex min-h-[80vh] items-center justify-center py-12">
       <MetaTags title="Reset your password" noindex />
-      <div className="w-full max-w-sm">
+      <div className="glass-strong w-full max-w-sm rounded-2xl p-7 sm:p-8">
         <h1 className="heading text-center text-xl text-ink">Forgot your password?</h1>
         <p className="mt-1 text-center text-sm text-slateink">
           Enter the email on your account and we'll send you a reset link.

@@ -74,7 +74,7 @@ function ResultRow({
       // mousedown (not click) so the input keeps focus and the dropdown doesn't close before the choice registers
       onMouseDown={(e) => { e.preventDefault(); onPick(); }}
       onMouseMove={onHover}
-      className={clsx('flex cursor-pointer items-center gap-3 px-3 py-2.5', active ? 'bg-paper' : 'bg-card')}
+      className={clsx('flex cursor-pointer items-center gap-3 px-3 py-2.5 transition-colors', active ? 'bg-ink/10' : 'bg-transparent')}
     >
       <ImageWithFallback
         src={product.image}
@@ -232,8 +232,8 @@ export function ProductSearchBox({
   const panel = open && (
     <div
       className={clsx(
-        'overflow-hidden rounded-card border border-line bg-card',
-        mode === 'popover' ? 'absolute left-0 top-full z-50 mt-2 w-[min(34rem,calc(100vw-2rem))] shadow-raised' : 'mt-3',
+        'glass-strong overflow-hidden rounded-card',
+        mode === 'popover' ? 'absolute left-0 top-full z-50 mt-2 w-[min(34rem,calc(100vw-2rem))]' : 'mt-3',
         variant === 'field' && mode === 'popover' && 'w-full'
       )}
     >
@@ -293,12 +293,12 @@ export function ProductSearchBox({
             />
           ))}
           {hasNextPage && (
-            <li role="presentation" className="bg-card">
+            <li role="presentation">
               <button
                 type="button"
                 onMouseDown={(e) => { e.preventDefault(); loadMore(); }}
                 disabled={isFetchingNextPage}
-                className="flex w-full items-center justify-center gap-2 px-3 py-3 text-xs font-medium text-safety hover:bg-paper disabled:text-slateink"
+                className="flex w-full items-center justify-center gap-2 px-3 py-3 text-xs font-medium text-safety hover:bg-ink/5 disabled:text-slateink"
               >
                 {isFetchingNextPage ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading…</> : `Show more (${Math.max(0, total - items.length)} more)`}
               </button>
@@ -311,7 +311,7 @@ export function ProductSearchBox({
         <button
           type="button"
           onMouseDown={(e) => { e.preventDefault(); submitQuery(); }}
-          className="flex w-full items-center gap-2 border-t border-line bg-paper px-3 py-2.5 text-left text-sm font-medium text-ink hover:bg-slate-100"
+          className="flex w-full items-center gap-2 border-t border-line bg-ink/5 px-3 py-2.5 text-left text-sm font-medium text-ink hover:bg-ink/10"
         >
           <Search className="h-4 w-4 text-slateink" aria-hidden="true" /> See all results for “{trimmed}”
         </button>
@@ -343,8 +343,8 @@ export function ProductSearchBox({
         aria-autocomplete="list"
         aria-activedescendant={activeIndex >= 0 ? optionId(activeIndex) : undefined}
         className={clsx(
-          'w-full border border-line pl-10 pr-9 text-sm text-ink outline-none transition focus:border-ink',
-          variant === 'navbar' ? 'rounded-pill bg-paper py-2.5 focus:bg-card' : 'rounded-btn bg-card py-2.5'
+          'skeuo-inset w-full pl-10 pr-9 text-sm text-ink outline-none',
+          variant === 'navbar' ? 'rounded-pill py-2.5' : 'rounded-btn py-2.5'
         )}
       />
       {query && (

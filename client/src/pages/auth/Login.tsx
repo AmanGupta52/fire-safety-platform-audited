@@ -49,7 +49,7 @@ export default function Login() {
   return (
     <div className="container-page flex min-h-[80vh] items-center justify-center py-12">
       <MetaTags title="Sign in" noindex />
-      <div className="w-full max-w-sm">
+      <div className="glass-strong w-full max-w-sm rounded-2xl p-7 sm:p-8">
         <div className="mb-6 flex items-center justify-center gap-2">
           <div className="flex h-9 w-9 items-center justify-center rounded bg-safety"><FlameKindling className="h-4 w-4 text-white" /></div>
         </div>

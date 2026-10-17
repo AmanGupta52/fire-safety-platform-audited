@@ -257,8 +257,9 @@ export async function generateQuotePdf(input: QuotePdfInput): Promise<{ url: str
 // -------------------------------------------------------------
 // 2. GST TAX INVOICE PDF (Compliant GST Breakup & HSN Codes)
 // -------------------------------------------------------------
-export async function generateInvoicePdf(input: InvoicePdfInput): Promise<{ url: string; publicId?: string }> {
-  const buffer = await buildDocBuffer((doc) => {
+/** Draws the GST tax invoice and returns the PDF bytes (nothing is stored). */
+export async function renderInvoicePdf(input: InvoicePdfInput): Promise<Buffer> {
+  return buildDocBuffer((doc) => {
     const cName = input.company.companyName || input.company.name || 'Fire Safety Platform';
     const cGstin = input.company.gstin || input.company.gstNumber || 'NOT CONFIGURED';
     const cState = input.company.state || 'Maharashtra';
@@ -403,7 +404,10 @@ export async function generateInvoicePdf(input: InvoicePdfInput): Promise<{ url:
     doc.rect(400, y + 16, 140, 36).strokeColor('#E2E8F0').dash(2, { space: 2 }).stroke().undash();
     doc.fontSize(7).font('Helvetica').fillColor('#94A3B8').text('[ Digitally Signed / Authorized Signatory ]', 380, y + 56, { width: 180, align: 'center' });
   });
+}
 
+export async function generateInvoicePdf(input: InvoicePdfInput): Promise<{ url: string; publicId?: string }> {
+  const buffer = await renderInvoicePdf(input);
   return uploadBuffer(buffer, 'invoices', `${input.invoiceNumber}.pdf`, 'raw');
 }
 

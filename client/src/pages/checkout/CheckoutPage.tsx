@@ -191,7 +191,7 @@ export default function CheckoutPage() {
         </div>
 
         <div className="lg:sticky lg:top-24">
-          <Card className="p-5">
+          <Card variant="glass" className="p-5">
             <p className="heading text-sm text-ink">Order summary</p>
             <div className="mt-4 flex flex-col gap-2 text-sm">
               {cart.items.map((item) => (

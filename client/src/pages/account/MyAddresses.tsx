@@ -41,7 +41,7 @@ export default function MyAddresses() {
       {isLoading ? (
         <SkeletonGroup label="Loading addresses" className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
           {Array.from({ length: 2 }).map((_, i) => (
-            <div key={i} className="rounded-card border border-line bg-card p-4 shadow-card">
+            <div key={i} className="skeuo-card rounded-card p-4">
               <div className="flex items-start justify-between">
                 <Skeleton className="h-4 w-24" />
                 <Skeleton className="h-5 w-14 rounded-pill" />

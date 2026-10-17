@@ -27,7 +27,7 @@ export default function FaqPage() {
       </div>
 
       {isLoading ? (
-        <SkeletonGroup label="Loading FAQs" className="mt-6 divide-y divide-line rounded-lg border border-line bg-card">
+        <SkeletonGroup label="Loading FAQs" className="mt-6 divide-y divide-line skeuo-card rounded-lg">
           {Array.from({ length: 5 }).map((_, i) => (
             <div key={i} className="flex items-center justify-between px-5 py-4">
               <Skeleton className="h-4 w-2/3" />
@@ -40,7 +40,7 @@ export default function FaqPage() {
       ) : !data?.length ? (
         <EmptyState icon={HelpCircle} title="No matching FAQs" />
       ) : (
-        <div className="mt-6 divide-y divide-line rounded-lg border border-line bg-card">
+        <div className="mt-6 divide-y divide-line skeuo-card rounded-lg">
           {data.map((faq) => (
             <div key={faq._id}>
               <button onClick={() => setOpenId(openId === faq._id ? null : faq._id)} className="flex w-full items-center justify-between px-5 py-4 text-left">

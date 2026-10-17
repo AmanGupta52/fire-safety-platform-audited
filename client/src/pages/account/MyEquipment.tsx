@@ -57,7 +57,7 @@ export default function MyEquipment() {
       {isLoading ? (
         <SkeletonGroup label="Loading equipment" className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="rounded-card border border-line bg-card p-4 shadow-card">
+            <div key={i} className="skeuo-card rounded-card p-4">
               <div className="flex items-start justify-between">
                 <div className="flex flex-col gap-1.5">
                   <Skeleton className="h-4 w-40" />

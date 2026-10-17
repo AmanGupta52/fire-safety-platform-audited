@@ -15,13 +15,16 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 // `outlineLight` for a secondary-style button placed on a dark section (hero, AMC banner) —
 // a dedicated variant instead of overriding `secondary`'s classes via className, which
 // produced unreliable/near-invisible buttons depending on utility-class order.
+//
+// Look: the filled buttons are tactile parts (see "SURFACES" in index.css): glossy, with a light edge on top, a
+// shadow underneath, and they press IN when clicked. `outlineLight` is frosted glass for use on dark sections.
 const variants = {
-  primary: 'bg-safety text-white hover:bg-safety-dark active:bg-safety-dark',
-  secondary: 'bg-card text-ink border border-ink hover:bg-slate-50',
+  primary: 'skeuo-btn skeuo-primary',
+  secondary: 'skeuo-btn skeuo-plate',
   ghost: 'bg-transparent text-ink hover:bg-slate-50',
-  dark: 'bg-ink text-on-ink hover:bg-ink-soft',
-  danger: 'bg-card text-safety border border-safety/30 hover:bg-safety-light',
-  outlineLight: 'bg-transparent text-white border border-white/40 hover:bg-white/10'
+  dark: 'skeuo-btn skeuo-key text-on-ink',
+  danger: 'skeuo-btn skeuo-plate text-safety',
+  outlineLight: 'skeuo-btn glass-dark text-white hover:brightness-125'
 };
 
 const sizes = {

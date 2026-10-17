@@ -4,7 +4,10 @@ import { User } from '../models/User';
 import { Product } from '../models/Product';
 import { Setting } from '../models/AuditLog';
 import { nextNumber } from './numberingService';
-import { generateInvoicePdf } from './pdfService';
+import path from 'path';
+import fs from 'fs';
+import { IInvoice } from '../models/Invoice';
+import { CompanyInfo, generateInvoicePdf, renderInvoicePdf } from './pdfService';
 import { splitGst } from './pricingService';
 import { sendEmail, emailTemplates } from './emailService';
 import { logger } from '../config/logger';
@@ -189,4 +192,80 @@ export async function tryGenerateInvoiceForOrder(orderId: string) {
     logger.error({ err, orderId }, '[invoiceService] Invoice generation failed; order left intact');
     return null;
   }
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Downloading an invoice
+// ---------------------------------------------------------------------------------------------------------------
+
+const UPLOADS_DIR = path.resolve(__dirname, '../../uploads');
+const MAX_PDF_BYTES = 10 * 1024 * 1024;
+
+const isPdf = (buffer: Buffer) => buffer.length > 4 && buffer.subarray(0, 4).toString('latin1') === '%PDF';
+
+/** The PDF exactly as it was stored (local disk or Cloudinary), or null when it can't be read. Never throws. */
+async function readStoredPdf(url?: string): Promise<Buffer | null> {
+  if (!url) return null;
+  try {
+    const localPrefix = `${env.publicUrl}/uploads/`;
+    if (url.startsWith(localPrefix)) {
+      // Resolve inside the uploads folder only: a stored URL containing ../ must never read other files.
+      const file = path.resolve(UPLOADS_DIR, decodeURIComponent(url.slice(localPrefix.length)));
+      if (!file.startsWith(UPLOADS_DIR + path.sep)) return null;
+      const buffer = fs.readFileSync(file);
+      return isPdf(buffer) ? buffer : null;
+    }
+    // Only our own Cloudinary storage is fetched, so a bad value in the database can't point the server at somewhere else.
+    const remote = new URL(url);
+    if (remote.protocol !== 'https:' || !remote.hostname.endsWith('.cloudinary.com')) return null;
+    const response = await fetch(remote, { signal: AbortSignal.timeout(15_000) });
+    if (!response.ok) return null;
+    if (Number(response.headers.get('content-length') || 0) > MAX_PDF_BYTES) return null;
+    const buffer = Buffer.from(await response.arrayBuffer());
+    return buffer.length <= MAX_PDF_BYTES && isPdf(buffer) ? buffer : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Rebuilds the invoice PDF from the saved invoice (used when the stored file is missing, blocked or not a real PDF). */
+async function renderInvoiceFromRecord(invoice: IInvoice): Promise<Buffer> {
+  const [order, user] = await Promise.all([Order.findById(invoice.order), User.findById(invoice.user)]);
+  const company = invoice.companySnapshot as unknown as CompanyInfo;
+  const customer = invoice.customerSnapshot as Record<string, string | undefined>;
+  const billing = (order?.billingAddress || {}) as Record<string, unknown>;
+  const shippingState = String((order?.shippingAddress as Record<string, unknown> | undefined)?.state || '');
+  return renderInvoicePdf({
+    invoiceNumber: invoice.invoiceNumber,
+    orderNumber: order?.orderNumber,
+    date: invoice.createdAt,
+    company,
+    customer: {
+      name: customer.name || user?.name || 'Customer',
+      companyName: order?.companyName,
+      phone: (billing.phone as string) || user?.phone || '',
+      email: customer.email || user?.email || '',
+      gstNumber: customer.gstNumber,
+      address: customer.address,
+      state: shippingState || company.state
+    },
+    items: invoice.items,
+    totals: {
+      subtotal: invoice.subtotal,
+      discount: invoice.discount,
+      shippingFee: invoice.shippingFee,
+      taxableTotal: invoice.taxableTotal ?? invoice.subtotal - (invoice.discount || 0),
+      totalGst: invoice.totalGst,
+      grandTotal: invoice.grandTotal
+    },
+    isInterState: invoice.items.some((item) => item.igst > 0)
+  });
+}
+
+/** The bytes of a real PDF for this invoice: the stored original when readable, otherwise a faithful rebuild. */
+export async function loadInvoicePdf(invoice: IInvoice): Promise<Buffer> {
+  const stored = await readStoredPdf(invoice.pdfUrl);
+  if (stored) return stored;
+  logger.warn({ invoiceNumber: invoice.invoiceNumber }, '[invoiceService] Stored invoice PDF not readable, rebuilding it from the invoice record');
+  return renderInvoiceFromRecord(invoice);
 }

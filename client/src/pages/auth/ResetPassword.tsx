@@ -44,7 +44,7 @@ export default function ResetPassword() {
   if (!token) {
     return (
       <div className="container-page flex min-h-[80vh] items-center justify-center py-12">
-        <div className="w-full max-w-sm text-center">
+        <div className="glass-strong w-full max-w-sm rounded-2xl p-7 text-center sm:p-8">
           <h1 className="heading text-xl text-ink">Invalid reset link</h1>
           <p className="mt-2 text-sm text-slateink">This link is missing its token. Request a new one.</p>
           <p className="mt-6 text-sm text-slateink">
@@ -58,7 +58,7 @@ export default function ResetPassword() {
   return (
     <div className="container-page flex min-h-[80vh] items-center justify-center py-12">
       <MetaTags title="Choose a new password" noindex />
-      <div className="w-full max-w-sm">
+      <div className="glass-strong w-full max-w-sm rounded-2xl p-7 sm:p-8">
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-safety-light">
           <KeyRound className="h-6 w-6 text-safety" />
         </div>

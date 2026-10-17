@@ -51,7 +51,7 @@ export function CategoryCircles({ categories }: { categories?: Category[] }) {
           type="button"
           onClick={() => scroll(-1)}
           aria-label="Scroll categories left"
-          className="absolute left-0 top-9 z-10 hidden -translate-x-3 items-center justify-center rounded-full border border-line bg-card p-2 text-ink shadow-card transition-transform hover:scale-105 active:scale-95 sm:flex sm:top-11"
+          className="absolute left-0 top-9 z-10 hidden -translate-x-3 items-center justify-center skeuo-btn skeuo-plate rounded-full p-2 transition-transform hover:scale-105 active:scale-95 sm:flex sm:top-11"
         >
           <ChevronLeft className="h-4 w-4" />
         </button>
@@ -72,7 +72,7 @@ export function CategoryCircles({ categories }: { categories?: Category[] }) {
               <ImageWithFallback
                 src={cat.image}
                 alt={cat.name}
-                className="h-20 w-20 rounded-full border border-line shadow-card transition-transform duration-200 group-hover:-translate-y-1 group-hover:shadow-lift sm:h-24 sm:w-24"
+                className="skeuo-dome h-20 w-20 rounded-full transition-transform duration-200 group-hover:-translate-y-1 sm:h-24 sm:w-24"
                 imgClassName="object-cover"
                 fallbackIcon={LayoutGrid}
                 fallbackLabel=""
@@ -88,7 +88,7 @@ export function CategoryCircles({ categories }: { categories?: Category[] }) {
           type="button"
           onClick={() => scroll(1)}
           aria-label="Scroll categories right"
-          className="absolute right-0 top-9 z-10 hidden translate-x-3 items-center justify-center rounded-full border border-line bg-card p-2 text-ink shadow-card transition-transform hover:scale-105 active:scale-95 sm:flex sm:top-11"
+          className="absolute right-0 top-9 z-10 hidden translate-x-3 items-center justify-center skeuo-btn skeuo-plate rounded-full p-2 transition-transform hover:scale-105 active:scale-95 sm:flex sm:top-11"
         >
           <ChevronRight className="h-4 w-4" />
         </button>
