@@ -68,10 +68,14 @@ jobs:
           NODE_ENV: test
           MONGODB_URI_TEST: mongodb://127.0.0.1:27017/fire-safety-ci-test
 
+      # The admin and client builds refuse to run without VITE_API_URL (a production site must never silently call
+      # localhost), so CI has to provide one. This build only proves the code compiles: the address is a placeholder
+      # unless you define a repository variable named VITE_API_URL (Settings > Secrets and variables > Actions > Variables).
       - name: Production build
         run: npm run build
         env:
           NODE_ENV: production
+          VITE_API_URL: ${{ vars.VITE_API_URL || 'https://api.example.com/api' }}
 
   audit:
     name: Dependency audit (informational)
