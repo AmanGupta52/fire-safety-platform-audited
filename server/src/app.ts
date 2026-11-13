@@ -28,7 +28,8 @@ export function createApp(): Express {
   app.use(helmet());
   app.use(
     cors({
-      origin: [env.clientUrl, env.adminUrl],
+      // The website, the admin panel, and the Android app (its WebView runs on https://localhost).
+      origin: [env.clientUrl, env.adminUrl, 'https://localhost', 'capacitor://localhost'],
       credentials: true
     })
   );
