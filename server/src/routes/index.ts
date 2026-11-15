@@ -21,10 +21,12 @@ import { settingRouter, auditLogRouter } from './settingRoutes';
 import uploadRoutes from './uploadRoutes';
 import invoiceRoutes, { paymentRouter } from './invoiceRoutes';
 import addressRoutes from './addressRoutes';
+import deviceRoutes from './deviceRoutes';
 
 const router = Router();
 
 router.use('/auth', authRoutes);
+router.use('/devices', deviceRoutes); // phone push-notification tokens
 router.use('/users', customerRoutes); // customer profile lookups are exposed through /customers for admin; /users kept for spec parity
 router.use('/products', productRoutes);
 router.use('/categories', categoryRouter);
